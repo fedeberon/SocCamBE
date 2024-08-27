@@ -1,5 +1,5 @@
 
-# Soccambe
+# SocCam-BE
 
 Soccambe es un proyecto desarrollado en TypeScript que [describe brevemente el propósito o función del proyecto]. Este README proporciona una guía básica sobre cómo comenzar con el proyecto, los comandos más importantes y algunos detalles útiles.
 
