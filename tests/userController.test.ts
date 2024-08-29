@@ -1,5 +1,5 @@
 import request from 'supertest';
-require("dotenv").config();
+require('dotenv').config();
 import express from 'express';
 import bodyParser from 'body-parser';
 import userRoutes from '../src/router/auth.routes';
@@ -24,7 +24,11 @@ describe('UserController', () => {
   test('should create a new user', async () => {
     const response = await request(app)
       .post('/user')
-      .send({ username: 'testuser', email: 'test@example.com', password: 'password123' });
+      .send({
+        username: 'testuser',
+        email: 'test@example.com',
+        password: 'password123',
+      });
 
     expect(response.status).toBe(201);
     expect(response.body.user).toHaveProperty('id');
@@ -33,10 +37,13 @@ describe('UserController', () => {
 
   test('should get user by ID', async () => {
     // Primero crea un usuario
-    const createdUser = await User.create({ username: 'testuser2', email: 'test2@example.com', password: 'password1234' });
+    const createdUser = await User.create({
+      username: 'testuser2',
+      email: 'test2@example.com',
+      password: 'password1234',
+    });
 
-    const response = await request(app)
-      .get(`/user/${createdUser.id}`);
+    const response = await request(app).get(`/user/${createdUser.id}`);
 
     expect(response.status).toBe(200);
     expect(response.body).toHaveProperty('id');
@@ -45,11 +52,19 @@ describe('UserController', () => {
 
   test('should update user', async () => {
     // Primero crea un usuario
-    const createdUser = await User.create({ username: 'testuser3', email: 'test3@example.com', password: 'password123' });
+    const createdUser = await User.create({
+      username: 'testuser3',
+      email: 'test3@example.com',
+      password: 'password123',
+    });
 
     const response = await request(app)
       .put(`/user/${createdUser.id}`)
-      .send({ username: 'updateduser', email: 'updated@example.com', password: 'newpassword123' });
+      .send({
+        username: 'updateduser',
+        email: 'updated@example.com',
+        password: 'newpassword123',
+      });
 
     expect(response.status).toBe(200);
     expect(response.body.user.username).toBe('updateduser');
@@ -57,10 +72,13 @@ describe('UserController', () => {
 
   test('should delete user', async () => {
     // Primero crea un usuario
-    const createdUser = await User.create({ username: 'testuser4', email: 'test4@example.com', password: 'password123' });
+    const createdUser = await User.create({
+      username: 'testuser4',
+      email: 'test4@example.com',
+      password: 'password123',
+    });
 
-    const response = await request(app)
-      .delete(`/user/${createdUser.id}`);
+    const response = await request(app).delete(`/user/${createdUser.id}`);
 
     expect(response.status).toBe(204);
 
