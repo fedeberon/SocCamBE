@@ -1,7 +1,6 @@
 const { DataTypes, Model } = require('sequelize');
 import sequelize from '../configs/database';
 
-// Define el modelo User
 class User extends Model {
   public id!: number;
   public username!: string;
@@ -38,6 +37,7 @@ User.init(
   {
     sequelize,
     modelName: 'User',
+    timestamps: true,
   }
 );
 
