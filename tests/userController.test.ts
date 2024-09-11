@@ -2,7 +2,7 @@ import request from 'supertest';
 require('dotenv').config();
 import express from 'express';
 import bodyParser from 'body-parser';
-import userRoutes from '../src/router/auth.routes';
+import userRoutes from '../src/router/user.routes';
 import User from '../src/models/user.model';
 import sequelize from '../src/configs/database';
 
