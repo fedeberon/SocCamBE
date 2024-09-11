@@ -1,8 +1,10 @@
+require('dotenv').config();
 import { Request, Response } from 'express';
-import User from '../models/user.model';
 import logger from '../configs/logger';
 import { IUserService } from '../interfaces/IUserService';
 import { UserService } from '../service/UserService';
+import User from '../models/user.model';
+import jwt from 'jsonwebtoken';
 
 class UserController {
   private static userService: IUserService = new UserService();
@@ -86,6 +88,62 @@ class UserController {
     } catch (error) {
       logger.error('Error al eliminar el usuario:', error);
       res.status(500).json({ message: 'Error al eliminar el usuario', error });
+    }
+  }
+  static async login(req: Request, res: Response) {
+    try {
+      const { email, password } = req.body;
+      const user = await UserController.userService.getByEmail(email);
+
+      if (!user) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+      const isValidPassword = user.password === password;
+
+      if (!isValidPassword) {
+        return res.status(401).json({ error: 'Invalid password' });
+      }
+      const jwtSecret = process.env.JWT_SECRET || 'miClaveSecreta';
+      const token = jwt.sign({ userId: user.id }, jwtSecret, {
+        expiresIn: '1h',
+      });
+
+      res.status(200).json({ message: 'Login successful', token });
+    } catch (error) {
+      logger.error('Server error on Login.', error);
+      res.status(500).json({ error: 'Server error' });
+    }
+  }
+  static async register(req: Request, res: Response) {
+    try {
+      const data = req.body;
+
+      if (!data.username || !data.email || !data.password) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      const email = data.email;
+      const existingUser = await User.findOne({ where: { email } });
+
+      if (existingUser) {
+        return res.status(400).json({ error: 'User is already registered' });
+      }
+
+      const newUser = await UserController.userService.create(data);
+      const jwtSecret = process.env.JWT_SECRET || 'miClaveSecreta';
+
+      const token = jwt.sign({ userId: newUser.id }, jwtSecret, {
+        expiresIn: '1h',
+      });
+
+      res.status(201).json({
+        message: 'User registered successfully.',
+        user: newUser,
+        token,
+      });
+    } catch (error) {
+      logger.error('Error al crear el usuario:', error);
+      res.status(500).json({ message: 'Error al crear el usuario', error });
     }
   }
 }

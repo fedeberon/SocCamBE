@@ -31,4 +31,11 @@ export class UserService implements IUserService {
     });
     return deleted;
   }
+  async getByEmail(email: string): Promise<User | null> {
+    const user = User.findOne({ where: { email } });
+    if (!user) {
+      return Promise.resolve(null);
+    }
+    return user;
+  }
 }

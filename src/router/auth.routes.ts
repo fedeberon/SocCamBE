@@ -1,12 +1,9 @@
 import { Router } from 'express';
 import UserController from '../controllers/user.controller';
 
-const userRouter = Router();
+const authRouter = Router();
 
-userRouter.get('/', UserController.get);
-userRouter.get('/:id', UserController.getById);
-userRouter.post('/', UserController.create);
-userRouter.put('/:id', UserController.update);
-userRouter.delete('/:id', UserController.delete);
+authRouter.post('/login', UserController.login);
+authRouter.post('/register', UserController.register);
 
-export default userRouter;
+export default authRouter;
