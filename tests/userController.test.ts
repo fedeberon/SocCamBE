@@ -2,7 +2,7 @@ import request from 'supertest';
 require('dotenv').config();
 import express from 'express';
 import bodyParser from 'body-parser';
-import userRoutes from '../src/router/auth.routes';
+import userRoutes from '../src/router/user.routes';
 import User from '../src/models/user.model';
 import sequelize from '../src/configs/database';
 
@@ -22,13 +22,11 @@ afterAll(async () => {
 
 describe('UserController', () => {
   test('should create a new user', async () => {
-    const response = await request(app)
-      .post('/user')
-      .send({
-        username: 'testuser',
-        email: 'test@example.com',
-        password: 'password123',
-      });
+    const response = await request(app).post('/user').send({
+      username: 'testuser',
+      email: 'test@example.com',
+      password: 'password123',
+    });
 
     expect(response.status).toBe(201);
     expect(response.body.user).toHaveProperty('id');
@@ -58,13 +56,11 @@ describe('UserController', () => {
       password: 'password123',
     });
 
-    const response = await request(app)
-      .put(`/user/${createdUser.id}`)
-      .send({
-        username: 'updateduser',
-        email: 'updated@example.com',
-        password: 'newpassword123',
-      });
+    const response = await request(app).put(`/user/${createdUser.id}`).send({
+      username: 'updateduser',
+      email: 'updated@example.com',
+      password: 'newpassword123',
+    });
 
     expect(response.status).toBe(200);
     expect(response.body.user.username).toBe('updateduser');

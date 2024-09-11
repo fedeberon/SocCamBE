@@ -1,4 +1,3 @@
-
 # SocCam-BE
 
 Soccambe es un proyecto desarrollado en TypeScript que [describe brevemente el propósito o función del proyecto]. Este README proporciona una guía básica sobre cómo comenzar con el proyecto, los comandos más importantes y algunos detalles útiles.
@@ -76,6 +75,8 @@ Las contribuciones son bienvenidas. Por favor, sigue los siguientes pasos:
 ## Licencia
 
 Este proyecto está bajo la licencia [MIT](LICENSE).
+
 ```
 
 Este `README.md` ofrece una guía básica para cualquier persona que quiera entender, configurar y colaborar en tu proyecto. Puedes adaptarlo según las características específicas de tu proyecto.
+```
