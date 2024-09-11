@@ -1,16 +1,20 @@
 import { Request, Response } from 'express';
 import User from '../models/user.model';
 import logger from '../configs/logger';
+import { IUserService } from '../interfaces/IUserService';
+import { UserService } from '../service/UserService';
 
 class UserController {
+  private static userService: IUserService = new UserService();
+
   static async create(req: Request, res: Response) {
     try {
-      const { username, email, password } = req.body;
-      if (!username || !email || !password) {
+      const data = req.body;
+      if (!data.username || !data.email || !data.password) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
-      const user = await User.create({ username, email, password });
+      const user = await UserController.userService.create(data);
 
       res.status(201).json({ message: 'Usuario creado exitosamente', user });
     } catch (error) {
@@ -20,7 +24,9 @@ class UserController {
   }
   static async getById(req: Request, res: Response) {
     try {
-      const user = await User.findByPk(req.params.id);
+      const user = await UserController.userService.getById(
+        parseInt(req.params.id)
+      );
       if (!user) {
         res.status(404).json({ message: 'Usuario no encontrado' });
         return;
@@ -33,7 +39,7 @@ class UserController {
   }
   static async get(req: Request, res: Response) {
     try {
-      const users = await User.findAll();
+      const users = await UserController.userService.getAll();
       res.status(200).json(users);
     } catch (error) {
       logger.error('Error al obtener los usuarios:', error);
@@ -42,22 +48,20 @@ class UserController {
   }
   static async update(req: Request, res: Response) {
     try {
-      const { username, email, password } = req.body;
-      const [updated] = await User.update(
-        { username, email, password },
-        {
-          where: { id: req.params.id },
-        }
+      const body = req.body;
+      const updated = await UserController.userService.update(
+        parseInt(req.params.id),
+        body
       );
 
       if (updated) {
-        const updatedUser = await User.findByPk(req.params.id);
-        res
-          .status(200)
-          .json({
-            message: 'Usuario actualizado exitosamente',
-            user: updatedUser,
-          });
+        const updatedUser = await UserController.userService.getById(
+          parseInt(req.params.id)
+        );
+        res.status(200).json({
+          message: 'Usuario actualizado exitosamente',
+          user: updatedUser,
+        });
       } else {
         res.status(404).json({ message: 'Usuario no encontrado' });
       }
@@ -70,9 +74,9 @@ class UserController {
   }
   static async delete(req: Request, res: Response) {
     try {
-      const deleted = await User.destroy({
-        where: { id: req.params.id },
-      });
+      const deleted = await UserController.userService.delete(
+        parseInt(req.params.id)
+      );
 
       if (deleted) {
         res.status(204).json({ message: 'Usuario eliminado exitosamente' });
