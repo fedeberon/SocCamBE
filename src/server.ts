@@ -3,6 +3,7 @@ import express from 'express';
 import sequelize from './configs/database';
 import userRouter from './router/user.routes';
 import authRouter from './router/auth.routes';
+import socioRoutes from './router/socio.routes';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -15,6 +16,8 @@ app.get('/', (req, res) => {
 
 app.use('/user', userRouter);
 app.use('/auth', authRouter);
+app.use('/api', socioRoutes);
+
 
 sequelize.sync().then(() => {
   app.listen(PORT, () => {
