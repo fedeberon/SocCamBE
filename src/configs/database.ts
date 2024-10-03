@@ -13,7 +13,7 @@ const sequelize = new Sequelize({
       trustServerCertificate: false
     }
   },
-  logging: console.log 
+  logging: console.log  
 });
 
 async function testConnection() {
