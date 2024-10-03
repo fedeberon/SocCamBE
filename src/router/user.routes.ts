@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import UserController from '../controllers/user.controller';
-import authMiddleware from '../middleware/authMiddleware';
+import {checkJwt} from '../middleware/authMiddleware';
+
 
 const userRouter = Router();
 
-userRouter.get('/', authMiddleware, UserController.get);
-userRouter.get('/:id', authMiddleware, UserController.getById);
-userRouter.post('/', authMiddleware, UserController.create);
-userRouter.put('/:id', authMiddleware, UserController.update);
-userRouter.delete('/:id', authMiddleware, UserController.delete);
+userRouter.get('/',checkJwt , UserController.get);
+userRouter.get('/:id',checkJwt, UserController.getById);
+userRouter.post('/',checkJwt, UserController.create);
+userRouter.put('/:id',checkJwt, UserController.update);
+userRouter.delete('/:id',checkJwt, UserController.delete);
 
 export default userRouter;
