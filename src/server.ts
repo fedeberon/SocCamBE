@@ -3,6 +3,7 @@ import express from 'express';
 import sequelize from './configs/database';
 import userRouter from './router/user.routes';
 import authRouter from './router/auth.routes';
+import socioRoutes from './router/socio.routes';
 import {checkJwt,handleAuthErrors} from './middleware/authMiddleware';
 import cors from 'cors';
 
@@ -23,6 +24,8 @@ app.use(checkJwt)
 app.use(handleAuthErrors)
 app.use('/user', userRouter);
 app.use('/auth', authRouter);
+app.use('/api', socioRoutes);
+
 
 
 sequelize.sync().then(() => {
