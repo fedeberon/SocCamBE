@@ -1,26 +1,28 @@
 const jwt = require('jsonwebtoken');
 import { Request, Response, NextFunction } from 'express';
 import logger from '../configs/logger';
+import { auth, requiredScopes } from 'express-oauth2-jwt-bearer';
 
-export default function authMiddleware(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
-  const authHeader = req.header('Authorization');
+const checkJwt = auth({
+  audience: `${process.env.AUDIENCE}`,
+  issuerBaseURL: 'https://dev-je4nmgqlgpt4ne2e.us.auth0.com',
+  tokenSigningAlg: 'RS256'
+});
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized access' });
+const handleAuthErrors = (err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err.name === 'UnauthorizedError') {
+    logger.error(`JWT Error: ${err.message}`);
+    return res.status(401).json({
+      error: 'invalid_token',
+      message: 'Invalid or missing token. Please authenticate.'
+    });
   }
 
-  const token = authHeader.substring(7);
-  const jwtSecret = process.env.JWT_SECRET || 'miClaveSecreta';
+  logger.error(`Error: ${err.message}`);
+  return res.status(500).json({
+    error: 'internal_error',
+    message: 'An internal server error occurred.'
+  });
+};
 
-  try {
-    req.user = jwt.verify(token, jwtSecret);
-    next();
-  } catch (error) {
-    logger.error(error);
-    return res.status(401).json({ error: 'Invalid token' });
-  }
-}
+export { checkJwt, handleAuthErrors };
