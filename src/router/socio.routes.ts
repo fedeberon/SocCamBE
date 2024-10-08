@@ -1,10 +1,12 @@
 import { Router } from 'express';
-import { getSocios, getSocioById } from '../controllers/socio.controller';
+import { getSocios, getSocioById, getSociosByEmail } from '../controllers/socio.controller';
+import {checkJwt} from '../middleware/authMiddleware';
 
 const socioRoutes  = Router();
 
-socioRoutes .get('/socios', getSocios);
-socioRoutes .get('/socios/:id', getSocioById);
+socioRoutes .get('/',checkJwt, getSocios);
+socioRoutes .get('/:id',checkJwt, getSocioById);
+socioRoutes.get('/email/:email', checkJwt, getSociosByEmail);
 
 
-export default socioRoutes ;
+export default socioRoutes;

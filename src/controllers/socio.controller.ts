@@ -23,3 +23,20 @@ export const getSocioById = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error al obtener el socio', error });
   }
 };
+
+export const getSociosByEmail = async (req: Request, res: Response) => {
+    try {
+      const { email } = req.params;
+      const socios = await Socio.findAll({
+        where: { socio_mail: email }
+      });
+  
+      if (socios.length > 0) {
+        res.json(socios);
+      } else {
+        res.status(404).json({ message: 'No se encontraron socios para este correo' });
+      }
+    } catch (error) {
+      res.status(500).json({ message: 'Error al obtener los socios por correo', error });
+    }
+  };
