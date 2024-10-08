@@ -24,7 +24,7 @@ app.use(checkJwt)
 app.use(handleAuthErrors)
 app.use('/user', userRouter);
 app.use('/auth', authRouter);
-app.use('/api', socioRoutes);
+app.use('/socio', socioRoutes);
 
 
 
