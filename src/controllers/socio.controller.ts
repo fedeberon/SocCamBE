@@ -40,3 +40,22 @@ export const getSociosByEmail = async (req: Request, res: Response) => {
       res.status(500).json({ message: 'Error al obtener los socios por correo', error });
     }
   };
+
+  export const getSociosByMatricula = async (req: Request, res: Response) => {
+    try {
+      const { matricula } = req.params;
+      const socios = await Socio.findAll({
+        where: { socio_numero: matricula }
+      });
+  
+      if (socios.length > 0) {
+        res.json(socios);
+      } else {
+        res.status(404).json({ message: 'No se encontraron socios para esta matrícula' });
+      }
+    } catch (error) {
+      res.status(500).json({ message: 'Error al obtener los socios por matrícula', error });
+    }
+  };
+
+  
