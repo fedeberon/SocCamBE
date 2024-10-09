@@ -27,7 +27,6 @@ app.use('/auth', authRouter);
 app.use('/socio', socioRoutes);
 
 
-
 sequelize.sync().then(() => {
   app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
