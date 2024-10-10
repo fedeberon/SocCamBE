@@ -1,0 +1,38 @@
+# Ignorar node_modules, ya que se instalan dentro del contenedor
+node_modules
+npm-debug.log
+
+# Ignorar archivos de entorno
+.env
+.env.local
+.env.*.local
+
+# Ignorar carpetas de logs
+logs
+*.log
+
+# Ignorar archivos temporales
+tmp
+temp
+*.tmp
+
+# Ignorar archivos de pruebas
+coverage
+*.test.js
+*.spec.js
+
+# Ignorar configuraciones locales de IDEs
+.vscode/
+.idea/
+
+# Ignorar archivos de git
+.git
+.gitignore
+
+# Ignorar Dockerfile
+Dockerfile
+Dockerfile.*
+
+# Ignorar archivos de configuración específicos del sistema operativo
+.DS_Store
+Thumbs.db
