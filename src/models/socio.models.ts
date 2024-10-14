@@ -1,44 +1,69 @@
-import { Model, DataTypes } from 'sequelize';
+import { Model, DataTypes, HasManyGetAssociationsMixin } from 'sequelize';
 import sequelize from '../configs/database';
 
 class Socio extends Model {
-  public socio_id!: number;
-  public socio_nombre!: string;
-  public socio_apellido!: string;
-  public socio_nacionalidad!: string;
-  public socio_dni!: string;
-  public socio_fechaNacimiento!: Date;
-  public socio_cuit!: string;
-  public socio_mail!: string;
-  public socio_firma!: string;
-  public socio_tipoEmpresa!: string;
-  public socio_domicilio!: string;
-  public socio_telefono!: string;
-  public socio_tipoSocio!: string;
-  public socio_numero!: number;
-  public socio_fechaAprobacion!: Date;
-  public socio_acta!: string;
-  public socio_padrino1!: string;
-  public socio_padrino2!: string;
-  public socio_sector!: string;
-  public socio_deleted!: boolean;
-  public socio_tieneCajaSeguridad!: boolean;
-  public socio_estado!: string;
-  public socio_modificado!: Date;
-  public socio_motivoBaja!: string;
-  public socio_gestion!: string;
-  public socio_segmento!: string;
-  public socio_habilitacion!: string;
-  public socio_rubro!: string;
-  public socio_localidad!: string;
-  public socio_condicionFiscal!: string;
-  public socio_celular!: string;
-  public socio_otroTelefono!: string;
-  public socio_tarjetaEntregada!: boolean;
-  public socio_tarjetaFechaEntrega!: Date;
-  public socio_Campanias!: string;
-  public socio_enviarMail!: boolean;
+  private socio_id!: number;
+  private socio_nombre!: string;
+  private socio_apellido!: string;
+  private socio_nacionalidad!: string;
+  private socio_dni!: string;
+  private socio_fechaNacimiento!: Date;
+  private socio_cuit!: string;
+  private socio_mail!: string;
+  private socio_firma!: string;
+  private socio_tipoEmpresa!: string;
+  private socio_domicilio!: string;
+  private socio_telefono!: string;
+  private socio_tipoSocio!: string;
+  private socio_numero!: number;
+  private socio_fechaAprobacion!: Date;
+  private socio_acta!: string;
+  private socio_padrino1!: string;
+  private socio_padrino2!: string;
+  private socio_sector!: string;
+  private socio_deleted!: boolean;
+  private socio_tieneCajaSeguridad!: boolean;
+  private socio_estado!: string;
+  private socio_modificado!: Date;
+  private socio_motivoBaja!: string;
+  private socio_gestion!: string;
+  private socio_segmento!: string;
+  private socio_habilitacion!: string;
+  private socio_rubro!: string;
+  private socio_localidad!: string;
+  private socio_condicionFiscal!: string;
+  private socio_celular!: string;
+  private socio_otroTelefono!: string;
+  private socio_tarjetaEntregada!: boolean;
+  private socio_tarjetaFechaEntrega!: Date;
+  private socio_Campanias!: string;
+  private socio_enviarMail!: boolean;
+
+  public getId(): number {
+    return this.socio_id;
+  }
+
+  public getNombre(): string {
+    return this.socio_nombre;
+  }
+
+  public getApellido(): string {
+    return this.socio_apellido;
+  }
+
+  public getEmail(): string {
+    return this.socio_mail;
+  }
+
+  public getNacionalidad(): string {
+    return this.socio_nacionalidad;
+  }
+
+  public getDni(): string {
+    return this.socio_dni;
+  }
 }
+
 
 Socio.init({
   socio_id: {
