@@ -4,6 +4,7 @@ import sequelize from './configs/database';
 import userRouter from './router/user.routes';
 import authRouter from './router/auth.routes';
 import socioRoutes from './router/socio.routes';
+import pagosSociosRoutes from './router/pagosSocios.routes';
 import {checkJwt,handleAuthErrors} from './middleware/authMiddleware';
 import cors from 'cors';
 
@@ -25,6 +26,7 @@ app.use(handleAuthErrors)
 app.use('/user', userRouter);
 app.use('/auth', authRouter);
 app.use('/socio', socioRoutes);
+app.use('/pagos-socios', pagosSociosRoutes);
 
 
 sequelize.sync().then(() => {
