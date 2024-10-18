@@ -15,7 +15,6 @@ class PagosSociosService {
     });
   }
 
-  // Aquí puedes agregar más métodos según tus necesidades
 }
 
 export default new PagosSociosService();
