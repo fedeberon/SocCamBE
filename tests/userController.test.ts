@@ -1,85 +1,372 @@
-import request from 'supertest';
-require('dotenv').config();
-import express from 'express';
-import bodyParser from 'body-parser';
-import userRoutes from '../src/router/user.routes';
-import User from '../src/models/user.model';
-import sequelize from '../src/configs/database';
+import { Request, Response } from 'express';
+import UserController from '../src/controllers/user.controller';
+import { UserService } from '../src/service/UserService';
+import jwt from 'jsonwebtoken';
 
-// Configura la aplicación Express para las pruebas
-const app = express();
-app.use(bodyParser.json());
-app.use('/user', userRoutes);
+// Mock de dotenv
+jest.mock('dotenv', () => ({
+  config: jest.fn()
+}));
 
-// Configura la base de datos para pruebas
-beforeAll(async () => {
-  await sequelize.sync({ force: true }); // Reinicia la base de datos antes de las pruebas
+// Mock del logger
+jest.mock('../src/configs/logger', () => ({
+  error: jest.fn(),
+  info: jest.fn()
+}));
+
+// Mock de jsonwebtoken
+jest.mock('jsonwebtoken', () => ({
+  sign: jest.fn().mockReturnValue('mock-token')
+}));
+
+// Mock de la base de datos
+jest.mock('../src/configs/database', () => {
+  return {
+    authenticate: jest.fn().mockResolvedValue(true),
+    define: jest.fn(),
+    sync: jest.fn().mockResolvedValue(true),
+    __esModule: true,
+    default: {
+      authenticate: jest.fn().mockResolvedValue(true),
+      define: jest.fn(),
+      sync: jest.fn().mockResolvedValue(true),
+    }
+  };
 });
 
-afterAll(async () => {
-  await sequelize.close(); // Cierra la conexión después de las pruebas
+// Mock del modelo User
+jest.mock('../src/models/user.model', () => {
+  return {
+    __esModule: true,
+    default: {
+      findOne: jest.fn(),
+      findAll: jest.fn(),
+      findByPk: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      destroy: jest.fn(),
+    }
+  };
 });
+
+// Mock del servicio
+jest.mock('../src/service/UserService');
 
 describe('UserController', () => {
-  test('should create a new user', async () => {
-    const response = await request(app).post('/user').send({
-      username: 'testuser',
-      email: 'test@example.com',
-      password: 'password123',
-    });
+  let mockRequest: Partial<Request>;
+  let mockResponse: Partial<Response>;
+  let responseObject: any;
 
-    expect(response.status).toBe(201);
-    expect(response.body.user).toHaveProperty('id');
-    expect(response.body.user.username).toBe('testuser');
+  beforeEach(() => {
+    responseObject = {
+      json: jest.fn(),
+      status: jest.fn().mockReturnThis(),
+    };
+    mockRequest = {};
+    mockResponse = responseObject;
   });
 
-  test('should get user by ID', async () => {
-    // Primero crea un usuario
-    const createdUser = await User.create({
-      username: 'testuser2',
-      email: 'test2@example.com',
-      password: 'password1234',
-    });
-
-    const response = await request(app).get(`/user/${createdUser.id}`);
-
-    expect(response.status).toBe(200);
-    expect(response.body).toHaveProperty('id');
-    expect(response.body.username).toBe('testuser2');
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
-  test('should update user', async () => {
-    // Primero crea un usuario
-    const createdUser = await User.create({
-      username: 'testuser3',
-      email: 'test3@example.com',
-      password: 'password123',
+  describe('create', () => {
+    it('debería crear un usuario exitosamente', async () => {
+      const mockUser = {
+        id: 1,
+        username: 'testuser',
+        email: 'test@test.com',
+        password: 'password123'
+      };
+
+      mockRequest = {
+        body: mockUser
+      };
+
+      (UserService.prototype.create as jest.Mock).mockResolvedValue(mockUser);
+
+      await UserController.create(mockRequest as Request, mockResponse as Response);
+
+      expect(responseObject.status).toHaveBeenCalledWith(201);
+      expect(responseObject.json).toHaveBeenCalledWith({
+        message: 'Usuario creado exitosamente',
+        user: mockUser
+      });
     });
 
-    const response = await request(app).put(`/user/${createdUser.id}`).send({
-      username: 'updateduser',
-      email: 'updated@example.com',
-      password: 'newpassword123',
-    });
+    it('debería retornar error 400 si faltan campos requeridos', async () => {
+      mockRequest = {
+        body: {
+          username: 'testuser'
+        }
+      };
 
-    expect(response.status).toBe(200);
-    expect(response.body.user.username).toBe('updateduser');
+      await UserController.create(mockRequest as Request, mockResponse as Response);
+
+      expect(responseObject.status).toHaveBeenCalledWith(400);
+      expect(responseObject.json).toHaveBeenCalledWith({
+        error: 'Missing required fields'
+      });
+    });
   });
 
-  test('should delete user', async () => {
-    // Primero crea un usuario
-    const createdUser = await User.create({
-      username: 'testuser4',
-      email: 'test4@example.com',
-      password: 'password123',
+  describe('getById', () => {
+    it('debería obtener un usuario por ID exitosamente', async () => {
+      const mockUser = {
+        id: 1,
+        username: 'testuser',
+        email: 'test@test.com'
+      };
+
+      mockRequest = {
+        params: { id: '1' }
+      };
+
+      (UserService.prototype.getById as jest.Mock).mockResolvedValue(mockUser);
+
+      await UserController.getById(mockRequest as Request, mockResponse as Response);
+
+      expect(responseObject.status).toHaveBeenCalledWith(200);
+      expect(responseObject.json).toHaveBeenCalledWith(mockUser);
     });
 
-    const response = await request(app).delete(`/user/${createdUser.id}`);
+    it('debería retornar 404 si el usuario no existe', async () => {
+      mockRequest = {
+        params: { id: '999' }
+      };
 
-    expect(response.status).toBe(204);
+      (UserService.prototype.getById as jest.Mock).mockResolvedValue(null);
 
-    // Verificar que el usuario ha sido eliminado
-    const deletedUser = await User.findByPk(createdUser.id);
-    expect(deletedUser).toBeNull();
+      await UserController.getById(mockRequest as Request, mockResponse as Response);
+
+      expect(responseObject.status).toHaveBeenCalledWith(404);
+      expect(responseObject.json).toHaveBeenCalledWith({
+        message: 'Usuario no encontrado'
+      });
+    });
+  });
+
+  describe('get', () => {
+    it('debería obtener todos los usuarios exitosamente', async () => {
+      const mockUsers = [
+        { id: 1, username: 'user1', email: 'user1@test.com' },
+        { id: 2, username: 'user2', email: 'user2@test.com' }
+      ];
+
+      (UserService.prototype.getAll as jest.Mock).mockResolvedValue(mockUsers);
+
+      await UserController.get(mockRequest as Request, mockResponse as Response);
+
+      expect(responseObject.status).toHaveBeenCalledWith(200);
+      expect(responseObject.json).toHaveBeenCalledWith(mockUsers);
+    });
+  });
+
+  describe('update', () => {
+    it('debería actualizar un usuario exitosamente', async () => {
+      const mockUser = {
+        id: 1,
+        username: 'updateduser',
+        email: 'updated@test.com'
+      };
+
+      mockRequest = {
+        params: { id: '1' },
+        body: mockUser
+      };
+
+      (UserService.prototype.update as jest.Mock).mockResolvedValue(true);
+      (UserService.prototype.getById as jest.Mock).mockResolvedValue(mockUser);
+
+      await UserController.update(mockRequest as Request, mockResponse as Response);
+
+      expect(responseObject.status).toHaveBeenCalledWith(200);
+      expect(responseObject.json).toHaveBeenCalledWith({
+        message: 'Usuario actualizado exitosamente',
+        user: mockUser
+      });
+    });
+
+    it('debería retornar 404 si el usuario a actualizar no existe', async () => {
+      mockRequest = {
+        params: { id: '999' },
+        body: { username: 'nonexistent' }
+      };
+
+      (UserService.prototype.update as jest.Mock).mockResolvedValue(null);
+
+      await UserController.update(mockRequest as Request, mockResponse as Response);
+
+      expect(responseObject.status).toHaveBeenCalledWith(404);
+      expect(responseObject.json).toHaveBeenCalledWith({
+        message: 'Usuario no encontrado'
+      });
+    });
+  });
+
+  describe('delete', () => {
+    it('debería eliminar un usuario exitosamente', async () => {
+      mockRequest = {
+        params: { id: '1' }
+      };
+
+      (UserService.prototype.delete as jest.Mock).mockResolvedValue(true);
+
+      await UserController.delete(mockRequest as Request, mockResponse as Response);
+
+      expect(responseObject.status).toHaveBeenCalledWith(204);
+      expect(responseObject.json).toHaveBeenCalledWith({
+        message: 'Usuario eliminado exitosamente'
+      });
+    });
+
+    it('debería retornar 404 si el usuario a eliminar no existe', async () => {
+      mockRequest = {
+        params: { id: '999' }
+      };
+
+      (UserService.prototype.delete as jest.Mock).mockResolvedValue(false);
+
+      await UserController.delete(mockRequest as Request, mockResponse as Response);
+
+      expect(responseObject.status).toHaveBeenCalledWith(404);
+      expect(responseObject.json).toHaveBeenCalledWith({
+        message: 'Usuario no encontrado'
+      });
+    });
+  });
+
+  describe('login', () => {
+    it('debería realizar login exitosamente', async () => {
+      const mockUser = {
+        id: 1,
+        email: 'test@test.com',
+        password: 'password123'
+      };
+
+      mockRequest = {
+        body: {
+          email: 'test@test.com',
+          password: 'password123'
+        }
+      };
+
+      (UserService.prototype.getByEmail as jest.Mock).mockResolvedValue(mockUser);
+      (jwt.sign as jest.Mock).mockReturnValue('mock-token');
+
+      await UserController.login(mockRequest as Request, mockResponse as Response);
+
+      expect(responseObject.status).toHaveBeenCalledWith(200);
+      expect(responseObject.json).toHaveBeenCalledWith({
+        message: 'Login successful',
+        token: 'mock-token'
+      });
+    });
+
+    it('debería retornar 404 si el usuario no existe', async () => {
+      mockRequest = {
+        body: {
+          email: 'nonexistent@test.com',
+          password: 'password123'
+        }
+      };
+
+      (UserService.prototype.getByEmail as jest.Mock).mockResolvedValue(null);
+
+      await UserController.login(mockRequest as Request, mockResponse as Response);
+
+      expect(responseObject.status).toHaveBeenCalledWith(404);
+      expect(responseObject.json).toHaveBeenCalledWith({
+        error: 'Usuario no encontrado'
+      });
+    });
+
+    it('debería retornar 401 si la contraseña es inválida', async () => {
+      const mockUser = {
+        id: 1,
+        email: 'test@test.com',
+        password: 'correctpassword'
+      };
+
+      mockRequest = {
+        body: {
+          email: 'test@test.com',
+          password: 'wrongpassword'
+        }
+      };
+
+      (UserService.prototype.getByEmail as jest.Mock).mockResolvedValue(mockUser);
+
+      await UserController.login(mockRequest as Request, mockResponse as Response);
+
+      expect(responseObject.status).toHaveBeenCalledWith(401);
+      expect(responseObject.json).toHaveBeenCalledWith({
+        error: 'Invalid password'
+      });
+    });
+  });
+
+  describe('register', () => {
+    it('debería registrar un nuevo usuario exitosamente', async () => {
+      const mockUser = {
+        id: 1,
+        username: 'newuser',
+        email: 'new@test.com',
+        password: 'password123'
+      };
+
+      mockRequest = {
+        body: mockUser
+      };
+
+      (UserService.prototype.create as jest.Mock).mockResolvedValue(mockUser);
+      (jwt.sign as jest.Mock).mockReturnValue('mock-token');
+
+      await UserController.register(mockRequest as Request, mockResponse as Response);
+
+      expect(responseObject.status).toHaveBeenCalledWith(201);
+      expect(responseObject.json).toHaveBeenCalledWith({
+        message: 'User registered successfully.',
+        user: mockUser,
+        token: 'mock-token'
+      });
+    });
+
+    it('debería retornar error 400 si faltan campos requeridos en el registro', async () => {
+      mockRequest = {
+        body: {
+          username: 'incomplete'
+        }
+      };
+
+      await UserController.register(mockRequest as Request, mockResponse as Response);
+
+      expect(responseObject.status).toHaveBeenCalledWith(400);
+      expect(responseObject.json).toHaveBeenCalledWith({
+        error: 'Missing required fields'
+      });
+    });
+
+    it('debería retornar error 400 si el usuario ya está registrado', async () => {
+      const mockUser = {
+        username: 'existinguser',
+        email: 'existing@test.com',
+        password: 'password123'
+      };
+  
+      mockRequest = {
+        body: mockUser
+      };
+
+      const User = require('../src/models/user.model').default;
+      User.findOne.mockResolvedValue(mockUser);
+      
+      await UserController.register(mockRequest as Request, mockResponse as Response);
+
+      expect(responseObject.status).toHaveBeenCalledWith(400);
+      expect(responseObject.json).toHaveBeenCalledWith({
+        error: 'User is already registered'
+      });
+    });
   });
 });
