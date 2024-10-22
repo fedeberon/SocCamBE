@@ -1,13 +1,13 @@
 import { Router } from 'express';
-import { getMovimientos, getMovimientoById, getMovimientosByClienteId, getMovimientosByFecha, getMovimientoWithPagos} from '../controllers/movimientoCuentaCorrienteCofre.controller';
+import MovimientoCuentaCorrienteCofreController from '../controllers/movimientoCuentaCorrienteCofre.controller';
 import { checkJwt } from '../middleware/authMiddleware';
 
 const movimientoRoutes = Router();
 
-movimientoRoutes.get('/', checkJwt, getMovimientos);
-movimientoRoutes.get('/:id', checkJwt, getMovimientoById);
-movimientoRoutes.get('/cliente/:clienteId', checkJwt, getMovimientosByClienteId);
-movimientoRoutes.get('/fecha/:fecha', checkJwt, getMovimientosByFecha);
-movimientoRoutes.get('/with-pagos/:clienteId', checkJwt, getMovimientoWithPagos);
+movimientoRoutes.get('/', checkJwt, MovimientoCuentaCorrienteCofreController.getMovimientos);
+movimientoRoutes.get('/:id', checkJwt, MovimientoCuentaCorrienteCofreController.getMovimientoById);
+movimientoRoutes.get('/cliente/:clienteId', checkJwt, MovimientoCuentaCorrienteCofreController.getMovimientosByClienteId);
+movimientoRoutes.get('/fecha/:fecha', checkJwt, MovimientoCuentaCorrienteCofreController.getMovimientosByFecha);
+movimientoRoutes.get('/con-pagos/:clienteId', checkJwt, MovimientoCuentaCorrienteCofreController.getMovimientoWithPagos);
 
 export default movimientoRoutes;

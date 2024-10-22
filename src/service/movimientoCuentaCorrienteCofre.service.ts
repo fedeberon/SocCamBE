@@ -1,7 +1,9 @@
 import MovimientoCuentaCorrienteCofre from '../models/movimientoCuentaCorrienteCofre.models';
 import PagosCofres from '../models/pagosCofres.models';
+import { IMovimientoCuentaCorrienteCofreService } from '../interfaces/IMovimientoCuentaCorrienteCofre.service';
 
-class MovimientoCuentaCorrienteCofreService {
+class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrienteCofreService {
+  
   async getAllMovimientos(): Promise<MovimientoCuentaCorrienteCofre[]> {
     return await MovimientoCuentaCorrienteCofre.findAll();
   }
@@ -42,4 +44,4 @@ class MovimientoCuentaCorrienteCofreService {
   }
 }
 
-export default new MovimientoCuentaCorrienteCofreService();
+export default MovimientoCuentaCorrienteCofreService;
