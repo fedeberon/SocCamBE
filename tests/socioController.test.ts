@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import * as SocioController from '../src/controllers/socio.controller';
 import SocioService from '../src/service/socio.service';
 
-// Mock de la base de datos
 jest.mock('../src/configs/database', () => {
   return {
     authenticate: jest.fn().mockResolvedValue(true),
@@ -17,7 +16,6 @@ jest.mock('../src/configs/database', () => {
   };
 });
 
-// Mock del modelo Socio
 jest.mock('../src/models/socio.models', () => {
   return {
     __esModule: true,
@@ -33,7 +31,6 @@ jest.mock('../src/models/socio.models', () => {
   };
 });
 
-// Mock del modelo PagosSocios
 jest.mock('../src/models/pagosSocios.models', () => {
   return {
     __esModule: true,
@@ -51,7 +48,6 @@ jest.mock('../src/models/pagosSocios.models', () => {
   };
 });
 
-// Mock del servicio
 jest.mock('../src/service/socio.service');
 
 describe('SocioController', () => {
