@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import logger from '../configs/logger';
-import { ISocioService } from '../interfaces/Isocio.service';
 import SocioService from '../service/socio.service';
+import { ISocioService } from '../interfaces/Isocio.service';
 
 class SocioController {
   private static socioService: ISocioService = new SocioService(); 
