@@ -1,7 +1,8 @@
 import Socio from '../models/socio.models';
 import PagosSocios from '../models/pagosSocios.models';
+import { ISocioService } from '../interfaces/Isocio.service';
 
-class SocioService {
+class SocioService implements ISocioService {
   async getAllSocios(): Promise<Socio[]> {
     return await Socio.findAll();
   }
@@ -22,7 +23,7 @@ class SocioService {
     });
   }
 
-  async getSocioWithPagos(id: number): Promise<any> {
+  async getSocioWithPagos(id: number): Promise<{ [key: string]: any } | null> {
     const socio = await Socio.findByPk(id);
     if (!socio) {
       return null;
@@ -41,5 +42,4 @@ class SocioService {
   }
 }
 
-
-export default new SocioService();
+export default SocioService; 

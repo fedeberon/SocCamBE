@@ -1,14 +1,14 @@
 import { Router } from 'express';
-import { getSocios, getSocioById, getSociosByEmail, getSociosByMatricula, getSocioWithPagos} from '../controllers/socio.controller';
+import SocioController from '../controllers/socio.controller';
 import {checkJwt} from '../middleware/authMiddleware';
 
 const socioRoutes  = Router();
 
-socioRoutes .get('/',checkJwt, getSocios);
-socioRoutes .get('/:id',checkJwt, getSocioById);
-socioRoutes.get('/email/:email', checkJwt, getSociosByEmail);
-socioRoutes.get('/matricula/:matricula', checkJwt, getSociosByMatricula);
-socioRoutes.get('/:id/pagos', checkJwt, getSocioWithPagos);
+socioRoutes.get('/',checkJwt, SocioController.getSocios);
+socioRoutes .get('/:id',checkJwt, SocioController.getSocioById);
+socioRoutes.get('/email/:email', checkJwt, SocioController.getSociosByEmail);
+socioRoutes.get('/matricula/:matricula', checkJwt, SocioController.getSociosByMatricula);
+socioRoutes.get('/:id/pagos', checkJwt, SocioController.getSocioWithPagos);
 
 
 export default socioRoutes;
