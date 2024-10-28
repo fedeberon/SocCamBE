@@ -7,7 +7,7 @@ const acontecimientoRoutes = Router();
 
 acontecimientoRoutes.get('/', AcontecimientoController.getAcontecimientos);
 acontecimientoRoutes.get('/:id', checkJwt, AcontecimientoController.getAcontecimientoById);
-acontecimientoRoutes.get('/socio/:id', checkJwt, AcontecimientoController.getAcontecimientosBySocio);
+acontecimientoRoutes.get('/socio/:socioId', checkJwt, AcontecimientoController.getAcontecimientosBySocio);
 
 
 
