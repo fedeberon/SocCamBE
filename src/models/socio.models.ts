@@ -1,6 +1,6 @@
   import { Model, DataTypes, HasManyGetAssociationsMixin } from 'sequelize';
   import sequelize from '../configs/database';
-
+ 
   class Socio extends Model {
     private socio_id!: number;
     private socio_nombre!: string;
