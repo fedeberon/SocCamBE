@@ -1,292 +1,82 @@
-// import { Request, Response } from 'express';
-// import * as MovimientoController from '../src/controllers/movimientoCuentaCorrienteCofre.controller';
-// import MovimientoService from '../src/service/movimientoCuentaCorrienteCofre.service';
+import MovimientoCuentaCorrienteCofreService from '../src/service/movimientoCuentaCorrienteCofre.service';
+import MovimientoCuentaCorrienteCofre from '../src/models/movimientoCuentaCorrienteCofre.models';
+import PagosCofres from '../src/models/pagosCofres.models';
 
-// jest.mock('../src/configs/database', () => {
-//   return {
-//     authenticate: jest.fn().mockResolvedValue(true),
-//     define: jest.fn(),
-//     sync: jest.fn().mockResolvedValue(true),
-//     __esModule: true,
-//     default: {
-//       authenticate: jest.fn().mockResolvedValue(true),
-//       define: jest.fn(),
-//       sync: jest.fn().mockResolvedValue(true),
-//     }
-//   };
-// });
+jest.mock('../src/models/movimientoCuentaCorrienteCofre.models');
+jest.mock('../src/models/pagosCofres.models');
 
-// jest.mock('../src/models/movimientoCuentaCorrienteCofre.models', () => {
-//   return {
-//     __esModule: true,
-//     default: {
-//       init: jest.fn(),
-//       findAll: jest.fn(),
-//       findOne: jest.fn(),
-//       findByPk: jest.fn(),
-//       create: jest.fn(),
-//       update: jest.fn(),
-//       destroy: jest.fn(),
-//     }
-//   };
-// });
+// Mock de la configuración de la base de datos
+jest.mock('../src/configs/database', () => ({
+    __esModule: true,
+    default: new (jest.requireMock('sequelize').Sequelize)(),
+  }));
+  
+describe('MovimientoCuentaCorrienteCofreService', () => {
+  const service = new MovimientoCuentaCorrienteCofreService();
 
-// jest.mock('../src/models/pagosCofres.models', () => {
-//   return {
-//     __esModule: true,
-//     default: {
-//       init: jest.fn(),
-//       findAll: jest.fn(),
-//       findOne: jest.fn(),
-//       findByPk: jest.fn(),
-//       create: jest.fn(),
-//       update: jest.fn(),
-//       destroy: jest.fn(),
-//     }
-//   };
-// });
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
 
-// jest.mock('../src/service/movimientoCuentaCorrienteCofre.service');
+  test('getAllMovimientos - should return all movements', async () => {
+    const mockMovimientos = [{ MovimientoCuentaCorrienteCofre_id: 1 }, { MovimientoCuentaCorrienteCofre_id: 2 }];
+    (MovimientoCuentaCorrienteCofre.findAll as jest.Mock).mockResolvedValue(mockMovimientos);
 
-// describe('MovimientoCuentaCorrienteCofreController', () => {
-//   let mockRequest: Partial<Request>;
-//   let mockResponse: Partial<Response>;
-//   let responseObject: any;
+    const result = await service.getAllMovimientos();
 
-//   beforeEach(() => {
-//     responseObject = {
-//       json: jest.fn(),
-//       status: jest.fn().mockReturnThis(),
-//     };
-//     mockRequest = {};
-//     mockResponse = responseObject;
-//   });
+    expect(MovimientoCuentaCorrienteCofre.findAll).toHaveBeenCalled();
+    expect(result).toEqual(mockMovimientos);
+  });
 
-//   afterEach(() => {
-//     jest.clearAllMocks();
-//   });
+  test('getMovimientoById - should return a specific movement by ID', async () => {
+    const mockMovimiento = { MovimientoCuentaCorrienteCofre_id: 1 };
+    (MovimientoCuentaCorrienteCofre.findByPk as jest.Mock).mockResolvedValue(mockMovimiento);
 
-//   describe('getMovimientos', () => {
-//     it('debería devolver todos los movimientos exitosamente', async () => {
-//       const mockMovimientos = [
-//         {
-//           MovimientoCuentaCorrienteCofre_id: 1,
-//           MovimientoCuentaCorrienteCofre_clienteId: 1,
-//           MovimientoCuentaCorrienteCofre_importe: 1000
-//         },
-//         {
-//           MovimientoCuentaCorrienteCofre_id: 2,
-//           MovimientoCuentaCorrienteCofre_clienteId: 2,
-//           MovimientoCuentaCorrienteCofre_importe: 2000
-//         }
-//       ];
+    const result = await service.getMovimientoById(1);
 
-//       (MovimientoService.getAllMovimientos as jest.Mock).mockResolvedValue(mockMovimientos);
+    expect(MovimientoCuentaCorrienteCofre.findByPk).toHaveBeenCalledWith(1);
+    expect(result).toEqual(mockMovimiento);
+  });
 
-//       await MovimientoController.getMovimientos(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
+  test('getMovimientosByClienteId - should return movements by client ID', async () => {
+    const mockMovimientos = [{ MovimientoCuentaCorrienteCofre_clienteId: 1 }];
+    (MovimientoCuentaCorrienteCofre.findAll as jest.Mock).mockResolvedValue(mockMovimientos);
 
-//       expect(responseObject.json).toHaveBeenCalledWith(mockMovimientos);
-//     });
+    const result = await service.getMovimientosByClienteId(1);
 
-//     it('debería manejar errores al obtener movimientos', async () => {
-//       const mockError = new Error('Error de base de datos');
-//       (MovimientoService.getAllMovimientos as jest.Mock).mockRejectedValue(mockError);
+    expect(MovimientoCuentaCorrienteCofre.findAll).toHaveBeenCalledWith({
+      where: { MovimientoCuentaCorrienteCofre_clienteId: 1 },
+    });
+    expect(result).toEqual(mockMovimientos);
+  });
 
-//       await MovimientoController.getMovimientos(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
+  test('getMovimientosByFecha - should return movements by date', async () => {
+    const mockFecha = new Date('2023-01-01');
+    const mockMovimientos = [{ MovimientoCuentaCorrienteCofre_fechaIngreso: mockFecha }];
+    (MovimientoCuentaCorrienteCofre.findAll as jest.Mock).mockResolvedValue(mockMovimientos);
 
-//       expect(responseObject.status).toHaveBeenCalledWith(500);
-//       expect(responseObject.json).toHaveBeenCalledWith({
-//         message: 'Error al obtener movimientos',
-//         error: mockError
-//       });
-//     });
-//   });
+    const result = await service.getMovimientosByFecha(mockFecha);
 
-//   describe('getMovimientoById', () => {
-//     it('debería devolver un movimiento cuando existe', async () => {
-//       const mockMovimiento = {
-//         MovimientoCuentaCorrienteCofre_id: 1,
-//         MovimientoCuentaCorrienteCofre_clienteId: 1,
-//         MovimientoCuentaCorrienteCofre_importe: 1000
-//       };
+    expect(MovimientoCuentaCorrienteCofre.findAll).toHaveBeenCalledWith({
+      where: { MovimientoCuentaCorrienteCofre_fechaIngreso: mockFecha },
+    });
+    expect(result).toEqual(mockMovimientos);
+  });
 
-//       mockRequest = {
-//         params: { id: '1' }
-//       };
+  test('getMovimientoWithPagos - should return movements and payments by client ID', async () => {
+    const mockMovimientos = [{ MovimientoCuentaCorrienteCofre_clienteId: 1 }];
+    const mockPagos = [{ pagosCofres_contrato: 1 }];
+    (MovimientoCuentaCorrienteCofre.findAll as jest.Mock).mockResolvedValue(mockMovimientos);
+    (PagosCofres.findAll as jest.Mock).mockResolvedValue(mockPagos);
 
-//       (MovimientoService.getMovimientoById as jest.Mock).mockResolvedValue(mockMovimiento);
+    const result = await service.getMovimientoWithPagos(1);
 
-//       await MovimientoController.getMovimientoById(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
-
-//       expect(responseObject.json).toHaveBeenCalledWith(mockMovimiento);
-//     });
-
-//     it('debería devolver 404 cuando el movimiento no existe', async () => {
-//       mockRequest = {
-//         params: { id: '999' }
-//       };
-
-//       (MovimientoService.getMovimientoById as jest.Mock).mockResolvedValue(null);
-
-//       await MovimientoController.getMovimientoById(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
-
-//       expect(responseObject.status).toHaveBeenCalledWith(404);
-//       expect(responseObject.json).toHaveBeenCalledWith({
-//         message: 'Movimiento no encontrado'
-//       });
-//     });
-//   });
-
-//   describe('getMovimientosByClienteId', () => {
-//     it('debería devolver movimientos cuando existen para el cliente', async () => {
-//       const mockMovimientos = [
-//         {
-//           MovimientoCuentaCorrienteCofre_id: 1,
-//           MovimientoCuentaCorrienteCofre_clienteId: 1,
-//           MovimientoCuentaCorrienteCofre_importe: 1000
-//         }
-//       ];
-
-//       mockRequest = {
-//         params: { clienteId: '1' }
-//       };
-
-//       (MovimientoService.getMovimientosByClienteId as jest.Mock).mockResolvedValue(mockMovimientos);
-
-//       await MovimientoController.getMovimientosByClienteId(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
-
-//       expect(responseObject.json).toHaveBeenCalledWith(mockMovimientos);
-//     });
-
-//     it('debería devolver 404 cuando no hay movimientos para el cliente', async () => {
-//       mockRequest = {
-//         params: { clienteId: '999' }
-//       };
-
-//       (MovimientoService.getMovimientosByClienteId as jest.Mock).mockResolvedValue([]);
-
-//       await MovimientoController.getMovimientosByClienteId(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
-
-//       expect(responseObject.status).toHaveBeenCalledWith(404);
-//       expect(responseObject.json).toHaveBeenCalledWith({
-//         message: 'No se encontraron movimientos para este cliente'
-//       });
-//     });
-//   });
-
-//   describe('getMovimientosByFecha', () => {
-//     it('debería devolver movimientos cuando existen para la fecha', async () => {
-//       const mockMovimientos = [
-//         {
-//           MovimientoCuentaCorrienteCofre_id: 1,
-//           MovimientoCuentaCorrienteCofre_fechaIngreso: new Date('2024-01-01'),
-//           MovimientoCuentaCorrienteCofre_importe: 1000
-//         }
-//       ];
-
-//       mockRequest = {
-//         params: { fecha: '2024-01-01' }
-//       };
-
-//       (MovimientoService.getMovimientosByFecha as jest.Mock).mockResolvedValue(mockMovimientos);
-
-//       await MovimientoController.getMovimientosByFecha(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
-
-//       expect(responseObject.json).toHaveBeenCalledWith(mockMovimientos);
-//     });
-
-//     it('debería devolver 404 cuando no hay movimientos para la fecha', async () => {
-//       mockRequest = {
-//         params: { fecha: '2024-01-01' }
-//       };
-
-//       (MovimientoService.getMovimientosByFecha as jest.Mock).mockResolvedValue([]);
-
-//       await MovimientoController.getMovimientosByFecha(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
-
-//       expect(responseObject.status).toHaveBeenCalledWith(404);
-//       expect(responseObject.json).toHaveBeenCalledWith({
-//         message: 'No se encontraron movimientos para esta fecha'
-//       });
-//     });
-//   });
-
-//   describe('getMovimientoWithPagos', () => {
-//     it('debería devolver movimientos y pagos cuando existen para el cliente', async () => {
-//       const mockData = {
-//         movimientos: [
-//           {
-//             MovimientoCuentaCorrienteCofre_id: 1,
-//             MovimientoCuentaCorrienteCofre_clienteId: 1,
-//             MovimientoCuentaCorrienteCofre_importe: 1000
-//           }
-//         ],
-//         pagos: [
-//           {
-//             pagosCofres_id: 1,
-//             pagosCofres_contrato: 1,
-//             pagosCofres_importe: 1000
-//           }
-//         ]
-//       };
-
-//       mockRequest = {
-//         params: { clienteId: '1' }
-//       };
-
-//       (MovimientoService.getMovimientoWithPagos as jest.Mock).mockResolvedValue(mockData);
-
-//       await MovimientoController.getMovimientoWithPagos(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
-
-//       expect(responseObject.json).toHaveBeenCalledWith(mockData);
-//     });
-
-//     it('debería devolver 404 cuando no hay registros para el cliente', async () => {
-//       mockRequest = {
-//         params: { clienteId: '999' }
-//       };
-
-//       (MovimientoService.getMovimientoWithPagos as jest.Mock).mockResolvedValue({
-//         movimientos: [],
-//         pagos: []
-//       });
-
-//       await MovimientoController.getMovimientoWithPagos(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
-
-//       expect(responseObject.status).toHaveBeenCalledWith(404);
-//       expect(responseObject.json).toHaveBeenCalledWith({
-//         message: 'No se encontraron registros para este cliente'
-//       });
-//     });
-//   });
-// });
+    expect(MovimientoCuentaCorrienteCofre.findAll).toHaveBeenCalledWith({
+      where: { MovimientoCuentaCorrienteCofre_clienteId: 1 },
+    });
+    expect(PagosCofres.findAll).toHaveBeenCalledWith({
+      where: { pagosCofres_contrato: 1 },
+    });
+    expect(result).toEqual({ movimientos: mockMovimientos, pagos: mockPagos });
+  });
+});
