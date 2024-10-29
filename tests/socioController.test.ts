@@ -1,228 +1,294 @@
-// import { Request, Response } from 'express';
-// import * as SocioController from '../src/controllers/socio.controller';
-// import SocioService from '../src/service/socio.service';
+import { Request, Response } from 'express';
+import SocioController from '../src/controllers/socio.controller';
+import SocioService from '../src/service/socio.service';
+import Socio from '../src/models/socio.models';
+import PagosSocios from '../src/models/pagosSocios.models';
+import logger from '../src/configs/logger';
 
-// jest.mock('../src/configs/database', () => {
-//   return {
-//     authenticate: jest.fn().mockResolvedValue(true),
-//     define: jest.fn(),
-//     sync: jest.fn().mockResolvedValue(true),
-//     __esModule: true,
-//     default: {
-//       authenticate: jest.fn().mockResolvedValue(true),
-//       define: jest.fn(),
-//       sync: jest.fn().mockResolvedValue(true),
-//     }
-//   };
-// });
+// Mock de Sequelize
+jest.mock('sequelize', () => {
+  const mSequelize = {
+    authenticate: jest.fn(),
+    define: jest.fn(),
+    model: jest.fn(),
+    models: {
+      Socio: {},
+      PagosSocios: {}
+    }
+  };
+  const actualSequelize = jest.requireActual('sequelize');
+  return {
+    ...actualSequelize,
+    Sequelize: jest.fn(() => mSequelize)
+  };
+});
 
-// jest.mock('../src/models/socio.models', () => {
-//   return {
-//     __esModule: true,
-//     default: {
-//       init: jest.fn(),
-//       findAll: jest.fn(),
-//       findOne: jest.fn(),
-//       findByPk: jest.fn(),
-//       create: jest.fn(),
-//       update: jest.fn(),
-//       destroy: jest.fn(),
-//     }
-//   };
-// });
+// Mock de los modelos
+jest.mock('../src/models/socio.models', () => ({
+  findAll: jest.fn(),
+  findByPk: jest.fn(),
+  findOne: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  destroy: jest.fn(),
+}));
 
-// jest.mock('../src/models/pagosSocios.models', () => {
-//   return {
-//     __esModule: true,
-//     default: {
-//       init: jest.fn(),
-//       findAll: jest.fn(),
-//       findOne: jest.fn(),
-//       findByPk: jest.fn(),
-//       create: jest.fn(),
-//       update: jest.fn(),
-//       destroy: jest.fn(),
-//       belongsTo: jest.fn(),
-//       hasMany: jest.fn(),
-//     }
-//   };
-// });
+jest.mock('../src/models/pagosSocios.models', () => ({
+  findAll: jest.fn(),
+  findByPk: jest.fn(),
+  findOne: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  destroy: jest.fn(),
+}));
 
-// jest.mock('../src/service/socio.service');
+// Mock del servicio y logger
+jest.mock('../src/service/socio.service');
+jest.mock('../src/configs/logger');
 
-// describe('SocioController', () => {
-//   let mockRequest: Partial<Request>;
-//   let mockResponse: Partial<Response>;
-//   let responseObject: any;
+// Mock de la configuración de la base de datos
+jest.mock('../src/configs/database', () => ({
+  __esModule: true,
+  default: new (jest.requireMock('sequelize').Sequelize)(),
+}));
 
-//   beforeEach(() => {
-//     responseObject = {
-//       json: jest.fn(),
-//       status: jest.fn().mockReturnThis(),
-//     };
-//     mockRequest = {};
-//     mockResponse = responseObject;
-//   });
+describe('SocioController', () => {
+  let mockRequest: Partial<Request>;
+  let mockResponse: Partial<Response>;
+  let responseObject: any;
 
-//   afterEach(() => {
-//     jest.clearAllMocks();
-//   });
+  beforeEach(() => {
+    // Reset todos los mocks antes de cada test
+    jest.clearAllMocks();
+    
+    // Configurar el mock de response
+    responseObject = {
+      statusCode: 0,
+      json: null
+    };
+    
+    mockResponse = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockImplementation((result) => {
+        responseObject.json = result;
+        return mockResponse;
+      })
+    };
+    
+    mockRequest = {};
 
-//   describe('getSocios', () => {
-//     it('debería devolver todos los socios exitosamente', async () => {
-//       const mockSocios = [
-//         { socio_id: 1, socio_nombre: 'Juan', socio_apellido: 'Pérez' },
-//         { socio_id: 2, socio_nombre: 'María', socio_apellido: 'González' }
-//       ];
+    // Reset de los mocks de los modelos
+    (Socio.findAll as jest.Mock).mockReset();
+    (Socio.findByPk as jest.Mock).mockReset();
+    (PagosSocios.findAll as jest.Mock).mockReset();
+  });
 
-//       (SocioService.getAllSocios as jest.Mock).mockResolvedValue(mockSocios);
+  describe('getSocios', () => {
+    it('debería retornar todos los socios con status 200', async () => {
+      const mockSocios = [
+        { 
+          socio_id: 1, 
+          socio_nombre: 'Juan',
+          get: () => ({ socio_id: 1, socio_nombre: 'Juan' })
+        },
+        { 
+          socio_id: 2, 
+          socio_nombre: 'Pedro',
+          get: () => ({ socio_id: 2, socio_nombre: 'Pedro' })
+        }
+      ];
 
-//       await SocioController.getSocios(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
+      (SocioService.prototype.getAllSocios as jest.Mock).mockResolvedValue(mockSocios);
+      (Socio.findAll as jest.Mock).mockResolvedValue(mockSocios);
 
-//       expect(responseObject.json).toHaveBeenCalledWith(mockSocios);
-//     });
+      await SocioController.getSocios(
+        mockRequest as Request,
+        mockResponse as Response
+      );
 
-//     it('debería manejar errores al obtener socios', async () => {
-//       const mockError = new Error('Error de base de datos');
-//       (SocioService.getAllSocios as jest.Mock).mockRejectedValue(mockError);
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith(mockSocios);
+    });
 
-//       await SocioController.getSocios(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
+    it('debería manejar errores de base de datos y retornar status 500', async () => {
+      const error = new Error('Error de conexión a la base de datos');
+      (SocioService.prototype.getAllSocios as jest.Mock).mockRejectedValue(error);
+      (Socio.findAll as jest.Mock).mockRejectedValue(error);
 
-//       expect(responseObject.status).toHaveBeenCalledWith(500);
-//       expect(responseObject.json).toHaveBeenCalledWith({
-//         message: 'Error al obtener socios',
-//         error: mockError
-//       });
-//     });
-//   });
+      await SocioController.getSocios(
+        mockRequest as Request,
+        mockResponse as Response
+      );
 
-//   describe('getSocioById', () => {
-//     it('debería devolver un socio cuando existe', async () => {
-//       const mockSocio = {
-//         socio_id: 1,
-//         socio_nombre: 'Juan',
-//         socio_apellido: 'Pérez'
-//       };
+      expect(mockResponse.status).toHaveBeenCalledWith(500);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        message: 'Error al obtener los socios',
+        error
+      });
+      expect(logger.error).toHaveBeenCalled();
+    });
+  });
 
-//       mockRequest = {
-//         params: { id: '1' }
-//       };
+  describe('getSocioById', () => {
+    it('debería retornar un socio por ID con status 200', async () => {
+      const mockSocio = { 
+        socio_id: 1, 
+        socio_nombre: 'Juan',
+        get: () => ({ socio_id: 1, socio_nombre: 'Juan' })
+      };
+      
+      mockRequest = {
+        params: { id: '1' }
+      };
 
-//       (SocioService.getSocioById as jest.Mock).mockResolvedValue(mockSocio);
+      (SocioService.prototype.getSocioById as jest.Mock).mockResolvedValue(mockSocio);
+      (Socio.findByPk as jest.Mock).mockResolvedValue(mockSocio);
 
-//       await SocioController.getSocioById(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
+      await SocioController.getSocioById(
+        mockRequest as Request,
+        mockResponse as Response
+      );
 
-//       expect(responseObject.json).toHaveBeenCalledWith(mockSocio);
-//     });
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith(mockSocio);
+    });
 
-//     it('debería devolver 404 cuando el socio no existe', async () => {
-//       mockRequest = {
-//         params: { id: '999' }
-//       };
+    it('debería manejar errores de base de datos en búsqueda por ID', async () => {
+      mockRequest = {
+        params: { id: '1' }
+      };
 
-//       (SocioService.getSocioById as jest.Mock).mockResolvedValue(null);
+      const error = new Error('Error de conexión a la base de datos');
+      (SocioService.prototype.getSocioById as jest.Mock).mockRejectedValue(error);
+      (Socio.findByPk as jest.Mock).mockRejectedValue(error);
 
-//       await SocioController.getSocioById(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
+      await SocioController.getSocioById(
+        mockRequest as Request,
+        mockResponse as Response
+      );
 
-//       expect(responseObject.status).toHaveBeenCalledWith(404);
-//       expect(responseObject.json).toHaveBeenCalledWith({
-//         message: 'Socio no encontrado'
-//       });
-//     });
-//   });
+      expect(mockResponse.status).toHaveBeenCalledWith(500);
+      expect(logger.error).toHaveBeenCalled();
+    });
+  });
 
-//   describe('getSociosByEmail', () => {
-//     it('debería devolver socios cuando existen para el email', async () => {
-//       const mockSocios = [
-//         { socio_id: 1, socio_nombre: 'Juan', socio_mail: 'juan@test.com' }
-//       ];
+  describe('getSocioWithPagos', () => {
+    it('debería retornar socio con sus pagos y status 200', async () => {
+      const mockSocio = { 
+        socio_id: 1, 
+        socio_nombre: 'Juan',
+        get: () => ({ 
+          socio_id: 1, 
+          socio_nombre: 'Juan' 
+        })
+      };
 
-//       mockRequest = {
-//         params: { email: 'juan@test.com' }
-//       };
+      const mockPagos = [
+        { 
+          pago_id: 1, 
+          monto: 100,
+          get: () => ({ pago_id: 1, monto: 100 })
+        }
+      ];
 
-//       (SocioService.getSociosByEmail as jest.Mock).mockResolvedValue(mockSocios);
+      const mockSocioWithPagos = {
+        ...mockSocio.get(),
+        pagos: mockPagos
+      };
 
-//       await SocioController.getSociosByEmail(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
+      mockRequest = {
+        params: { id: '1' }
+      };
 
-//       expect(responseObject.json).toHaveBeenCalledWith(mockSocios);
-//     });
+      (SocioService.prototype.getSocioWithPagos as jest.Mock).mockResolvedValue(mockSocioWithPagos);
+      (Socio.findByPk as jest.Mock).mockResolvedValue(mockSocio);
+      (PagosSocios.findAll as jest.Mock).mockResolvedValue(mockPagos);
 
-//     it('debería devolver 404 cuando no hay socios para el email', async () => {
-//       mockRequest = {
-//         params: { email: 'noexiste@test.com' }
-//       };
+      await SocioController.getSocioWithPagos(
+        mockRequest as Request,
+        mockResponse as Response
+      );
 
-//       (SocioService.getSociosByEmail as jest.Mock).mockResolvedValue([]);
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith(mockSocioWithPagos);
+    });
 
-//       await SocioController.getSociosByEmail(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
+    it('debería manejar errores de base de datos al buscar pagos', async () => {
+      mockRequest = {
+        params: { id: '1' }
+      };
 
-//       expect(responseObject.status).toHaveBeenCalledWith(404);
-//       expect(responseObject.json).toHaveBeenCalledWith({
-//         message: 'No se encontraron socios para este correo'
-//       });
-//     });
-//   });
+      const error = new Error('Error al consultar pagos');
+      (SocioService.prototype.getSocioWithPagos as jest.Mock).mockRejectedValue(error);
+      (PagosSocios.findAll as jest.Mock).mockRejectedValue(error);
 
-//   describe('getSocioWithPagos', () => {
-//     it('debería devolver un socio con sus pagos cuando existe', async () => {
-//       const mockSocioWithPagos = {
-//         socio_id: 1,
-//         socio_nombre: 'Juan',
-//         pagos: [
-//           { id: 1, monto: 1000 },
-//           { id: 2, monto: 2000 }
-//         ]
-//       };
+      await SocioController.getSocioWithPagos(
+        mockRequest as Request,
+        mockResponse as Response
+      );
 
-//       mockRequest = {
-//         params: { id: '1' }
-//       };
+      expect(mockResponse.status).toHaveBeenCalledWith(500);
+      expect(logger.error).toHaveBeenCalled();
+    });
+  });
 
-//       (SocioService.getSocioWithPagos as jest.Mock).mockResolvedValue(mockSocioWithPagos);
+  describe('getSociosByEmail', () => {
+    it('debería retornar socios por email con status 200', async () => {
+      const mockSocios = [
+        { 
+          socio_id: 1, 
+          socio_mail: 'test@test.com',
+          get: () => ({ 
+            socio_id: 1, 
+            socio_mail: 'test@test.com' 
+          })
+        }
+      ];
 
-//       await SocioController.getSocioWithPagos(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
+      mockRequest = {
+        params: { email: 'test@test.com' }
+      };
 
-//       expect(responseObject.json).toHaveBeenCalledWith(mockSocioWithPagos);
-//     });
+      (SocioService.prototype.getSociosByEmail as jest.Mock).mockResolvedValue(mockSocios);
+      (Socio.findAll as jest.Mock).mockResolvedValue(mockSocios);
 
-//     it('debería devolver 404 cuando el socio no existe', async () => {
-//       mockRequest = {
-//         params: { id: '999' }
-//       };
+      await SocioController.getSociosByEmail(
+        mockRequest as Request,
+        mockResponse as Response
+      );
 
-//       (SocioService.getSocioWithPagos as jest.Mock).mockResolvedValue(null);
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith(mockSocios);
+    });
+  });
 
-//       await SocioController.getSocioWithPagos(
-//         mockRequest as Request,
-//         mockResponse as Response
-//       );
+  describe('getSociosByMatricula', () => {
+    it('debería retornar socios por matrícula con status 200', async () => {
+      const mockSocios = [
+        { 
+          socio_id: 1, 
+          socio_numero: 12345,
+          get: () => ({ 
+            socio_id: 1, 
+            socio_numero: 12345 
+          })
+        }
+      ];
 
-//       expect(responseObject.status).toHaveBeenCalledWith(404);
-//       expect(responseObject.json).toHaveBeenCalledWith({
-//         message: 'Socio no encontrado'
-//       });
-//     });
-//   });
-// });
+      mockRequest = {
+        params: { matricula: '12345' }
+      };
+
+      (SocioService.prototype.getSociosByMatricula as jest.Mock).mockResolvedValue(mockSocios);
+      (Socio.findAll as jest.Mock).mockResolvedValue(mockSocios);
+
+      await SocioController.getSociosByMatricula(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockResponse.status).toHaveBeenCalledWith(200);
+      expect(mockResponse.json).toHaveBeenCalledWith(mockSocios);
+    });
+  });
+});
