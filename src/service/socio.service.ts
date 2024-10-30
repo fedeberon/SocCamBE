@@ -1,6 +1,7 @@
 import Socio from '../models/socio.models';
 import PagosSocios from '../models/pagosSocios.models';
 import { ISocioService } from '../interfaces/Isocio.service';
+import MovimientoCuentaCorrienteCofre from '../models/movimientoCuentaCorrienteCofre.models';
 
 class SocioService implements ISocioService {
   async getAllSocios(): Promise<Socio[]> {
@@ -38,6 +39,32 @@ class SocioService implements ISocioService {
     return {
       ...socio.get({ plain: true }),
       pagos: pagos
+    };
+  }
+
+  async getSocioMovimientosCofre(id: number): Promise<{
+    socio: any,
+    movimientos: MovimientoCuentaCorrienteCofre[]
+  } | null> {
+    const socio = await Socio.findByPk(id);
+    
+    if (!socio) {
+      return null;
+    }
+
+    const movimientos = await MovimientoCuentaCorrienteCofre.findAll({
+      where: {
+        MovimientoCuentaCorrienteCofre_clienteId: id,
+        MovimientoCuentaCorrienteCofre_deleted: false
+      },
+      order: [
+        ['MovimientoCuentaCorrienteCofre_fechaIngreso', 'DESC']
+      ]
+    });
+
+    return {
+      socio: socio.get({ plain: true }),
+      movimientos: movimientos
     };
   }
 }

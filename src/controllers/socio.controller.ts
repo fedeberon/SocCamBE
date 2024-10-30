@@ -75,6 +75,27 @@ class SocioController {
       res.status(500).json({ message: 'Error al obtener el socio con sus pagos', error });
     }
   }
+
+  static async getSocioMovimientosCofre(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const socioConMovimientos = await SocioController.socioService.getSocioMovimientosCofre(Number(id));
+      
+      if (socioConMovimientos) {
+        res.status(200).json(socioConMovimientos);
+      } else {
+        res.status(404).json({ message: 'Socio no encontrado' });
+      }
+    } catch (error) {
+      logger.error('Error al obtener los movimientos de cuenta corriente cofre del socio:', error);
+      res.status(500).json({ 
+        message: 'Error al obtener los movimientos de cuenta corriente cofre del socio', 
+        error 
+      });
+    }
+  }
 }
+
+
 
 export default SocioController;
