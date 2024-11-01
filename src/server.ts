@@ -7,6 +7,9 @@ import socioRoutes from './router/socio.routes';
 import pagosSociosRoutes from './router/pagosSocios.routes';
 import movimientoRoutes from './router/movimientoCuentaCorrienteCofre.routes';
 import pagosCofresRoutes from './router/pagosCofres.routes';
+import acontecimientoRoutes from './router/acontecimiento.routes';
+import contratoCofresRoutes from './router/contratoCofres.routes';
+
 import {checkJwt} from './middleware/authMiddleware';
 import cors from 'cors';
 
@@ -29,7 +32,8 @@ app.use('/socio', socioRoutes);
 app.use('/pagos-socios', pagosSociosRoutes);
 app.use('/movimientos', movimientoRoutes);
 app.use('/pagos-cofres', pagosCofresRoutes);
-
+app.use('/acontecimientos', acontecimientoRoutes);
+app.use('/contrato-cofres', contratoCofresRoutes);
 
 app.get('/authorized', (req, res) => {
   res.json({ message: 'seguro' });
