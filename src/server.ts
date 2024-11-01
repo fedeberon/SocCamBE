@@ -1,5 +1,6 @@
 require('dotenv').config();
 import express from 'express';
+import { Request, Response, NextFunction }  from 'express';
 import sequelize from './configs/database';
 import userRouter from './router/user.routes';
 import authRouter from './router/auth.routes';
@@ -17,10 +18,19 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
-app.use(cors({
-  origin: 'http://localhost:3000',
-}));
 
+const whitelist = ['http://localhost:3000', 'https://vps-4438413-x.dattaweb.com'];
+const corsOptions: cors.CorsOptions = {
+    origin: (origin, callback) => {
+        if (origin && whitelist.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('No permitido por CORS'));
+        }
+    }
+};
+
+app.use(cors(corsOptions));
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to  application.' });
 });
@@ -39,6 +49,12 @@ app.get('/authorized', (req, res) => {
   res.json({ message: 'seguro' });
 });
 
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  res.status(err.status || 500).json({
+    status: err.status || 500,
+    error: err.message || 'Internal Server Error',
+  });
+});
 sequelize.sync().then(() => {
   app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
