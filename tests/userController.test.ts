@@ -3,23 +3,19 @@ import UserController from '../src/controllers/user.controller';
 import { UserService } from '../src/service/UserService';
 import jwt from 'jsonwebtoken';
 
-// Mock de dotenv
 jest.mock('dotenv', () => ({
   config: jest.fn()
 }));
 
-// Mock del logger
 jest.mock('../src/configs/logger', () => ({
   error: jest.fn(),
   info: jest.fn()
 }));
 
-// Mock de jsonwebtoken
 jest.mock('jsonwebtoken', () => ({
   sign: jest.fn().mockReturnValue('mock-token')
 }));
 
-// Mock de la base de datos
 jest.mock('../src/configs/database', () => {
   return {
     authenticate: jest.fn().mockResolvedValue(true),
@@ -34,7 +30,6 @@ jest.mock('../src/configs/database', () => {
   };
 });
 
-// Mock del modelo User
 jest.mock('../src/models/user.model', () => {
   return {
     __esModule: true,
@@ -49,7 +44,6 @@ jest.mock('../src/models/user.model', () => {
   };
 });
 
-// Mock del servicio
 jest.mock('../src/service/UserService');
 
 describe('UserController', () => {
