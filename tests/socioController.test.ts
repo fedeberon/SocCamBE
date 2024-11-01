@@ -3,9 +3,9 @@ import SocioController from '../src/controllers/socio.controller';
 import SocioService from '../src/service/socio.service';
 import Socio from '../src/models/socio.models';
 import PagosSocios from '../src/models/pagosSocios.models';
+import MovimientoCuentaCorrienteCofre from '../src/models/movimientoCuentaCorrienteCofre.models';
 import logger from '../src/configs/logger';
 
-// Mock de Sequelize
 jest.mock('sequelize', () => {
   const mSequelize = {
     authenticate: jest.fn(),
@@ -13,7 +13,8 @@ jest.mock('sequelize', () => {
     model: jest.fn(),
     models: {
       Socio: {},
-      PagosSocios: {}
+      PagosSocios: {},
+      MovimientoCuentaCorrienteCofre: {}
     }
   };
   const actualSequelize = jest.requireActual('sequelize');
@@ -23,7 +24,6 @@ jest.mock('sequelize', () => {
   };
 });
 
-// Mock de los modelos
 jest.mock('../src/models/socio.models', () => ({
   findAll: jest.fn(),
   findByPk: jest.fn(),
@@ -42,11 +42,18 @@ jest.mock('../src/models/pagosSocios.models', () => ({
   destroy: jest.fn(),
 }));
 
-// Mock del servicio y logger
+jest.mock('../src/models/movimientoCuentaCorrienteCofre.models', () => ({
+  findAll: jest.fn(),
+  findByPk: jest.fn(),
+  findOne: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  destroy: jest.fn(),
+}));
+
 jest.mock('../src/service/socio.service');
 jest.mock('../src/configs/logger');
 
-// Mock de la configuración de la base de datos
 jest.mock('../src/configs/database', () => ({
   __esModule: true,
   default: new (jest.requireMock('sequelize').Sequelize)(),
@@ -58,10 +65,8 @@ describe('SocioController', () => {
   let responseObject: any;
 
   beforeEach(() => {
-    // Reset todos los mocks antes de cada test
     jest.clearAllMocks();
     
-    // Configurar el mock de response
     responseObject = {
       statusCode: 0,
       json: null
@@ -77,7 +82,6 @@ describe('SocioController', () => {
     
     mockRequest = {};
 
-    // Reset de los mocks de los modelos
     (Socio.findAll as jest.Mock).mockReset();
     (Socio.findByPk as jest.Mock).mockReset();
     (PagosSocios.findAll as jest.Mock).mockReset();
@@ -289,6 +293,106 @@ describe('SocioController', () => {
 
       expect(mockResponse.status).toHaveBeenCalledWith(200);
       expect(mockResponse.json).toHaveBeenCalledWith(mockSocios);
+    });
+
+    describe('getSocioMovimientosCofre', () => {
+      it('debería retornar socio con sus movimientos de cofre y status 200', async () => {
+        const mockSocio = { 
+          socio_id: 1, 
+          socio_nombre: 'Juan',
+          get: () => ({ 
+            socio_id: 1, 
+            socio_nombre: 'Juan' 
+          })
+        };
+  
+        const mockMovimientos = [
+          { 
+            MovimientoCuentaCorrienteCofre_id: 1,
+            MovimientoCuentaCorrienteCofre_fechaIngreso: new Date(),
+            MovimientoCuentaCorrienteCofre_monto: 1000,
+            MovimientoCuentaCorrienteCofre_deleted: false,
+            get: () => ({
+              MovimientoCuentaCorrienteCofre_id: 1,
+              MovimientoCuentaCorrienteCofre_fechaIngreso: new Date(),
+              MovimientoCuentaCorrienteCofre_monto: 1000,
+              MovimientoCuentaCorrienteCofre_deleted: false
+            })
+          }
+        ];
+  
+        const mockResult = {
+          socio: mockSocio.get(),
+          movimientos: mockMovimientos
+        };
+  
+        mockRequest = {
+          params: { id: '1' }
+        };
+  
+        (SocioService.prototype.getSocioMovimientosCofre as jest.Mock).mockResolvedValue(mockResult);
+        (Socio.findByPk as jest.Mock).mockResolvedValue(mockSocio);
+        (MovimientoCuentaCorrienteCofre.findAll as jest.Mock).mockResolvedValue(mockMovimientos);
+  
+        await SocioController.getSocioMovimientosCofre(
+          mockRequest as Request,
+          mockResponse as Response
+        );
+  
+        expect(mockResponse.status).toHaveBeenCalledWith(200);
+        expect(mockResponse.json).toHaveBeenCalledWith(mockResult);
+      });
+  
+      it('debería retornar 404 si el socio no existe', async () => {
+        mockRequest = {
+          params: { id: '1' }
+        };
+  
+        (SocioService.prototype.getSocioMovimientosCofre as jest.Mock).mockResolvedValue(null);
+        (Socio.findByPk as jest.Mock).mockResolvedValue(null);
+  
+        await SocioController.getSocioMovimientosCofre(
+          mockRequest as Request,
+          mockResponse as Response
+        );
+  
+        expect(mockResponse.status).toHaveBeenCalledWith(404);
+        expect(mockResponse.json).toHaveBeenCalledWith({
+          message: 'Socio no encontrado'
+        });
+      });        
+  
+      it('debería retornar una lista vacía de movimientos si el socio no tiene movimientos', async () => {
+        const mockSocio = { 
+          socio_id: 1, 
+          socio_nombre: 'Juan',
+          get: () => ({ 
+            socio_id: 1, 
+            socio_nombre: 'Juan' 
+          })
+        };
+  
+        const mockResult = {
+          socio: mockSocio.get(),
+          movimientos: []
+        };
+  
+        mockRequest = {
+          params: { id: '1' }
+        };
+  
+        (SocioService.prototype.getSocioMovimientosCofre as jest.Mock).mockResolvedValue(mockResult);
+        (Socio.findByPk as jest.Mock).mockResolvedValue(mockSocio);
+        (MovimientoCuentaCorrienteCofre.findAll as jest.Mock).mockResolvedValue([]);
+  
+        await SocioController.getSocioMovimientosCofre(
+          mockRequest as Request,
+          mockResponse as Response
+        );
+  
+        expect(mockResponse.status).toHaveBeenCalledWith(200);
+        expect(mockResponse.json).toHaveBeenCalledWith(mockResult);
+      });
     });
   });
 });

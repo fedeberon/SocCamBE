@@ -27,20 +27,22 @@ class SocioService implements ISocioService {
   async getSocioWithPagos(id: number): Promise<{ [key: string]: any } | null> {
     const socio = await Socio.findByPk(id);
     if (!socio) {
-      return null;
+        return null;
     }
 
     const pagos = await PagosSocios.findAll({
-      where: {
-        pagosSocios_socio: id
-      }
+        where: {
+            pagosSocios_socio: id
+        },
+        order: [['pagosSocios_fechaVencimiento', 'DESC']] // Reemplaza 'id' por el campo de orden que necesites
     });
 
     return {
-      ...socio.get({ plain: true }),
-      pagos: pagos
+        ...socio.get({ plain: true }),
+        pagos: pagos
     };
-  }
+}
+
 
   async getSocioMovimientosCofre(id: number): Promise<{
     socio: any,
