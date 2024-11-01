@@ -9,6 +9,7 @@ socioRoutes .get('/:id',checkJwt, SocioController.getSocioById);
 socioRoutes.get('/email/:email', checkJwt, SocioController.getSociosByEmail);
 socioRoutes.get('/matricula/:matricula', checkJwt, SocioController.getSociosByMatricula);
 socioRoutes.get('/:id/pagos', checkJwt, SocioController.getSocioWithPagos);
+socioRoutes.get('/:id/movimientos-cofre', checkJwt, SocioController.getSocioMovimientosCofre);
 
 
 export default socioRoutes;
