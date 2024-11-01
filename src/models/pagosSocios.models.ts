@@ -26,7 +26,7 @@ class PagosSocios extends Model {
   public getId(): number { return this.pagosSocios_id; }
   public getSocio(): number { return this.pagosSocios_socio; }
   public getPlan(): string { return this.pagosSocios_plan; }
-
+  public getFechaVencimiento(): Date { return this.pagosSocios_fechaVencimiento; }
 }
 
 PagosSocios.init({

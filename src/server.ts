@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
 
-const whitelist = ['http://localhost:3000', 'https://vps-4438413-x.dattaweb.com'];
+const whitelist = ['localhost:3000', 'vps-4438413-x.dattaweb.com'];
 const corsOptions: cors.CorsOptions = {
     origin: (origin, callback) => {
         if (origin && whitelist.includes(origin)) {
