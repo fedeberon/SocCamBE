@@ -19,18 +19,8 @@ const PORT = process.env.PORT || 5000;
 
 app.use(express.json());
 
-const whitelist = ['localhost:3000', 'vps-4438413-x.dattaweb.com'];
-const corsOptions: cors.CorsOptions = {
-    origin: (origin, callback) => {
-        if (origin && whitelist.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('No permitido por CORS'));
-        }
-    }
-};
 
-app.use(cors(corsOptions));
+app.use(cors());
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to  application.' });
 });
