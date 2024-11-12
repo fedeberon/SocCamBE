@@ -12,4 +12,8 @@ export interface ISocioService {
     movimientos: MovimientoCuentaCorrienteCofre[]
   } | null>;
 
+  createSocio(socioData: any): Promise<any>;
+  updateSocio(id: number, socioData: any): Promise<any>;
+  deleteSocio(id: number): Promise<any>;
+
 }

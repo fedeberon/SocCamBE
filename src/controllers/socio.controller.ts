@@ -94,6 +94,49 @@ class SocioController {
       });
     }
   }
+
+  static async createSocio(req: Request, res: Response) {
+    try {
+      const socioData = req.body;
+      const newSocio = await SocioController.socioService.createSocio(socioData);
+      res.status(201).json(newSocio);
+    } catch (error) {
+      logger.error('Error al crear el socio:', error);
+      res.status(500).json({ message: 'Error al crear el socio', error });
+    }
+  }
+
+  static async updateSocio(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const socioData = req.body;
+      const [rowsUpdated, updatedSocios] = await SocioController.socioService.updateSocio(Number(id), socioData);
+      if (rowsUpdated > 0) {
+        res.status(200).json(updatedSocios[0]);
+      } else {
+        res.status(404).json({ message: 'Socio no encontrado' });
+      }
+    } catch (error) {
+      logger.error('Error al actualizar el socio:', error);
+      res.status(500).json({ message: 'Error al actualizar el socio', error });
+    }
+  }
+
+  static async deleteSocio(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const rowsDeleted = await SocioController.socioService.deleteSocio(Number(id));
+      if (rowsDeleted > 0) {
+        res.status(200).json({ message: 'Socio eliminado correctamente' });
+      } else {
+        res.status(404).json({ message: 'Socio no encontrado' });
+      }
+    } catch (error) {
+      logger.error('Error al eliminar el socio:', error);
+      res.status(500).json({ message: 'Error al eliminar el socio', error });
+    }
+  }
+  
 }
 
 

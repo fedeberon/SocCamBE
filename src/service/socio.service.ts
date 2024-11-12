@@ -69,6 +69,24 @@ class SocioService implements ISocioService {
       movimientos: movimientos
     };
   }
+
+  async createSocio(socioData: any): Promise<Socio> {
+    return await Socio.create(socioData);
+  }
+
+  async updateSocio(id: number, socioData: any): Promise<[number, Socio[]]> {
+    return await Socio.update(socioData, {
+      where: { socio_id: id },
+      returning: true,
+    });
+  }
+
+  async deleteSocio(id: number): Promise<number> {
+    return await Socio.destroy({
+      where: { socio_id: id },
+    });
+  }
+  
 }
 
 export default SocioService; 

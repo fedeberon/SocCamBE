@@ -393,6 +393,169 @@ describe('SocioController', () => {
         expect(mockResponse.status).toHaveBeenCalledWith(200);
         expect(mockResponse.json).toHaveBeenCalledWith(mockResult);
       });
+
+      describe('createSocio', () => {
+        it('debería crear un nuevo socio con status 201', async () => {
+          const mockSocioData = {
+            socio_nombre: 'Juan',
+            socio_apellido: 'Pérez'
+          };
+    
+          const mockNewSocio = {
+            socio_id: 1,
+            socio_nombre: 'Juan',
+            socio_apellido: 'Pérez'
+          };
+    
+          mockRequest = {
+            body: mockSocioData
+          };
+    
+          (SocioService.prototype.createSocio as jest.Mock).mockResolvedValue(mockNewSocio);
+          (Socio.create as jest.Mock).mockResolvedValue(mockNewSocio);
+    
+          await SocioController.createSocio(mockRequest as Request, mockResponse as Response);
+    
+          expect(mockResponse.status).toHaveBeenCalledWith(201);
+          expect(mockResponse.json).toHaveBeenCalledWith(mockNewSocio);
+        });
+    
+        it('debería manejar errores al crear un socio y retornar status 500', async () => {
+          const mockSocioData = {
+            socio_nombre: 'Juan',
+            socio_apellido: 'Pérez'
+          };
+    
+          const error = new Error('Error al crear el socio');
+          mockRequest = {
+            body: mockSocioData
+          };
+    
+          (SocioService.prototype.createSocio as jest.Mock).mockRejectedValue(error);
+          (Socio.create as jest.Mock).mockRejectedValue(error);
+    
+          await SocioController.createSocio(mockRequest as Request, mockResponse as Response);
+    
+          expect(mockResponse.status).toHaveBeenCalledWith(500);
+          expect(mockResponse.json).toHaveBeenCalledWith({
+            message: 'Error al crear el socio',
+            error
+          });
+          expect(logger.error).toHaveBeenCalled();
+        });
+      });
+    
+      describe('updateSocio', () => {
+        it('debería actualizar un socio existente con status 200', async () => {
+          const mockSocioData = {
+            socio_nombre: 'Juan Actualizado',
+            socio_apellido: 'Pérez Actualizado'
+          };
+    
+          const mockUpdatedSocio = {
+            socio_id: 1,
+            socio_nombre: 'Juan Actualizado',
+            socio_apellido: 'Pérez Actualizado'
+          };
+    
+          mockRequest = {
+            params: { id: '1' },
+            body: mockSocioData
+          };
+    
+          (SocioService.prototype.updateSocio as jest.Mock).mockResolvedValue([1, [mockUpdatedSocio]]);
+          (Socio.update as jest.Mock).mockResolvedValue([1, [mockUpdatedSocio]]);
+    
+          await SocioController.updateSocio(mockRequest as Request, mockResponse as Response);
+    
+          expect(mockResponse.status).toHaveBeenCalledWith(200);
+          expect(mockResponse.json).toHaveBeenCalledWith(mockUpdatedSocio);
+        });
+    
+        it('debería retornar 404 si el socio no existe', async () => {
+          mockRequest = {
+            params: { id: '1' },
+            body: { socio_nombre: 'Juan Actualizado' }
+          };
+    
+          (SocioService.prototype.updateSocio as jest.Mock).mockResolvedValue([0, []]);
+          (Socio.update as jest.Mock).mockResolvedValue([0, []]);
+    
+          await SocioController.updateSocio(mockRequest as Request, mockResponse as Response);
+    
+          expect(mockResponse.status).toHaveBeenCalledWith(404);
+          expect(mockResponse.json).toHaveBeenCalledWith({ message: 'Socio no encontrado' });
+        });
+    
+        it('debería manejar errores al actualizar un socio y retornar status 500', async () => {
+          mockRequest = {
+            params: { id: '1' },
+            body: { socio_nombre: 'Juan Actualizado' }
+          };
+    
+          const error = new Error('Error al actualizar el socio');
+          (SocioService.prototype.updateSocio as jest.Mock).mockRejectedValue(error);
+          (Socio.update as jest.Mock).mockRejectedValue(error);
+    
+          await SocioController.updateSocio(mockRequest as Request, mockResponse as Response);
+    
+          expect(mockResponse.status).toHaveBeenCalledWith(500);
+          expect(mockResponse.json).toHaveBeenCalledWith({
+            message: 'Error al actualizar el socio',
+            error
+          });
+          expect(logger.error).toHaveBeenCalled();
+        });
+      });
+    
+      describe('deleteSocio', () => {
+        it('debería eliminar un socio existente con status 200', async () => {
+          mockRequest = {
+            params: { id: '1' }
+          };
+    
+          (SocioService.prototype.deleteSocio as jest.Mock).mockResolvedValue(1);
+          (Socio.destroy as jest.Mock).mockResolvedValue(1);
+    
+          await SocioController.deleteSocio(mockRequest as Request, mockResponse as Response);
+    
+          expect(mockResponse.status).toHaveBeenCalledWith(200);
+          expect(mockResponse.json).toHaveBeenCalledWith({ message: 'Socio eliminado correctamente' });
+        });
+    
+        it('debería retornar 404 si el socio no existe', async () => {
+          mockRequest = {
+            params: { id: '1' }
+          };
+    
+          (SocioService.prototype.deleteSocio as jest.Mock).mockResolvedValue(0);
+          (Socio.destroy as jest.Mock).mockResolvedValue(0);
+    
+          await SocioController.deleteSocio(mockRequest as Request, mockResponse as Response);
+    
+          expect(mockResponse.status).toHaveBeenCalledWith(404);
+          expect(mockResponse.json).toHaveBeenCalledWith({ message: 'Socio no encontrado' });
+        });
+    
+        it('debería manejar errores al eliminar un socio y retornar status 500', async () => {
+          mockRequest = {
+            params: { id: '1' }
+          };
+    
+          const error = new Error('Error al eliminar el socio');
+          (SocioService.prototype.deleteSocio as jest.Mock).mockRejectedValue(error);
+          (Socio.destroy as jest.Mock).mockRejectedValue(error);
+    
+          await SocioController.deleteSocio(mockRequest as Request, mockResponse as Response);
+    
+          expect(mockResponse.status).toHaveBeenCalledWith(500);
+          expect(mockResponse.json).toHaveBeenCalledWith({
+            message: 'Error al eliminar el socio',
+            error
+          });
+          expect(logger.error).toHaveBeenCalled();
+        });
     });
   });
+});
 });
