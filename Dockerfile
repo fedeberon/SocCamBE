@@ -8,16 +8,16 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instala las dependencias del proyecto
-RUN npm install
+RUN npm install -g pnpm && pnpm install
 
 # Copia el resto del código del proyecto al contenedor
 COPY . .
 
 # Compila el proyecto TypeScript
-RUN npm run build
+RUN pnpm run build
 
 # Expone el puerto en el que tu aplicación va a correr
 EXPOSE 5000
 
 # Comando por defecto para iniciar la aplicación
-CMD ["npm", "start"]
+CMD ["pnpm", "start"]

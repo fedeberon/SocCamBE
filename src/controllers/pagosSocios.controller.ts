@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import logger from '../configs/logger';
 import PagosSociosService from '../service/pagosSocios.service';
 
 export const getAllPagosSocios = async (req: Request, res: Response) => {
@@ -6,6 +7,7 @@ export const getAllPagosSocios = async (req: Request, res: Response) => {
     const pagosSocios = await PagosSociosService.getAllPagosSocios();
     res.json(pagosSocios);
   } catch (error) {
+    logger.error('Error al obtener pagos de socios', error)
     res.status(500).json({ message: 'Error al obtener pagos de socios', error });
   }
 };
@@ -20,6 +22,7 @@ export const getPagosSociosById = async (req: Request, res: Response) => {
       res.status(404).json({ message: 'Pago de socio no encontrado' });
     }
   } catch (error) {
+    logger.error('Error al obtener pagos de socios', error)
     res.status(500).json({ message: 'Error al obtener el pago de socio', error });
   }
 };
@@ -34,6 +37,7 @@ export const getPagosSociosBySocio = async (req: Request, res: Response) => {
       res.status(404).json({ message: 'No se encontraron pagos para este socio' });
     }
   } catch (error) {
+    logger.error('Error al obtener pagos de socios', error)
     res.status(500).json({ message: 'Error al obtener los pagos del socio', error });
   }
 };
