@@ -137,7 +137,25 @@ class SocioController {
     }
   }
   
+
+  static async searchSociosByName(req: Request, res: Response) {
+    const { search } = req.query;
+
+    if (!search || typeof search !== 'string') {
+        return res.status(400).json({ message: 'El parámetro "search" es requerido y debe ser una cadena.' });
+    }
+
+    try {
+        const socios = await SocioController.socioService.searchSociosByName(search);
+        return res.status(200).json(socios);
+    } catch (error) {
+        console.error('Error al buscar socios:', error);
+        return res.status(500).json({ message: 'Error al obtener los socios', error });
+    }
 }
+
+}
+
 
 
 
