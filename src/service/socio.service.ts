@@ -2,6 +2,7 @@ import Socio from '../models/socio.models';
 import PagosSocios from '../models/pagosSocios.models';
 import { ISocioService } from '../interfaces/Isocio.service';
 import MovimientoCuentaCorrienteCofre from '../models/movimientoCuentaCorrienteCofre.models';
+import { Op } from 'sequelize'; // Importar operador para consultas avanzadas
 
 class SocioService implements ISocioService {
   async getAllSocios(): Promise<Socio[]> {
@@ -87,6 +88,23 @@ class SocioService implements ISocioService {
     });
   }
   
+  async searchSociosByName(search: string): Promise<Socio[]> {
+    return await Socio.findAll({
+        where: {
+            [Op.or]: [
+                { socio_nombre: { [Op.like]: `%${search}%` } },
+                {
+                    [Op.and]: [
+                        { socio_nombre: search.split(' ')[0] || '' }, 
+                        { socio_apellido: search.split(' ')[1] || '' }, 
+                    ],
+                },
+            ],
+        },
+        order: [['socio_nombre', 'ASC']],
+    });
 }
+}
+
 
 export default SocioService; 
