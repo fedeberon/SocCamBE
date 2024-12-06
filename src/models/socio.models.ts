@@ -1,5 +1,7 @@
   import { Model, DataTypes, HasManyGetAssociationsMixin } from 'sequelize';
   import sequelize from '../configs/database';
+import Cupon from './Cupon.models';
+import AsignarCupon from './AsignarCupon.models';
  
   class Socio extends Model {
     private socio_id!: number;
@@ -63,8 +65,14 @@
       return this.socio_dni;
     }
   }
-
-
+ 
+  Socio.belongsToMany(Cupon, {
+    through: AsignarCupon,
+    foreignKey: 'socio_id',
+    otherKey: 'cupon_id',
+    as: 'cupones',
+  });
+  
   Socio.init({
     socio_id: {
       type: DataTypes.INTEGER,
