@@ -1,0 +1,37 @@
+{
+	"info": {
+		"_postman_id": "920fe6e2-8a03-4b37-a9cb-8996ed1790ab",
+		"name": "Pagos Cofre",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "17969636"
+	},
+	"item": [
+		{
+			"name": "Get Pagos Cofres",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IkxmbDJMczZOaW5YQlBXRG5tVUxBVyJ9.eyJpc3MiOiJodHRwczovL2Rldi1qZTRubWdxbGdwdDRuZTJlLnVzLmF1dGgwLmNvbS8iLCJzdWIiOiJNd1NLQXFGSjV0ajhTTTB3UTZSWXlDWk1RRTQ2UTJSRkBjbGllbnRzIiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAwIiwiaWF0IjoxNzI5NTMxMDgxLCJleHAiOjE3Mjk2MTc0ODEsInNjb3BlIjoicmVhZDphcHBvaW50bWVudHMiLCJndHkiOiJjbGllbnQtY3JlZGVudGlhbHMiLCJhenAiOiJNd1NLQXFGSjV0ajhTTTB3UTZSWXlDWk1RRTQ2UTJSRiJ9.cws5FlvV1FMdRP-gc5A_oMvE8ToxO_pvIkj22KWLkY6o94DKhWIVi-lmMRZh7-QInslZ1-1TQg7h7b2U15k1g6LIffpQsWYUfJyvmRlb_tERK9r_BOYLOt5c14stdIIXEivO32GGoS-3tRPTzmzom-OE2aQYkQQ5H1XFSsCOoAzA4wnuwa6bORHyfgvsA70A_PhAu--oUDR3Ucd794r9jktnjdTw91ZEj8YUFF_vkIeMj7bD_PJNz4e0_3_W2aJCjJ5tEtJTtsgYAif7xn7KSAV5olVzi37aPWVIG1fkfRyAXXxJyO41uU_0HEvOrhpicr2criFk_Ag4ENwLjbx_3Q",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{URI}}/pagos-cofres",
+					"host": [
+						"{{URI}}"
+					],
+					"path": [
+						"pagos-cofres"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
