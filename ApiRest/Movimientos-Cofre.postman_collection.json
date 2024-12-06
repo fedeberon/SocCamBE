@@ -1,0 +1,68 @@
+{
+	"info": {
+		"_postman_id": "d89e5a89-e8b9-48b2-bc1e-209be6bd4f6b",
+		"name": "Movimientos-Cofre",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "17969636"
+	},
+	"item": [
+		{
+			"name": "Get Movimiento",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{URI}}/movimientos",
+					"host": [
+						"{{URI}}"
+					],
+					"path": [
+						"movimientos"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "100",
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Movimiento by ID",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{URI}}/movimientos/:id",
+					"host": [
+						"{{URI}}"
+					],
+					"path": [
+						"movimientos",
+						":id"
+					],
+					"variable": [
+						{
+							"key": "id",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
