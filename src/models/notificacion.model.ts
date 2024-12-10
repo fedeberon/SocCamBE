@@ -9,6 +9,7 @@ class Notificacion extends Model {
   private mensaje!: string;
   private fecha!: Date;
   private leida!: boolean;
+  private deleted!: boolean; // Nueva propiedad para el modelo
 
   public getId(): number {
     return this.notificacion_id;
@@ -36,6 +37,18 @@ class Notificacion extends Model {
 
   public isLeida(): boolean {
     return this.leida;
+  }
+
+  public isDeleted(): boolean {
+    return this.deleted;
+  }
+
+  public markAsRead(): void {
+    this.leida = true;
+  }
+
+  public markAsDeleted(): void {
+    this.deleted = true;
   }
 }
 
@@ -70,6 +83,11 @@ Notificacion.init({
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: false,
+  },
+  deleted: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false, // Nueva columna
   },
 }, {
   sequelize,
