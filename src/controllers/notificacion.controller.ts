@@ -19,13 +19,10 @@ class NotificacionController {
   static async getNotificacionesBySocio(req: Request, res: Response) { 
     try { 
       const { socioId } = req.params; 
-      
       const notificaciones = await NotificacionController.notificacionService.getNotificacionesBySocio(Number(socioId)); 
-            
       if (notificaciones.length === 0) {
         return res.status(404).json({ message: 'No se encontraron notificaciones para este socio' });
       }
-      
       res.status(200).json(notificaciones); 
     } catch (error) { 
       logger.error('Error al obtener las notificaciones:', error); 
@@ -33,12 +30,27 @@ class NotificacionController {
     } 
   }
 
+  static async markAsRead(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const updated = await NotificacionController.notificacionService.markAsRead(Number(id));
+      if (updated) {
+        res.status(200).json({ message: 'Notificación marcada como leída', notificacion: updated });
+      } else {
+        res.status(404).json({ message: 'Notificación no encontrada' });
+      }
+    } catch (error) {
+      logger.error('Error al marcar la notificación como leída:', error);
+      res.status(500).json({ message: 'Error al marcar la notificación como leída', error });
+    }
+  }
+
   static async deleteNotificacion(req: Request, res: Response) {
     try {
       const { id } = req.params;
       const deleted = await NotificacionController.notificacionService.deleteNotificacion(Number(id));
       if (deleted) {
-        res.status(200).json({ message: 'Notificación eliminada correctamente' });
+        res.status(200).json({ message: 'Notificación eliminada lógicamente', notificacion: deleted });
       } else {
         res.status(404).json({ message: 'Notificación no encontrada' });
       }
