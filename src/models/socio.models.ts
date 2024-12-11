@@ -66,13 +66,6 @@ import AsignarCupon from './AsignarCupon.models';
     }
   }
  
-  Socio.belongsToMany(Cupon, {
-    through: AsignarCupon,
-    foreignKey: 'socio_id',
-    otherKey: 'cupon_id',
-    as: 'cupones',
-  });
-  
   Socio.init({
     socio_id: {
       type: DataTypes.INTEGER,

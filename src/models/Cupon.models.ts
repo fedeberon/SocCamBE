@@ -11,19 +11,10 @@ class Cupon extends Model {
   public fechaExpiracion!: Date;
   public codigo!: string;
 
-  public readonly socios?: Socio[];
-
-  public static associations: {
-    socios: Association<Cupon, Socio>;
-  };
+  
 }
 
-Cupon.belongsToMany(Socio, {
-  through: AsignarCupon,
-  foreignKey: 'cupon_id',
-  otherKey: 'socio_id',
-  as: 'socios',
-});
+ 
 
 // Inicialización del modelo
 Cupon.init({
