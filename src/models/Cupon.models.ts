@@ -1,7 +1,6 @@
-import { Model, DataTypes, Association } from 'sequelize';
+// src/models/cupon.model.ts
+import { Model, DataTypes } from 'sequelize';
 import sequelize from '../configs/database';
-import Socio from './socio.models';
-import AsignarCupon from './AsignarCupon.models';
 
 class Cupon extends Model {
   public id!: number;
@@ -10,13 +9,18 @@ class Cupon extends Model {
   public descuento!: number;
   public fechaExpiracion!: Date;
   public codigo!: string;
+  public utilizado!: boolean;
+  public deleted!: boolean;
 
-  
+  public markAsUsed(): void {
+    this.utilizado = true;
+  }
+
+  public markAsDeleted(): void {
+    this.deleted = true;
+  }
 }
 
- 
-
-// Inicialización del modelo
 Cupon.init({
   id: {
     type: DataTypes.INTEGER,
@@ -28,7 +32,7 @@ Cupon.init({
     allowNull: false,
   },
   descripcion: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT,
     allowNull: false,
   },
   descuento: {
@@ -44,6 +48,16 @@ Cupon.init({
     allowNull: false,
     unique: true,
   },
+  utilizado: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  deleted: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
 }, {
   sequelize,
   modelName: 'Cupon',
@@ -51,5 +65,5 @@ Cupon.init({
   schema: 'dbo',
   timestamps: false,
 });
- 
+
 export default Cupon;

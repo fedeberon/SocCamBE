@@ -11,7 +11,7 @@ import pagosCofresRoutes from './router/pagosCofres.routes';
 import acontecimientoRoutes from './router/acontecimiento.routes';
 import contratoCofresRoutes from './router/contratoCofres.routes';
 import cors from 'cors';
-import cuponesRoutes from './router/cupones.routes';
+import cuponesRoutes from './router/cupon.routes';
 
 
 const app = express();
