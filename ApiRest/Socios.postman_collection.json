@@ -1,0 +1,210 @@
+{
+	"info": {
+		"_postman_id": "b480998f-1bd7-4457-a70d-3335b42d3822",
+		"name": "Socios",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "17969636"
+	},
+	"item": [
+		{
+			"name": "get Socios",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IkxmbDJMczZOaW5YQlBXRG5tVUxBVyJ9.eyJpc3MiOiJodHRwczovL2Rldi1qZTRubWdxbGdwdDRuZTJlLnVzLmF1dGgwLmNvbS8iLCJzdWIiOiJ5b21MS2xpQXJiUUhJSU5ka3ZyVHJLRkRZckVwd2g3UEBjbGllbnRzIiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAwIiwiaWF0IjoxNzMyNjQ4ODE5LCJleHAiOjE3MzI3MzUyMTksImd0eSI6ImNsaWVudC1jcmVkZW50aWFscyIsImF6cCI6InlvbUxLbGlBcmJRSElJTmRrdnJUcktGRFlyRXB3aDdQIn0.fcw1k4OXJHmMkgxjY2-shVWoLokH-x10Y3WDXrTKPD65MjLkHmqcyQH1Px4aSxkkLpbQbiTH7FMaAf8uGdQiCS78vT8VBRuqzlVhj7iDz86XgDhKiQqaV9acMqCSfaOrq5p0IjnXPSSbhL7GH1CShid7hj6pP5Ixmw3aTG-J8dI-a9PcedkCKMsRCMluvT_Mxd6gIuly777F8B_XCF_zIWhT4kiXTPkFO7I_lGtumeqhwP1hx3Ri1jdP0RtJCgQxUvcaqJyIEpyRi6HgO-_ZgoA6ogDviy5Lt1TLuz-cHGGEaHSHXhtuEjLpJyZSiW-aZUuoyBp04TyG0PhNeZ5c3A",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{URI}}/socio",
+					"host": [
+						"{{URI}}"
+					],
+					"path": [
+						"socio"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "search Socios by name",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IkxmbDJMczZOaW5YQlBXRG5tVUxBVyJ9.eyJpc3MiOiJodHRwczovL2Rldi1qZTRubWdxbGdwdDRuZTJlLnVzLmF1dGgwLmNvbS8iLCJzdWIiOiJ5b21MS2xpQXJiUUhJSU5ka3ZyVHJLRkRZckVwd2g3UEBjbGllbnRzIiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAwIiwiaWF0IjoxNzMyNjQ4ODE5LCJleHAiOjE3MzI3MzUyMTksImd0eSI6ImNsaWVudC1jcmVkZW50aWFscyIsImF6cCI6InlvbUxLbGlBcmJRSElJTmRrdnJUcktGRFlyRXB3aDdQIn0.fcw1k4OXJHmMkgxjY2-shVWoLokH-x10Y3WDXrTKPD65MjLkHmqcyQH1Px4aSxkkLpbQbiTH7FMaAf8uGdQiCS78vT8VBRuqzlVhj7iDz86XgDhKiQqaV9acMqCSfaOrq5p0IjnXPSSbhL7GH1CShid7hj6pP5Ixmw3aTG-J8dI-a9PcedkCKMsRCMluvT_Mxd6gIuly777F8B_XCF_zIWhT4kiXTPkFO7I_lGtumeqhwP1hx3Ri1jdP0RtJCgQxUvcaqJyIEpyRi6HgO-_ZgoA6ogDviy5Lt1TLuz-cHGGEaHSHXhtuEjLpJyZSiW-aZUuoyBp04TyG0PhNeZ5c3A",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{URI}}/socio/search?search=beron",
+					"host": [
+						"{{URI}}"
+					],
+					"path": [
+						"socio",
+						"search"
+					],
+					"query": [
+						{
+							"key": "search",
+							"value": "beron"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get Socios whit Pagos",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IkxmbDJMczZOaW5YQlBXRG5tVUxBVyJ9.eyJpc3MiOiJodHRwczovL2Rldi1qZTRubWdxbGdwdDRuZTJlLnVzLmF1dGgwLmNvbS8iLCJzdWIiOiJNd1NLQXFGSjV0ajhTTTB3UTZSWXlDWk1RRTQ2UTJSRkBjbGllbnRzIiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAwIiwiaWF0IjoxNzI5NTI0MTg0LCJleHAiOjE3Mjk2MTA1ODQsInNjb3BlIjoicmVhZDphcHBvaW50bWVudHMiLCJndHkiOiJjbGllbnQtY3JlZGVudGlhbHMiLCJhenAiOiJNd1NLQXFGSjV0ajhTTTB3UTZSWXlDWk1RRTQ2UTJSRiJ9.n2dX30xymFwT9ufg-YelFOdLVSgP4EwzoirTgltkp6PQ_hW8PbpjSEWgJLO2f4u6QqtFAl2wUCXhHYE7iOcuLo0pkQmn0iDiJ3RkcuQzL_OR-GXUbD_JOAdUR-RS1LgHIYvaaaUp-hws5O2jr-NRiwVoSQPwZ9dC67n8YNJiy_ZUTddWL8e2KbkmOmDMyprPVHJHBRyYfXmRQThS9G386wxqlScaOrENlw1GZ-71P82pwQfNvD7ZwzUvRJA4DhAVW-FqVxHBeyi6FQ09thymb3BEDxCNCAt3At93mL3CbkUIva-AWHPcEALX1wzxXrEgVsk9lwAZjfX_NDfCXQr1vA",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{URI}}/socio/:id/pagos",
+					"host": [
+						"{{URI}}"
+					],
+					"path": [
+						"socio",
+						":id",
+						"pagos"
+					],
+					"variable": [
+						{
+							"key": "id",
+							"value": "91173"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get Socio by ID",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IkxmbDJMczZOaW5YQlBXRG5tVUxBVyJ9.eyJpc3MiOiJodHRwczovL2Rldi1qZTRubWdxbGdwdDRuZTJlLnVzLmF1dGgwLmNvbS8iLCJzdWIiOiJ5b21MS2xpQXJiUUhJSU5ka3ZyVHJLRkRZckVwd2g3UEBjbGllbnRzIiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAwIiwiaWF0IjoxNzMyNjQ4ODE5LCJleHAiOjE3MzI3MzUyMTksImd0eSI6ImNsaWVudC1jcmVkZW50aWFscyIsImF6cCI6InlvbUxLbGlBcmJRSElJTmRrdnJUcktGRFlyRXB3aDdQIn0.fcw1k4OXJHmMkgxjY2-shVWoLokH-x10Y3WDXrTKPD65MjLkHmqcyQH1Px4aSxkkLpbQbiTH7FMaAf8uGdQiCS78vT8VBRuqzlVhj7iDz86XgDhKiQqaV9acMqCSfaOrq5p0IjnXPSSbhL7GH1CShid7hj6pP5Ixmw3aTG-J8dI-a9PcedkCKMsRCMluvT_Mxd6gIuly777F8B_XCF_zIWhT4kiXTPkFO7I_lGtumeqhwP1hx3Ri1jdP0RtJCgQxUvcaqJyIEpyRi6HgO-_ZgoA6ogDviy5Lt1TLuz-cHGGEaHSHXhtuEjLpJyZSiW-aZUuoyBp04TyG0PhNeZ5c3A",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{URI}}/socio/:id",
+					"host": [
+						"{{URI}}"
+					],
+					"path": [
+						"socio",
+						":id"
+					],
+					"variable": [
+						{
+							"key": "id",
+							"value": "91173"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get Socio by Email",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IkxmbDJMczZOaW5YQlBXRG5tVUxBVyJ9.eyJpc3MiOiJodHRwczovL2Rldi1qZTRubWdxbGdwdDRuZTJlLnVzLmF1dGgwLmNvbS8iLCJzdWIiOiJNd1NLQXFGSjV0ajhTTTB3UTZSWXlDWk1RRTQ2UTJSRkBjbGllbnRzIiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAwIiwiaWF0IjoxNzMyNjQxOTkyLCJleHAiOjE3MzI3MjgzOTIsInNjb3BlIjoicmVhZDphcHBvaW50bWVudHMiLCJndHkiOiJjbGllbnQtY3JlZGVudGlhbHMiLCJhenAiOiJNd1NLQXFGSjV0ajhTTTB3UTZSWXlDWk1RRTQ2UTJSRiJ9.Imqfcqp8rXefltH3A7TM3e_D1SJ1LZLWrNJoNoMPxRgetiMGZn4IscnLjIodCNApFJE2NjQpQaG_Gq71dmV1LQmFLX4aw01MZH65sj16ZnzXugmlz7FVqZvUQeN21Com39n70w9xhEQKGLFp-9rpIUHYOyusJmNmCPsivLpYbSi-qT6dOfZZJYL359RU3ncDSSRz4uWXi6-1ejsBAR6G05CDRjRH7tEkaDS_C8aA6WVfOFFLwj2GL7MDhQea4TvcDS4MUmugK4qm0d51c2DcMkTfUfBOc0cjAngQrO71TSsZETWLqe4cdOS0t8Xw7Gi1OcxBoCYks4XjvEbCRnEs2w",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{URI}}/socio/email/:email",
+					"host": [
+						"{{URI}}"
+					],
+					"path": [
+						"socio",
+						"email",
+						":email"
+					],
+					"variable": [
+						{
+							"key": "email",
+							"value": "pablolezcano8@gmail.com"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get Socio by Matricula",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IkxmbDJMczZOaW5YQlBXRG5tVUxBVyJ9.eyJpc3MiOiJodHRwczovL2Rldi1qZTRubWdxbGdwdDRuZTJlLnVzLmF1dGgwLmNvbS8iLCJzdWIiOiJNd1NLQXFGSjV0ajhTTTB3UTZSWXlDWk1RRTQ2UTJSRkBjbGllbnRzIiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDozMDAwIiwiaWF0IjoxNzI5NTI0NTc0LCJleHAiOjE3Mjk2MTA5NzQsInNjb3BlIjoicmVhZDphcHBvaW50bWVudHMiLCJndHkiOiJjbGllbnQtY3JlZGVudGlhbHMiLCJhenAiOiJNd1NLQXFGSjV0ajhTTTB3UTZSWXlDWk1RRTQ2UTJSRiJ9.b1oifMTFeJ262vLiHWY3w5JtsMCu8uLioMd_cuc8LB0NbGjlZCO3YeniaYaJok1lDEnNhvcOLMY7WIYBrM7QEi0hljSKpvFntzmfhZCjHBs7Aa-1x-K-iRoqUY19WsTCzje8VaATJKBvmhYP1mK773-sFEsSLema8CDPnLET9SzW20KvVC8b-GSSZC-_8Jho5P47uWlFHFcdbnvRYdoBaep3b5S9p0F5zmNuxEDY0_b5i-cet9iTT3lOO7RNImX8M9Rgi7Kr0KxipL1v7JVIrVnJ6M-Kb8iJJgI6bEEP-JbZ7Tc73iP4x9Oo7M3B7AqqsZshCRMzp_0CcjvzThJHIg",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{URI}}/socio/matricula/:matricula",
+					"host": [
+						"{{URI}}"
+					],
+					"path": [
+						"socio",
+						"matricula",
+						":matricula"
+					],
+					"variable": [
+						{
+							"key": "matricula",
+							"value": "4603"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
