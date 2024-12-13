@@ -1,0 +1,147 @@
+{
+	"info": {
+		"_postman_id": "0bf397e5-18a4-4256-89e3-2da3a0ba8f53",
+		"name": "Auth",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "17969636"
+	},
+	"item": [
+		{
+			"name": "Login",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"email\":\"test@example.com\",\r\n    \"password\":\"password123\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{URI}}/auth/login",
+					"host": [
+						"{{URI}}"
+					],
+					"path": [
+						"auth",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Register",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjUsImlhdCI6MTcyNjA4Njc5OCwiZXhwIjoxNzI2MDkwMzk4fQ.40j4rbeu6kchKI5KnSYEMP4Jp_ir4J0e6UVKq5qyPCc",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{   \r\n    \"username\":\"ejemplo\",\r\n    \"email\":\"ejamplo.register@example.com\",\r\n    \"password\":\"password123\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{URI}}/auth/register",
+					"host": [
+						"{{URI}}"
+					],
+					"path": [
+						"auth",
+						"register"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Generar Token",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "content-type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"client_id\": \"yomLKliArbQHIINdkvrTrKFDYrEpwh7P\",\r\n    \"client_secret\": \"lH3LqqBcsg6jcuPaoCdtr4Iwzr0gYFTbycbzSNPQS5EPdb-_mZi-2_gBKC6q6umT\",\r\n    \"audience\": \"http://localhost:3000\",\r\n    \"grant_type\": \"client_credentials\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://dev-je4nmgqlgpt4ne2e.us.auth0.com/oauth/token",
+					"protocol": "https",
+					"host": [
+						"dev-je4nmgqlgpt4ne2e",
+						"us",
+						"auth0",
+						"com"
+					],
+					"path": [
+						"oauth",
+						"token"
+					]
+				},
+				"description": "Generated from cURL: curl --request POST \\\r\n  --url https://dev-je4nmgqlgpt4ne2e.us.auth0.com/oauth/token \\\r\n  --header 'content-type: application/json' \\\r\n  --data '{\"client_id\":\"5exr8xT1OpXQyBIB4wvBN1GqcpcfuAs5\",\"client_secret\":\"D5_UOQeGPfGH775arW-DNfc2SFQ4gc7CwfbHamvXw347WIbtGbLBHHvCuqDeNgUg\",\"audience\":\"http://localhost:3000\",\"grant_type\":\"client_credentials\"}'"
+			},
+			"response": []
+		},
+		{
+			"name": "auth test 1",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "content-type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"client_id\": \"FYfWMRn2ETlxQU1iK189zn1v55HfSyRz\",\r\n    \"client_secret\": \"5uZHBU9g4wH-p_tCWAD53KTqh1u2GEfMsWI3E-0CC-_puidW1wUny3Ni4EGYHh5M\",\r\n    \"audience\": \"https://dev-esefvzd2mfdvpirm.us.auth0.com/api/v2/\",\r\n    \"grant_type\": \"client_credentials\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "dev-esefvzd2mfdvpirm.us.auth0.com/oauth/token",
+					"host": [
+						"dev-esefvzd2mfdvpirm",
+						"us",
+						"auth0",
+						"com"
+					],
+					"path": [
+						"oauth",
+						"token"
+					]
+				},
+				"description": "Generated from cURL: curl --request POST \\\r\n  --url https://dev-je4nmgqlgpt4ne2e.us.auth0.com/oauth/token \\\r\n  --header 'content-type: application/json' \\\r\n  --data '{\"client_id\":\"woQRHKvt7ED9yicOdEJI21jbU4V3zLcl\",\"client_secret\":\"Ge9x7rMg2YMqXTMHQQvW8S8xvn10gUJZ_VligfStodL1eiKUw7-n1MhwtsZmtMea\",\"audience\":\"http://localhost:3000\",\"grant_type\":\"client_credentials\"}'"
+			},
+			"response": []
+		}
+	]
+}
