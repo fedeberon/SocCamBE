@@ -74,12 +74,12 @@ class CuponController {
   }
 
   static async assignCupon(req: Request, res: Response) {
+    const { socioId, cuponId } = req.body;
     try {
-      const { socioId, cuponId } = req.body;
-      const asignacion = await CuponController.cuponService.assignCupon(socioId, cuponId);
-      res.status(201).json(asignacion);
+      const result = await CuponController.cuponService.assignCupon(socioId, cuponId);
+      res.status(201).json(result);
     } catch (error) {
-      res.status(500).json({ message: 'Error al asignar el cupón', error });
+      res.status(500).json({ message: 'Error asignando cupón' });
     }
   }
 }

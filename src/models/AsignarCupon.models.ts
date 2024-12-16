@@ -1,5 +1,6 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../configs/database';
+import Cupon from './cupon.models';
 
 class AsignarCupon extends Model {
   public socio_id!: number;
@@ -11,7 +12,7 @@ AsignarCupon.init({
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'socios', // Asegúrate de que existe el modelo `Socios`.
+      model: 'socios',
       key: 'id',
     },
   },
@@ -29,6 +30,11 @@ AsignarCupon.init({
   tableName: 'asignar_cupon',
   schema: 'dbo',
   timestamps: false,
+});
+
+AsignarCupon.belongsTo(Cupon, {
+  foreignKey: 'cupon_id',
+  as: 'cupon',
 });
 
 export default AsignarCupon;

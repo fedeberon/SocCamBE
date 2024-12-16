@@ -1,9 +1,15 @@
 import AsignarCupon from '../models/asignarCupon.models';
 import Cupon from '../models/cupon.models';
 import { ICuponService } from '../interfaces/Icupon.service';
+import Socio from '../models/socio.models';
 
 class CuponService implements ICuponService {
   async createCupon(data: any): Promise<any> {
+    data.utilizado = false;
+    data.deleted = false;
+
+    data.fechaExpiracion = new Date(data.fechaExpiracion);
+
     return await Cupon.create(data);
   }
 
@@ -14,7 +20,10 @@ class CuponService implements ICuponService {
   async getCuponesBySocio(socioId: number): Promise<any[]> {
     return await AsignarCupon.findAll({
       where: { socio_id: socioId },
-      include: [{ model: Cupon }],
+      include: [{
+        model: Cupon,
+        as: 'cupon',
+      }],
     });
   }
 
@@ -39,6 +48,13 @@ class CuponService implements ICuponService {
   }
 
   async assignCupon(socioId: number, cuponId: number): Promise<any> {
+    const socio = await Socio.findByPk(socioId);
+    const cupon = await Cupon.findByPk(cuponId);
+
+    if (!socio || !cupon) {
+      throw new Error(`Socio o cupón no encontrado`);
+    }
+
     return await AsignarCupon.create({ socio_id: socioId, cupon_id: cuponId });
   }
 }
