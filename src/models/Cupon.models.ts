@@ -1,6 +1,5 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../configs/database';
-import AsignarCupon from './asignarCupon.models';
 
 class Cupon extends Model {
   public id!: number;
@@ -64,11 +63,6 @@ Cupon.init({
   tableName: 'cupones',
   schema: 'dbo',
   timestamps: false,
-});
-
-Cupon.hasMany(AsignarCupon, {
-  foreignKey: 'cupon_id',
-  as: 'asignaciones',
 });
 
 export default Cupon;
