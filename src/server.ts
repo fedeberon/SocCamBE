@@ -10,10 +10,13 @@ import movimientoRoutes from './router/movimientoCuentaCorrienteCofre.routes';
 import pagosCofresRoutes from './router/pagosCofres.routes';
 import acontecimientoRoutes from './router/acontecimiento.routes';
 import contratoCofresRoutes from './router/contratoCofres.routes';
+
 import notificacionRoutes from './router/notificacion.routes';
 
 import {checkJwt} from './middleware/authMiddleware';
 import cors from 'cors';
+import cuponesRoutes from './router/cupon.routes';
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,7 +27,6 @@ app.get('/', (req, res) => {
   res.json({ message: 'Welcome to  application.' });
 });
 
-app.use(checkJwt)
 app.use('/user', userRouter);
 app.use('/auth', authRouter);
 app.use('/socio', socioRoutes);
@@ -33,6 +35,8 @@ app.use('/movimientos', movimientoRoutes);
 app.use('/pagos-cofres', pagosCofresRoutes);
 app.use('/acontecimientos', acontecimientoRoutes);
 app.use('/contrato-cofres', contratoCofresRoutes);
+app.use('/cupones', cuponesRoutes);
+
 app.use('/notificaciones', notificacionRoutes);
 
 
