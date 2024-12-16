@@ -10,6 +10,10 @@ import movimientoRoutes from './router/movimientoCuentaCorrienteCofre.routes';
 import pagosCofresRoutes from './router/pagosCofres.routes';
 import acontecimientoRoutes from './router/acontecimiento.routes';
 import contratoCofresRoutes from './router/contratoCofres.routes';
+
+import notificacionRoutes from './router/notificacion.routes';
+
+import {checkJwt} from './middleware/authMiddleware';
 import cors from 'cors';
 import cuponesRoutes from './router/cupon.routes';
 
@@ -32,6 +36,9 @@ app.use('/pagos-cofres', pagosCofresRoutes);
 app.use('/acontecimientos', acontecimientoRoutes);
 app.use('/contrato-cofres', contratoCofresRoutes);
 app.use('/cupones', cuponesRoutes);
+
+app.use('/notificaciones', notificacionRoutes);
+
 
 app.get('/authorized', (req, res) => {
   res.json({ message: 'seguro' });
