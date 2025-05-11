@@ -1,7 +1,5 @@
   import { Model, DataTypes, HasManyGetAssociationsMixin } from 'sequelize';
   import sequelize from '../configs/database';
-import Cupon from './cupon.models';
-import AsignarCupon from './asignarCupon.models';
  
   class Socio extends Model {
     private socio_id!: number;

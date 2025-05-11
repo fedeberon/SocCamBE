@@ -74,14 +74,33 @@ class CuponController {
   }
 
   static async assignCupon(req: Request, res: Response) {
-    const { socioId, cuponId } = req.body;
-    try {
+  const { socioId, cuponId } = req.body;
+
+  console.log('Datos recibidos para asignación:', { socioId, cuponId });
+
+  if (typeof socioId !== 'number' || typeof cuponId !== 'number') {
+      return res.status(400).json({ 
+          message: 'socioId y cuponId deben ser números',
+          receivedSocioId: typeof socioId,
+          receivedCuponId: typeof cuponId
+      });
+  }
+
+  try {
       const result = await CuponController.cuponService.assignCupon(socioId, cuponId);
       res.status(201).json(result);
-    } catch (error) {
-      res.status(500).json({ message: 'Error asignando cupón' });
-    }
+  } catch (error) {
+      console.error('Error completo al asignar cupón:', error);
+      
+      res.status(500).json({ 
+          message: 'Error asignando cupón',
+          errorDetails: error instanceof Error ? {
+              message: error.message,
+              name: error.name
+          } : 'Error desconocido'
+      });
   }
+}
 }
 
 export default CuponController;
