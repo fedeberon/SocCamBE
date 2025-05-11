@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import logger from '../configs/logger';
 import PagosSociosService from '../service/pagosSocios.service';
+import deudaService from '../service/deuda.service';
+
 
 export const getAllPagosSocios = async (req: Request, res: Response) => {
   try {
@@ -11,6 +13,19 @@ export const getAllPagosSocios = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error al obtener pagos de socios', error });
   }
 };
+
+export const getDeudaBySocio = async (req: Request, res : Response) => {
+  try {
+    const { socioId } = req.params;
+    const deuda_socio = await deudaService.getDeudaSociosById(Number(socioId));
+    const deuda_cofres = await deudaService.getDeudaCofreById(Number(socioId));
+
+    res.json({'deuda_socio':deuda_socio, 'deuda_cofres': deuda_cofres, 'deuda_total': (deuda_socio + deuda_cofres)});
+  } catch (error) {
+    logger.error('Error al obtener la deuda del socio', error)
+    res.status(500).json({ message: 'Error al obtener la deuda del socio', error });
+  }
+}
 
 export const getPagosSociosById = async (req: Request, res: Response) => {
   try {

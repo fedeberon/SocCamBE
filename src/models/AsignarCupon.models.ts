@@ -1,29 +1,38 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../configs/database';
-import Cupon from './cupon.models';
+import Cupon from './Cupon.models';
+import Socio from './socio.models';
 
 class AsignarCupon extends Model {
+  public id!: number; 
   public socio_id!: number;
   public cupon_id!: number;
 }
 
 AsignarCupon.init({
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   socio_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
+    field: 'socio_id',
     references: {
-      model: 'socios',
-      key: 'id',
+      model: 'socio',
+      key: 'socio_id'
     },
   },
   cupon_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
+    field: 'cupon_id',
     references: {
-      model: 'cupones',
-      key: 'id',
+      model: 'cupones', 
+      key: 'id'
     },
-  },
+  }
 }, {
   sequelize,
   modelName: 'AsignarCupon',
@@ -32,9 +41,14 @@ AsignarCupon.init({
   timestamps: false,
 });
 
+AsignarCupon.belongsTo(Socio, {
+  foreignKey: 'socio_id',
+  as: 'socio'
+});
+
 AsignarCupon.belongsTo(Cupon, {
   foreignKey: 'cupon_id',
-  as: 'cupon',
+  as: 'cupon'
 });
 
 export default AsignarCupon;

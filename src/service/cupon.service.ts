@@ -1,5 +1,5 @@
-import AsignarCupon from '../models/asignarCupon.models';
-import Cupon from '../models/cupon.models';
+import AsignarCupon from '../models/AsignarCupon.models';
+import Cupon from '../models/Cupon.models';
 import { ICuponService } from '../interfaces/Icupon.service';
 import Socio from '../models/socio.models';
 
@@ -48,15 +48,41 @@ class CuponService implements ICuponService {
   }
 
   async assignCupon(socioId: number, cuponId: number): Promise<any> {
-    const socio = await Socio.findByPk(socioId);
-    const cupon = await Cupon.findByPk(cuponId);
+    console.log(`Intentando asignar cupón. SocioId: ${socioId}, CuponId: ${cuponId}`);
+
+    const numSocioId = Number(socioId);
+    const numCuponId = Number(cuponId);
+
+    const socio = await Socio.findOne({ 
+        where: { socio_id: numSocioId } 
+    });
+    console.log('Socio encontrado:', socio);
+
+    const cupon = await Cupon.findByPk(numCuponId);
+    console.log('Cupón encontrado:', cupon);
 
     if (!socio || !cupon) {
-      throw new Error(`Socio o cupón no encontrado`);
+        console.error(`Socio o cupón no encontrado. SocioId: ${numSocioId}, CuponId: ${numCuponId}`);
+        throw new Error(`Socio o cupón no encontrado. Socio: ${!!socio}, Cupón: ${!!cupon}`);
     }
 
-    return await AsignarCupon.create({ socio_id: socioId, cupon_id: cuponId });
-  }
+    const asignacionExistente = await AsignarCupon.findOne({ 
+        where: { 
+            socio_id: numSocioId, 
+            cupon_id: numCuponId 
+        } 
+    });
+
+    if (asignacionExistente) {
+        console.warn(`Cupón ya asignado. SocioId: ${numSocioId}, CuponId: ${numCuponId}`);
+        throw new Error('Este cupón ya fue asignado a este socio');
+    }
+
+    return await AsignarCupon.create({ 
+        socio_id: numSocioId, 
+        cupon_id: numCuponId 
+    });
+}
 }
 
 export default CuponService;
