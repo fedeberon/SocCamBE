@@ -5,6 +5,9 @@ import { ISocioService } from '../interfaces/Isocio.service';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { CreateSocioDto } from '../dtos/CreateSocioDto';
+import formatDateFields from '../utils/formatDateFields';
+import { DateTime } from 'luxon';
+import convertirDatosSocio from '../utils/conversorSocio';
 
 class SocioController {
   private static socioService: ISocioService = new SocioService(); 
@@ -108,7 +111,7 @@ class SocioController {
       }
 
       const newSocio = await SocioController.socioService.createSocio(socioDto);
-      res.status(201).json(newSocio);
+      res.status(201).json(newSocio); 
     } catch (error) {
       logger.error('Error al crear el socio:', error);
       res.status(500).json({ message: 'Error interno al crear el socio' });
@@ -118,7 +121,12 @@ class SocioController {
   static async updateSocio(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const socioData = req.body;
+      const socioData = convertirDatosSocio(req.body);
+
+      delete socioData.socio_fechaNacimiento;
+      delete socioData.socio_modificado;
+      delete socioData.socio_fechaAprobacion;
+      
       const [rowsUpdated, updatedSocios] = await SocioController.socioService.updateSocio(Number(id), socioData);
       if (rowsUpdated > 0) {
         res.status(200).json(updatedSocios[0]);

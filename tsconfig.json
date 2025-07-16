@@ -2,7 +2,7 @@
   "compilerOptions": {
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "target": "ES6",
+    "target": "es2017",
     "module": "commonjs",
     "outDir": "./dist", // Salida de los archivos compilados
     "rootDir": "./src", // Directorio raíz de los archivos TypeScript
