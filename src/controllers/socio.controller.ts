@@ -121,7 +121,7 @@ class SocioController {
   static async updateSocio(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const socioData = convertirDatosSocio(req.body);
+      const socioData = req.body;
 
       delete socioData.socio_fechaNacimiento;
       delete socioData.socio_modificado;
