@@ -65,58 +65,58 @@
   }
  
   Socio.init({
-    socio_id: {
-      type: DataTypes.INTEGER,
-      autoIncrement: true,
-      primaryKey: true,
-    },
-    socio_nombre: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    socio_apellido: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    socio_nacionalidad: DataTypes.STRING,
-    socio_dni: DataTypes.STRING,
-    socio_fechaNacimiento: DataTypes.DATE,
-    socio_cuit: DataTypes.STRING,
-    socio_mail: DataTypes.STRING,
-    socio_firma: DataTypes.STRING,
-    socio_tipoEmpresa: DataTypes.STRING,
-    socio_domicilio: DataTypes.STRING,
-    socio_telefono: DataTypes.STRING,
-    socio_tipoSocio: DataTypes.STRING,
-    socio_numero: DataTypes.INTEGER,
-    socio_fechaAprobacion: DataTypes.DATE,
-    socio_acta: DataTypes.STRING,
-    socio_padrino1: DataTypes.STRING,
-    socio_padrino2: DataTypes.STRING,
-    socio_sector: DataTypes.STRING,
-    socio_deleted: DataTypes.BOOLEAN,
-    socio_tieneCajaSeguridad: DataTypes.BOOLEAN,
-    socio_estado: DataTypes.STRING,
-    socio_modificado: DataTypes.DATE,
-    socio_motivoBaja: DataTypes.STRING,
-    socio_gestion: DataTypes.STRING,
-    socio_segmento: DataTypes.STRING,
-    socio_habilitacion: DataTypes.STRING,
-    socio_rubro: DataTypes.STRING,
-    socio_localidad: DataTypes.STRING,
-    socio_condicionFiscal: DataTypes.STRING,
-    socio_celular: DataTypes.STRING,
-    socio_otroTelefono: DataTypes.STRING,
-    socio_tarjetaEntregada: DataTypes.BOOLEAN,
-    socio_tarjetaFechaEntrega: DataTypes.DATE,
-    socio_Campanias: DataTypes.STRING,
-    socio_enviarMail: DataTypes.BOOLEAN,
-  }, {
-    sequelize,
-    modelName: 'Socio',
-    tableName: 'socio',
-    schema: 'dbo',
-    timestamps: false,
-  });
+  socio_id: {
+    type: DataTypes.BIGINT,
+    autoIncrement: true,
+    primaryKey: true,
+  },
+  socio_nombre: {
+    type: DataTypes.STRING(150),
+    allowNull: false,
+  },
+  socio_apellido: {
+    type: DataTypes.STRING(150),
+    allowNull: false,
+  },
+  socio_nacionalidad: DataTypes.STRING(150),
+  socio_dni: DataTypes.STRING(150),
+  socio_fechaNacimiento: DataTypes.DATEONLY, // es "date" en la DB
+  socio_cuit: DataTypes.STRING(11),
+  socio_mail: DataTypes.STRING(150),
+  socio_firma: DataTypes.STRING(150),
+  socio_tipoEmpresa: DataTypes.STRING(150),
+  socio_domicilio: DataTypes.STRING(150),
+  socio_telefono: DataTypes.STRING(150),
+  socio_tipoSocio: DataTypes.BIGINT,
+  socio_numero: DataTypes.INTEGER,
+  socio_fechaAprobacion: DataTypes.DATEONLY,
+  socio_acta: DataTypes.INTEGER,
+  socio_padrino1: DataTypes.BIGINT,
+  socio_padrino2: DataTypes.BIGINT,
+  socio_sector: DataTypes.INTEGER,
+  socio_deleted: DataTypes.BOOLEAN,
+  socio_tieneCajaSeguridad: DataTypes.BOOLEAN,
+  socio_estado: DataTypes.INTEGER,
+  socio_modificado: DataTypes.DATE, // es datetime
+  socio_motivoBaja: DataTypes.TEXT, // varchar(MAX)
+  socio_gestion: DataTypes.BIGINT,
+  socio_segmento: DataTypes.BIGINT,
+  socio_habilitacion: DataTypes.TEXT, // varchar(MAX)
+  socio_rubro: DataTypes.INTEGER,
+  socio_localidad: DataTypes.INTEGER,
+  socio_condicionFiscal: DataTypes.INTEGER,
+  socio_celular: DataTypes.TEXT, // varchar(MAX)
+  socio_otroTelefono: DataTypes.STRING(150),
+  socio_tarjetaEntregada: DataTypes.BOOLEAN,
+  socio_tarjetaFechaEntrega: DataTypes.DATE,
+  socio_Campanias: DataTypes.INTEGER,
+  socio_enviarMail: DataTypes.BOOLEAN,
+}, {
+  sequelize,
+  modelName: "Socio",
+  tableName: "socio",
+  schema: 'dbo',
+  timestamps: false
+});
 
   export default Socio;
