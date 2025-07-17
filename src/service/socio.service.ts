@@ -78,11 +78,14 @@ class SocioService implements ISocioService {
   async updateSocio(id: number, socioData: any): Promise<[number, Socio]> {
     const [affectedRows] = await Socio.update(socioData, {
       where: { socio_id: id },
+      returning: false, // 👈 esto evita el uso de OUTPUT
     });
+
     const socio = await Socio.findByPk(id);
     if (!socio) {
       throw new Error('Socio not found');
     }
+
     return [affectedRows, socio];
   }
 
