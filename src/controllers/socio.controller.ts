@@ -122,10 +122,11 @@ class SocioController {
     try {
       const { id } = req.params;
       const socioData = req.body;
-
+      
       delete socioData.socio_fechaNacimiento;
       delete socioData.socio_modificado;
       delete socioData.socio_fechaAprobacion;
+      delete socioData.socio_tarjetaFechaEntrega;
       
       const [rowsUpdated, updatedSocios] = await SocioController.socioService.updateSocio(Number(id), socioData);
       if (rowsUpdated > 0) {
