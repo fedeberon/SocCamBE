@@ -75,11 +75,15 @@ class SocioService implements ISocioService {
     return await Socio.create(socioData);
   }
 
-  async updateSocio(id: number, socioData: any): Promise<[number, Socio[]]> {
-    return await Socio.update(socioData, {
+  async updateSocio(id: number, socioData: any): Promise<[number, Socio]> {
+    const [affectedRows] = await Socio.update(socioData, {
       where: { socio_id: id },
-      returning: true,
     });
+    const socio = await Socio.findByPk(id);
+    if (!socio) {
+      throw new Error('Socio not found');
+    }
+    return [affectedRows, socio];
   }
 
   async deleteSocio(id: number): Promise<number> {
