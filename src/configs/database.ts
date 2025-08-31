@@ -10,10 +10,11 @@ const sequelize = new Sequelize({
   dialectOptions: {
     options: {
       encrypt: true,
-      trustServerCertificate: false
-    }
+      trustServerCertificate: true,
+      instanceName: process.env.INSTANCE_NAME
+    },
   },
-  logging: console.log  
+  logging: console.log,
 });
 
 async function testConnection() {

@@ -10,12 +10,11 @@ import movimientoRoutes from './router/movimientoCuentaCorrienteCofre.routes';
 import pagosCofresRoutes from './router/pagosCofres.routes';
 import acontecimientoRoutes from './router/acontecimiento.routes';
 import contratoCofresRoutes from './router/contratoCofres.routes';
-
 import notificacionRoutes from './router/notificacion.routes';
-
 import {checkJwt} from './middleware/authMiddleware';
 import cors from 'cors';
 import cuponesRoutes from './router/cupon.routes';
+import tipoSocioRoutes from './router/tipoSocio.routes';
 
 
 const app = express();
@@ -30,6 +29,7 @@ app.get('/', (req, res) => {
 app.use('/user', userRouter);
 app.use('/auth', authRouter);
 app.use('/socio', socioRoutes);
+app.use('/tipo-socio', tipoSocioRoutes);
 app.use('/pagos-socios', pagosSociosRoutes);
 app.use('/movimientos', movimientoRoutes);
 app.use('/pagos-cofres', pagosCofresRoutes);
