@@ -28,6 +28,19 @@ class CuponController {
       res.status(500).json({ message: 'Error al obtener los cupones', error });
     }
   }
+
+  static async getCuponesConSocios(req: Request, res: Response) {
+    try {
+      const cuponesConSocios = await CuponController.cuponService.getCuponesWithSocios();
+      if (cuponesConSocios.length === 0) {
+        return res.status(404).json({ message: 'No hay socios asociados a cupones' });
+      }
+      res.status(200).json(cuponesConSocios);
+    } catch (error) {
+      logger.error('Error al obtener los socios por cupón:', error);
+      res.status(500).json({ message: 'Error al obtener los socios por cupón', error });
+    }
+  }
   
   static async getCuponesBySocio(req: Request, res: Response) {
     try {
@@ -88,6 +101,14 @@ class CuponController {
 
   try {
       const result = await CuponController.cuponService.assignCupon(socioId, cuponId);
+
+      if (result?.alreadyAssigned) {
+        return res.status(200).json({ 
+          message: 'El cupón ya estaba asignado a este socio', 
+          asignacion: result.asignacion 
+        });
+      }
+
       res.status(201).json(result);
   } catch (error) {
       console.error('Error completo al asignar cupón:', error);
@@ -101,6 +122,35 @@ class CuponController {
       });
   }
 }
+
+  static async unassignCupon(req: Request, res: Response) {
+    const { socioId, cuponId } = req.body;
+
+    if (typeof socioId !== 'number' || typeof cuponId !== 'number') {
+      return res.status(400).json({
+        message: 'socioId y cuponId deben ser números',
+        receivedSocioId: typeof socioId,
+        receivedCuponId: typeof cuponId,
+      });
+    }
+
+    try {
+      const removed = await CuponController.cuponService.unassignCupon(socioId, cuponId);
+      if (!removed) {
+        return res.status(404).json({ message: 'No existe asignación para este socio y cupón' });
+      }
+      res.status(200).json({ message: 'Asignación eliminada', asignacion: removed });
+    } catch (error) {
+      logger.error('Error al desasignar cupón:', error);
+      res.status(500).json({
+        message: 'Error al desasignar cupón',
+        errorDetails: error instanceof Error ? {
+          message: error.message,
+          name: error.name,
+        } : 'Error desconocido',
+      });
+    }
+  }
 }
 
 export default CuponController;

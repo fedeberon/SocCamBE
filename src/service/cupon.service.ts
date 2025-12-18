@@ -17,6 +17,41 @@ class CuponService implements ICuponService {
     return await Cupon.findAll({ where: { deleted: false } });
   }
 
+  async getCuponesWithSocios(): Promise<any[]> {
+    const asignaciones = await AsignarCupon.findAll({
+      include: [
+        { model: Cupon, as: 'cupon' },
+        { model: Socio, as: 'socio' },
+      ],
+    });
+
+    const cuponesAgrupados: Record<number, { cupon: any; socios: any[] }> = {};
+
+    asignaciones.forEach((asignacion: any) => {
+      const cupon = asignacion.cupon;
+      const socio = asignacion.socio;
+
+      if (!cupon) {
+        return;
+      }
+
+      if (!cuponesAgrupados[cupon.id]) {
+        cuponesAgrupados[cupon.id] = { cupon, socios: [] };
+      }
+
+      if (socio) {
+        const yaExiste = cuponesAgrupados[cupon.id].socios.some(
+          (s) => String(s.socio_id) === String(socio.socio_id),
+        );
+        if (!yaExiste) {
+          cuponesAgrupados[cupon.id].socios.push(socio);
+        }
+      }
+    });
+
+    return Object.values(cuponesAgrupados);
+  }
+
   async getCuponesBySocio(socioId: number): Promise<any[]> {
     return await AsignarCupon.findAll({
       where: { socio_id: socioId },
@@ -75,7 +110,7 @@ class CuponService implements ICuponService {
 
     if (asignacionExistente) {
         console.warn(`Cupón ya asignado. SocioId: ${numSocioId}, CuponId: ${numCuponId}`);
-        throw new Error('Este cupón ya fue asignado a este socio');
+        return { alreadyAssigned: true, asignacion: asignacionExistente };
     }
 
     return await AsignarCupon.create({ 
@@ -83,6 +118,22 @@ class CuponService implements ICuponService {
         cupon_id: numCuponId 
     });
 }
+
+  async unassignCupon(socioId: number, cuponId: number): Promise<any> {
+    const numSocioId = Number(socioId);
+    const numCuponId = Number(cuponId);
+
+    const asignacion = await AsignarCupon.findOne({
+      where: { socio_id: numSocioId, cupon_id: numCuponId },
+    });
+
+    if (!asignacion) {
+      return null;
+    }
+
+    await asignacion.destroy();
+    return asignacion;
+  }
 }
 
 export default CuponService;
