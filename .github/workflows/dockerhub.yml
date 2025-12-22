@@ -5,6 +5,9 @@ on:
     branches:
       - release
 
+env:
+  DOCKER_IMAGE: fedeberon/soccam-be      
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -21,11 +24,12 @@ jobs:
           username: fedeberon
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # Build and push the Docker image
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
           tags: |
-            fedeberon/soccam-be:latest
-            fedeberon/soccam-be:${{ github.sha }}
+            ${{ env.DOCKER_IMAGE }}:latest
+            ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+          push: true
