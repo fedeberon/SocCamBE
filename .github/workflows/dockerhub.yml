@@ -27,5 +27,5 @@ jobs:
           context: .
           push: true
           tags: |
-            soccam-be:latest
-            soccam-be:${{ github.sha }}
+            fedeberon/soccam-be:latest
+            fedeberon/soccam-be:${{ github.sha }}
