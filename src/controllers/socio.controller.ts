@@ -8,9 +8,12 @@ import { CreateSocioDto } from '../dtos/CreateSocioDto';
 import formatDateFields from '../utils/formatDateFields';
 import { DateTime } from 'luxon';
 import convertirDatosSocio from '../utils/conversorSocio';
+import CajaSeguridadService from '../service/cajaSeguridad.service';
+import { ICajaSeguridadService } from '../interfaces/IcajaSeguridad.service';
 
 class SocioController {
   private static socioService: ISocioService = new SocioService(); 
+  private static cajaSeguridadService: ICajaSeguridadService = new CajaSeguridadService();
 
   static async getSocios(req: Request, res: Response) {
     try {
@@ -19,6 +22,17 @@ class SocioController {
     } catch (error) {
       logger.error('Error al obtener los socios:', error);
       res.status(500).json({ message: 'Error al obtener los socios', error });
+    }
+  }
+
+  static async getCajasSeguridadBySocio(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const cajas = await SocioController.cajaSeguridadService.getCajasBySocio(Number(id));
+      res.status(200).json(cajas);
+    } catch (error) {
+      logger.error('Error al obtener las cajas de seguridad del socio:', error);
+      res.status(500).json({ message: 'Error al obtener las cajas de seguridad del socio', error });
     }
   }
 

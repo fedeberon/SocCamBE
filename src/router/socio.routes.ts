@@ -10,6 +10,7 @@ socioRoutes.get('/email/:email',  SocioController.getSociosByEmail);
 socioRoutes.get('/matricula/:matricula',  SocioController.getSociosByMatricula);
 socioRoutes.get('/:id/pagos',  SocioController.getSocioWithPagos);
 socioRoutes.get('/:id/movimientos-cofre',  SocioController.getSocioMovimientosCofre);
+socioRoutes.get('/:id/cajas', SocioController.getCajasSeguridadBySocio);
 socioRoutes.post('/',  SocioController.createSocio);
 socioRoutes.put('/:id',  SocioController.updateSocio);
 socioRoutes.delete('/:id', SocioController.deleteSocio);

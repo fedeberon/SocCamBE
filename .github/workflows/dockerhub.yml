@@ -18,7 +18,7 @@ jobs:
       - name: Log in to DockerHub
         uses: docker/login-action@v2
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: fedeberon
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push Docker image
@@ -26,4 +26,6 @@ jobs:
         with:
           context: .
           push: true
-          tags: fedeberon/soccam-be:latest
+          tags: |
+            soccam-be:latest
+            soccam-be:${{ github.sha }}

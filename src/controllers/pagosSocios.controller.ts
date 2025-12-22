@@ -18,9 +18,8 @@ export const getDeudaBySocio = async (req: Request, res : Response) => {
   try {
     const { socioId } = req.params;
     const deuda_socio = await deudaService.getDeudaSociosById(Number(socioId));
-    const deuda_cofres = await deudaService.getDeudaCofreById(Number(socioId));
 
-    res.json({'deuda_socio':deuda_socio, 'deuda_cofres': deuda_cofres, 'deuda_total': (deuda_socio + deuda_cofres)});
+    res.json({ deuda_socio, deuda_cofres: 0, deuda_total: deuda_socio });
   } catch (error) {
     logger.error('Error al obtener la deuda del socio', error)
     res.status(500).json({ message: 'Error al obtener la deuda del socio', error });

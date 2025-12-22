@@ -1,5 +1,4 @@
 import MovimientoCuentaCorrienteCofre from '../models/movimientoCuentaCorrienteCofre.models';
-import PagosCofres from '../models/pagosCofres.models';
 import { IMovimientoCuentaCorrienteCofreService } from '../interfaces/IMovimientoCuentaCorrienteCofre.service';
 
 class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrienteCofreService {
@@ -31,15 +30,9 @@ class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrient
       }
     });
 
-    const pagos = await PagosCofres.findAll({
-      where: {
-        pagosCofres_contrato: clienteId
-      }
-    });
-
     return {
       movimientos,
-      pagos
+      pagos: []
     };
   }
 }
