@@ -2,10 +2,10 @@ import { Sequelize } from 'sequelize';
 
 const sequelize = new Sequelize({
   dialect: 'mssql',
-  host: process.env.HOST,
-  username: process.env.USER,
-  password: process.env.PASSWORD,
-  database: process.env.DATABASE,
+  host: "intercam-bolivar.database.windows.net",
+  username: "intercam-dba",
+  password: "kwxh/$yz@}KZ",
+  database: "intercam-bolivar",
   port: parseInt(process.env.DB_PORT || '1433'),
   dialectOptions: {
     options: {

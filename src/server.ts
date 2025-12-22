@@ -7,15 +7,20 @@ import authRouter from './router/auth.routes';
 import socioRoutes from './router/socio.routes';
 import pagosSociosRoutes from './router/pagosSocios.routes';
 import movimientoRoutes from './router/movimientoCuentaCorrienteCofre.routes';
-import pagosCofresRoutes from './router/pagosCofres.routes';
 import acontecimientoRoutes from './router/acontecimiento.routes';
 import contratoCofresRoutes from './router/contratoCofres.routes';
 
 import notificacionRoutes from './router/notificacion.routes';
+import dashboardRoutes from './router/dashboard.routes';
+import solicitudServicioRoutes from './router/solicitudServicio.routes';
+import serviciosRoutes from './router/servicios.routes';
+import mercadoPagoRoutes from './router/mercadoPago.routes';
+import MercadoPagoController from './controllers/mercadoPago.controller';
 
 import {checkJwt} from './middleware/authMiddleware';
 import cors from 'cors';
 import cuponesRoutes from './router/cupon.routes';
+import cajaSeguridadRoutes from './router/cajaSeguridad.routes';
 
 
 const app = express();
@@ -32,10 +37,19 @@ app.use('/auth', authRouter);
 app.use('/socio', socioRoutes);
 app.use('/pagos-socios', pagosSociosRoutes);
 app.use('/movimientos', movimientoRoutes);
-app.use('/pagos-cofres', pagosCofresRoutes);
 app.use('/acontecimientos', acontecimientoRoutes);
 app.use('/contrato-cofres', contratoCofresRoutes);
 app.use('/cupones', cuponesRoutes);
+app.use('/cajas', cajaSeguridadRoutes);
+app.use('/dashboard', dashboardRoutes);
+app.use('/solicitudes-servicio', solicitudServicioRoutes);
+app.use('/servicios', serviciosRoutes);
+app.use('/mercadopago', mercadoPagoRoutes);
+// Webhook directo (para usar en MP_NOTIFICATION_URL)
+app.post('/webhook/mercadopago', MercadoPagoController.webhook);
+// Retorno success/failure desde back_urls de MP
+app.get('/mercadopago/success', MercadoPagoController.retorno);
+app.get('/mercadopago/failure', MercadoPagoController.retorno);
 
 app.use('/notificaciones', notificacionRoutes);
 
