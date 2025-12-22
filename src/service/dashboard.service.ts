@@ -6,6 +6,36 @@ import PagosSocios from '../models/pagosSocios.models';
 import sequelize from '../configs/database';
 
 class DashboardService {
+  async resumenSocios() {
+    const total = await sequelize.query(
+      `SELECT COUNT(*) AS total FROM dbo.socio WHERE ISNULL(socio_deleted, 0) = 0`,
+      { type: QueryTypes.SELECT },
+    );
+    const totalSocios = Number((total[0] as any)?.total || 0);
+    return { total: totalSocios };
+  }
+
+  async sociosPorCategoria() {
+    const rows = await sequelize.query(
+      `
+        SELECT 
+          ISNULL(ts.tipoSocio_nombre, 'Sin categoría') AS categoria,
+          COUNT(*) AS total
+        FROM dbo.socio s
+        LEFT JOIN dbo.tipoSocio ts ON ts.tipoSocio_id = s.socio_tipoSocio
+        WHERE ISNULL(s.socio_deleted, 0) = 0
+        GROUP BY ISNULL(ts.tipoSocio_nombre, 'Sin categoría')
+        ORDER BY total DESC
+      `,
+      { type: QueryTypes.SELECT },
+    );
+
+    return rows.map((r: any) => ({
+      categoria: r.categoria,
+      total: Number(r.total) || 0,
+    }));
+  }
+
   async resumenCajas() {
     const total = await CajaSeguridad.count({ where: { deleted: false } });
 
@@ -127,6 +157,69 @@ class DashboardService {
         deudaPorciento: total > 0 ? Number(((deuda / total) * 100).toFixed(2)) : 0,
       };
     });
+  }
+
+  async pagoVsImpagoPorMes(anio: number) {
+    const rows = await PagosSocios.findAll({
+      attributes: [
+        'pagosSocios_periodo',
+        [
+          fn(
+            'SUM',
+            literal(
+              `CASE WHEN LOWER(CAST(pagosSocios_estado AS NVARCHAR(50))) IN ('pagado','pago','approved') THEN pagosSocios_monto ELSE 0 END`,
+            ),
+          ),
+          'pagado',
+        ],
+        [
+          fn(
+            'SUM',
+            literal(
+              `CASE WHEN LOWER(CAST(pagosSocios_estado AS NVARCHAR(50))) NOT IN ('pagado','pago','approved') THEN pagosSocios_monto ELSE 0 END`,
+            ),
+          ),
+          'impago',
+        ],
+      ],
+      where: {
+        pagosSocios_anio: anio,
+        pagosSocios_deleted: { [Op.or]: [false, null] },
+      },
+      group: ['pagosSocios_periodo'],
+      order: [[col('pagosSocios_periodo'), 'ASC']],
+      raw: true,
+    });
+
+    return rows.map((r: any) => {
+      const pagado = Number(r.pagado) || 0;
+      const impago = Number(r.impago) || 0;
+      const total = pagado + impago;
+      return {
+        periodo: r.pagosSocios_periodo,
+        pagado,
+        impago,
+        pagadoPorciento: total > 0 ? Number(((pagado / total) * 100).toFixed(2)) : 0,
+        impagoPorciento: total > 0 ? Number(((impago / total) * 100).toFixed(2)) : 0,
+      };
+    });
+  }
+
+  async totalRecaudado() {
+    const row = await sequelize.query(
+      `
+        SELECT 
+          SUM(pagosSocios_monto) AS total
+        FROM dbo.pagosSocios
+        WHERE (pagosSocios_deleted = 0 OR pagosSocios_deleted IS NULL)
+          AND LOWER(CONVERT(NVARCHAR(50), pagosSocios_estado)) IN ('pagado','pago','approved')
+      `,
+      { type: QueryTypes.SELECT },
+    );
+
+    const total = Number((row[0] as any)?.total || 0);
+
+    return { total };
   }
 }
 
