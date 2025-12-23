@@ -70,7 +70,7 @@ class MercadoPagoService {
     }
 
     const pref = await prefClient.create({ body });
-
+    console.log('Preferencia MP creada:', pref);
     return pref;
   }
 
