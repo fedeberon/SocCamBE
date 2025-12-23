@@ -6,7 +6,8 @@ on:
       - release
 
 env:
-  DOCKER_IMAGE: fedeberon/soccam-be      
+  DOCKER_IMAGE: fedeberon/soccam-be
+  MP_ACCESS_TOKEN: ${{ secrets.MP_ACCESS_TOKEN }}
 
 jobs:
   build-and-push:
