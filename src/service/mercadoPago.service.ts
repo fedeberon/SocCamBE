@@ -8,14 +8,14 @@ let mpClient: MercadoPagoConfig | null = null;
 let prefClient: Preference | null = null;
 let paymentClient: Payment | null = null;
 
-if (!MP_ACCESS_TOKEN) {
-  // eslint-disable-next-line no-console
-  console.warn('MP_ACCESS_TOKEN no está configurado; los pagos de Mercado Pago fallarán.');
-} else {
+// if (!MP_ACCESS_TOKEN) {
+//   // eslint-disable-next-line no-console
+//   console.warn('MP_ACCESS_TOKEN no está configurado; los pagos de Mercado Pago fallarán.');
+// } else {
   mpClient = new MercadoPagoConfig({ accessToken: 'APP_USR-4340936701059728-122020-0fafe420cbdce897714b056d8d770bae-3081058712' });
   prefClient = new Preference(mpClient);
   paymentClient = new Payment(mpClient);
-}
+// }
 
 const mapEstado = (mpStatus: string | undefined) => {
   const status = (mpStatus || '').toLowerCase();
