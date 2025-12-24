@@ -8,6 +8,14 @@ on:
 env:
   DOCKER_IMAGE: fedeberon/soccam-be
   MP_ACCESS_TOKEN: ${{ secrets.MP_ACCESS_TOKEN }}
+  MP_NOTIFICATION_URL: ${{ secrets.MP_NOTIFICATION_URL }}
+  MP_SUCCESS_URL: ${{ secrets.MP_SUCCESS_URL }}
+  MP_FAILURE_URL: ${{ secrets.MP_FAILURE_URL }}
+  MP_SUCCESS_REDIRECT: ${{ secrets.MP_SUCCESS_REDIRECT }}
+  VPS_HOST: ${{ secrets.VPS_HOST }}
+  VPS_USER: ${{ secrets.VPS_USER }}
+  VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+  VPS_APP_PATH: ${{ secrets.VPS_APP_PATH }}
 
 jobs:
   build-and-push:
@@ -45,3 +53,44 @@ jobs:
             ${{ env.DOCKER_IMAGE }}:latest
             ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
           push: true
+
+      - name: Copy docker-compose to VPS
+        if: ${{ env.VPS_HOST != '' && env.VPS_USER != '' && env.VPS_SSH_KEY != '' && env.VPS_APP_PATH != '' }}
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ env.VPS_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "${{ env.VPS_APP_PATH }}/"
+
+      - name: Deploy on VPS
+        if: ${{ env.VPS_HOST != '' && env.VPS_USER != '' && env.VPS_SSH_KEY != '' && env.VPS_APP_PATH != '' }}
+        uses: appleboy/ssh-action@v0.1.10
+        env:
+          MP_ACCESS_TOKEN: ${{ env.MP_ACCESS_TOKEN }}
+          MP_NOTIFICATION_URL: ${{ env.MP_NOTIFICATION_URL }}
+          MP_SUCCESS_URL: ${{ env.MP_SUCCESS_URL }}
+          MP_FAILURE_URL: ${{ env.MP_FAILURE_URL }}
+          MP_SUCCESS_REDIRECT: ${{ env.MP_SUCCESS_REDIRECT }}
+        with:
+          host: ${{ env.VPS_HOST }}
+          username: ${{ env.VPS_USER }}
+          key: ${{ env.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd "${VPS_APP_PATH}"
+
+            cat > .env <<EOF
+MP_ACCESS_TOKEN=${MP_ACCESS_TOKEN}
+MP_NOTIFICATION_URL=${MP_NOTIFICATION_URL}
+MP_SUCCESS_URL=${MP_SUCCESS_URL}
+MP_FAILURE_URL=${MP_FAILURE_URL}
+MP_SUCCESS_REDIRECT=${MP_SUCCESS_REDIRECT}
+PORT=5000
+EOF
+
+            docker compose pull
+            docker compose up -d
+
+            docker image prune -f
