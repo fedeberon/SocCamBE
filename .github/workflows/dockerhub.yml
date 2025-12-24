@@ -37,6 +37,7 @@ jobs:
           else
             echo "WARNING: MP_ACCESS_TOKEN is not set."
           fi
+          echo "VPS deploy enabled?: ${{ env.VPS_HOST != '' && env.VPS_USER != '' && env.VPS_SSH_KEY != '' && env.VPS_APP_PATH != '' }}"
 
       - name: Log in to DockerHub
         uses: docker/login-action@v2
@@ -53,6 +54,10 @@ jobs:
             ${{ env.DOCKER_IMAGE }}:latest
             ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
           push: true
+          provenance: false
+
+      - name: Show docker images (post-build)
+        run: docker images | head
 
       - name: Copy docker-compose to VPS
         if: ${{ env.VPS_HOST != '' && env.VPS_USER != '' && env.VPS_SSH_KEY != '' && env.VPS_APP_PATH != '' }}
@@ -90,7 +95,12 @@ MP_SUCCESS_REDIRECT=${MP_SUCCESS_REDIRECT}
 PORT=5000
 EOF
 
+            echo "docker compose pull..."
             docker compose pull
+            echo "docker compose up -d..."
             docker compose up -d
+            echo "docker ps..."
+            docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}'
 
+            echo "docker image prune -f..."
             docker image prune -f
