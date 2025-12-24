@@ -4,12 +4,12 @@ import logger from '../configs/logger';
 
 class MercadoPagoController {
   static async crearPreferencia(req: Request, res: Response) {
-    const { pagoId } = req.body || {};
-    if (!pagoId) {
-      return res.status(400).json({ message: 'pagoId es requerido' });
+    const { pagoId, tipo } = req.body || {};
+    if (!pagoId || !tipo) {
+      return res.status(400).json({ message: 'pagoId y tipo son requeridos' });
     }
     try {
-      const pref = await MercadoPagoService.crearPreferencia(Number(pagoId));
+      const pref = await MercadoPagoService.crearPreferencia(Number(pagoId), String(tipo));
       res.status(201).json(pref);
     } catch (error) {
       logger.error('Error al crear preferencia MP', error);

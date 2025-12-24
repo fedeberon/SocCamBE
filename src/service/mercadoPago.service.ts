@@ -1,5 +1,9 @@
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
 import PagosSocios from '../models/pagosSocios.models';
+import SocioCajaSeguridad from '../models/SocioCajaSeguridad.models';
+import CajaSeguridad from '../models/CajaSeguridad.models';
+import CajaSeguridadTamano from '../models/CajaSeguridadTamano.models';
+import Servicio from '../models/Servicio.models';
 import logger from '../configs/logger';
 
 const { MP_ACCESS_TOKEN, MP_NOTIFICATION_URL, MP_SUCCESS_URL, MP_FAILURE_URL } = process.env;
@@ -8,14 +12,20 @@ let mpClient: MercadoPagoConfig | null = null;
 let prefClient: Preference | null = null;
 let paymentClient: Payment | null = null;
 
-// if (!MP_ACCESS_TOKEN) {
-//   // eslint-disable-next-line no-console
-//   console.warn('MP_ACCESS_TOKEN no está configurado; los pagos de Mercado Pago fallarán.');
-// } else {
-  mpClient = new MercadoPagoConfig({ accessToken: 'APP_USR-4340936701059728-122020-0fafe420cbdce897714b056d8d770bae-3081058712' });
+const initMercadoPago = () => {
+  const accessToken = (MP_ACCESS_TOKEN || '').trim();
+  if (!accessToken) {
+    // eslint-disable-next-line no-console
+    console.warn('MP_ACCESS_TOKEN no está configurado; los pagos de Mercado Pago fallarán.');
+    return;
+  }
+
+  mpClient = new MercadoPagoConfig({ accessToken });
   prefClient = new Preference(mpClient);
   paymentClient = new Payment(mpClient);
-// }
+};
+
+initMercadoPago();
 
 const mapEstado = (mpStatus: string | undefined) => {
   const status = (mpStatus || '').toLowerCase();
@@ -26,18 +36,63 @@ const mapEstado = (mpStatus: string | undefined) => {
 };
 
 class MercadoPagoService {
-  async crearPreferencia(pagoSociosId: number) {
+  async crearPreferencia(pagoId: number, tipo: string) {
     if (!prefClient) {
       throw new Error('Mercado Pago no está configurado (MP_ACCESS_TOKEN faltante)');
     }
 
-    const pago = await PagosSocios.findByPk(pagoSociosId);
-    if (!pago) {
-      throw new Error('Pago de socio no encontrado');
+    const tipoNormalized = (tipo || '').toLowerCase().trim();
+    if (!tipoNormalized) {
+      throw new Error('Tipo de pago no informado');
     }
 
-    const monto = Number(pago.getDataValue('pagosSocios_monto') || 0);
-    const titulo = `Pago socio #${pagoSociosId}`;
+    const resolvePago = async () => {
+      if (tipoNormalized === 'cuota') {
+        const pago = await PagosSocios.findByPk(pagoId);
+        if (!pago) throw new Error('Pago de socio no encontrado');
+        return {
+          title: `Cuota socio #${pagoId}`,
+          amount: Number(pago.getDataValue('pagosSocios_monto') || 0),
+        };
+      }
+
+      if (tipoNormalized === 'caja') {
+        const asignacion = await SocioCajaSeguridad.findOne({
+          where: { caja_id: pagoId },
+          include: [
+            {
+              model: CajaSeguridad,
+              as: 'caja',
+              include: [{ model: CajaSeguridadTamano, as: 'tamano' }],
+            },
+          ],
+        });
+
+        if (!asignacion) throw new Error('Caja de seguridad no encontrada para el socio');
+        const caja: any = (asignacion as any).caja || {};
+        const tamano: any = caja.tamano || {};
+        const amount = Number(tamano.precio_mensual ?? 0);
+        const numero = caja.numero || caja.caja_id || pagoId;
+
+        return {
+          title: `Caja de seguridad #${numero}`,
+          amount,
+        };
+      }
+
+      if (tipoNormalized === 'servicio') {
+        const servicio = await Servicio.findByPk(pagoId);
+        const nombre = servicio?.getDataValue('nombre') || `Servicio #${pagoId}`;
+        return {
+          title: nombre,
+          amount: 0,
+        };
+      }
+
+      throw new Error(`Tipo de pago no soportado: ${tipo}`);
+    };
+
+    const pagoInfo = await resolvePago();
 
     const successUrl = (MP_SUCCESS_URL || '').trim();
     const failureUrl = (MP_FAILURE_URL || '').trim();
@@ -50,27 +105,32 @@ class MercadoPagoService {
           }
         : undefined;
 
+    const externalReference = `${tipoNormalized}:${pagoId}`;
+
     const body: any = {
       items: [
         {
-          id: String(pagoSociosId),
-          title: titulo,
+          id: String(pagoId),
+          title: pagoInfo.title,
           quantity: 1,
-          unit_price: monto,
+          unit_price: pagoInfo.amount,
           currency_id: 'ARS',
         },
       ],
-      external_reference: String(pagoSociosId),
+      external_reference: externalReference,
       notification_url: MP_NOTIFICATION_URL,
+      metadata: {
+        pagoId,
+        tipo: tipoNormalized,
+      },
     };
 
     if (backUrls) {
       body.back_urls = backUrls;
       body.auto_return = 'approved';
     }
-
     const pref = await prefClient.create({ body });
-    console.log('Preferencia MP creada:', pref);
+
     return pref;
   }
 
@@ -88,23 +148,46 @@ class MercadoPagoService {
     const data = payment;
     const externalRef = data.external_reference;
     const status = data.status;
+    const metadata: any = (data as any).metadata || {};
 
-    if (!externalRef) {
-      logger.warn('Webhook MP sin external_reference', { id: event.id });
+    let refTipo = metadata.tipo as string | undefined;
+    let refId = metadata.pagoId as number | undefined;
+
+    if ((!refTipo || refId === undefined) && externalRef) {
+      const [maybeTipo, maybeId] = String(externalRef).split(':');
+      if (maybeTipo && maybeId) {
+        refTipo = maybeTipo;
+        refId = Number(maybeId);
+      } else {
+        refTipo = 'cuota';
+        refId = Number(externalRef);
+      }
+    }
+
+    if (!refTipo || refId === undefined || Number.isNaN(Number(refId))) {
+      logger.warn('Webhook MP sin referencias válidas', { id: event.id, externalRef, metadata });
       return { handled: false };
     }
 
-    const pago = await PagosSocios.findByPk(Number(externalRef));
-    if (!pago) {
-      logger.warn('Webhook MP pago no encontrado', { externalRef });
-      return { handled: false };
+    const tipoNormalized = refTipo.toLowerCase();
+
+    if (tipoNormalized === 'cuota') {
+      const pago = await PagosSocios.findByPk(Number(refId));
+      if (!pago) {
+        logger.warn('Webhook MP pago no encontrado', { externalRef, refId });
+        return { handled: false };
+      }
+
+      await pago.update({
+        pagosSocios_estado: mapEstado(status),
+        pagosSocios_fechaPago: new Date(),
+      });
+
+      return { handled: true, status };
     }
 
-    await pago.update({
-      pagosSocios_estado: mapEstado(status),
-      pagosSocios_fechaPago: new Date(),
-    });
-
+    // Otros tipos aún no tienen update de estado. Dejamos rastro.
+    logger.info('Webhook MP recibido para tipo sin update de estado', { tipo: tipoNormalized, refId, status });
     return { handled: true, status };
   }
 }
