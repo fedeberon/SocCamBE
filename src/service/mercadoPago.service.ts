@@ -9,6 +9,34 @@ import logger from '../configs/logger';
 
 const { MP_ACCESS_TOKEN, MP_NOTIFICATION_URL, MP_SUCCESS_URL, MP_FAILURE_URL } = process.env;
 
+const getDomainFromEnv = () => {
+  const domain =
+    (process.env.MP_DOMAIN ||
+      process.env.DOMAIN ||
+      process.env.DOMAION ||
+      '').trim();
+  return domain.replace(/\/+$/, '');
+};
+
+const normalizeUrl = (raw?: string, fallbackPath?: string) => {
+  const domain = getDomainFromEnv();
+  let value = (raw || '').trim().replace(/^=+/, '');
+
+  if (domain) {
+    value = value
+      .replace(/\$\{?MP_DOMAIN\}?/g, domain)
+      .replace(/\$\{?DOMAIN\}?/g, domain)
+      .replace(/\$\{?DOMAION\}?/g, domain);
+  }
+
+  if (!value && domain && fallbackPath) {
+    const path = fallbackPath.startsWith('/') ? fallbackPath : `/${fallbackPath}`;
+    value = `${domain}${path}`;
+  }
+
+  return value;
+};
+
 let mpClient: MercadoPagoConfig | null = null;
 let prefClient: Preference | null = null;
 let paymentClient: Payment | null = null;
@@ -103,8 +131,9 @@ class MercadoPagoService {
 
     const pagoInfo = await resolvePago();
 
-    const successUrl = (MP_SUCCESS_URL || '').trim();
-    const failureUrl = (MP_FAILURE_URL || '').trim();
+    const successUrl = normalizeUrl(MP_SUCCESS_URL, 'success');
+    const failureUrl = normalizeUrl(MP_FAILURE_URL, 'failure');
+    const notificationUrl = normalizeUrl(MP_NOTIFICATION_URL, 'webhook/mercadopago');
     const backUrls =
       successUrl !== ''
         ? {
@@ -127,7 +156,7 @@ class MercadoPagoService {
         },
       ],
       external_reference: externalReference,
-      notification_url: MP_NOTIFICATION_URL,
+      notification_url: notificationUrl || undefined,
       metadata: {
         pagoId,
         tipo: tipoNormalized,
