@@ -4,6 +4,7 @@ import SocioCajaSeguridad from '../models/SocioCajaSeguridad.models';
 import CajaSeguridad from '../models/CajaSeguridad.models';
 import CajaSeguridadTamano from '../models/CajaSeguridadTamano.models';
 import Servicio from '../models/Servicio.models';
+import SocioServicio from '../models/SocioServicio.models';
 import logger from '../configs/logger';
 
 const { MP_ACCESS_TOKEN, MP_NOTIFICATION_URL, MP_SUCCESS_URL, MP_FAILURE_URL } = process.env;
@@ -33,6 +34,14 @@ const mapEstado = (mpStatus: string | undefined) => {
   if (status === 'rejected') return 'rechazado';
   if (status === 'refunded') return 'reintegrado';
   return 'pendiente';
+};
+
+const buildNotaPago = (prev: string | null | undefined, estado: string, paymentId?: string, externalRef?: string) => {
+  const parts = [`MP ${estado}`];
+  if (paymentId) parts.push(`payment ${paymentId}`);
+  if (externalRef) parts.push(`ref ${externalRef}`);
+  const entry = `[${new Date().toISOString()}] ${parts.join(' - ')}`;
+  return prev && prev.trim() !== '' ? `${prev}\n${entry}` : entry;
 };
 
 class MercadoPagoService {
@@ -170,6 +179,7 @@ class MercadoPagoService {
     }
 
     const tipoNormalized = refTipo.toLowerCase();
+    const estadoPago = mapEstado(status);
 
     if (tipoNormalized === 'cuota') {
       const pago = await PagosSocios.findByPk(Number(refId));
@@ -179,14 +189,62 @@ class MercadoPagoService {
       }
 
       await pago.update({
-        pagosSocios_estado: mapEstado(status),
+        pagosSocios_estado: estadoPago,
         pagosSocios_fechaPago: new Date(),
       });
 
       return { handled: true, status };
     }
 
-    // Otros tipos aún no tienen update de estado. Dejamos rastro.
+    if (tipoNormalized === 'caja') {
+      const asignaciones = await SocioCajaSeguridad.findAll({
+        where: { caja_id: Number(refId) },
+        order: [['socio_caja_id', 'DESC']],
+      });
+
+      if (!asignaciones.length) {
+        logger.warn('Webhook MP caja no encontrada', { externalRef, refId });
+        return { handled: false };
+      }
+
+      await Promise.all(
+        asignaciones.map(async (asignacion) => {
+          const notaActual = asignacion.getDataValue('nota') as string | null;
+          const nota = buildNotaPago(notaActual, estadoPago, event.id, externalRef);
+          await asignacion.update({ nota });
+        }),
+      );
+
+      return { handled: true, status };
+    }
+
+    if (tipoNormalized === 'servicio') {
+      const socioServicios = await SocioServicio.findAll({
+        where: { servicio_id: Number(refId) },
+      });
+
+      let updates = 0;
+      for (const socioServicio of socioServicios) {
+        const notaActual = socioServicio.getDataValue('notas') as string | null;
+        const nota = buildNotaPago(notaActual, estadoPago, event.id, externalRef);
+        await socioServicio.update({ notas: nota });
+        updates += 1;
+      }
+
+      if (updates === 0) {
+        const servicio = await Servicio.findByPk(Number(refId));
+        if (!servicio) {
+          logger.warn('Webhook MP servicio no encontrado', { externalRef, refId });
+          return { handled: false };
+        }
+
+        const descripcion = buildNotaPago(servicio.getDataValue('descripcion') as string | null, estadoPago, event.id, externalRef);
+        await servicio.update({ descripcion });
+      }
+
+      return { handled: true, status };
+    }
+
     logger.info('Webhook MP recibido para tipo sin update de estado', { tipo: tipoNormalized, refId, status });
     return { handled: true, status };
   }
