@@ -16,7 +16,7 @@ class ServiciosController {
 
   static async crear(req: Request, res: Response) {
     try {
-      const { nombre, descripcion, categoria, activo } = req.body || {};
+      const { nombre, descripcion, categoria, activo, icono } = req.body || {};
 
       if (!nombre || typeof nombre !== 'string') {
         return res.status(400).json({ message: 'nombre es requerido' });
@@ -26,6 +26,7 @@ class ServiciosController {
         nombre: nombre.trim(),
         descripcion,
         categoria,
+        icono,
         activo: typeof activo === 'boolean' ? activo : true,
       });
 
@@ -42,7 +43,7 @@ class ServiciosController {
       return res.status(400).json({ message: 'servicioId es requerido y debe ser numérico' });
     }
 
-    const { nombre, descripcion, categoria, activo } = req.body || {};
+    const { nombre, descripcion, categoria, activo, icono } = req.body || {};
 
     if (nombre !== undefined && (typeof nombre !== 'string' || !nombre.trim())) {
       return res.status(400).json({ message: 'nombre debe ser un string no vacío' });
@@ -54,10 +55,11 @@ class ServiciosController {
         return res.status(404).json({ message: 'Servicio no encontrado' });
       }
 
-      const payload: { nombre?: string; descripcion?: string; categoria?: string; activo?: boolean } = {};
+      const payload: { nombre?: string; descripcion?: string; categoria?: string; icono?: string; activo?: boolean } = {};
       if (nombre !== undefined) payload.nombre = nombre.trim();
       if (descripcion !== undefined) payload.descripcion = descripcion;
       if (categoria !== undefined) payload.categoria = categoria;
+      if (icono !== undefined) payload.icono = icono;
       if (typeof activo === 'boolean') payload.activo = activo;
 
       if (!Object.keys(payload).length) {

@@ -6,6 +6,7 @@ class Servicio extends Model {
   public nombre!: string;
   public descripcion?: string;
   public categoria?: string;
+  public icono?: string;
   public activo!: boolean;
   public creado_en!: Date;
 }
@@ -25,6 +26,10 @@ Servicio.init({
     allowNull: true,
   },
   categoria: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+  },
+  icono: {
     type: DataTypes.STRING(100),
     allowNull: true,
   },
