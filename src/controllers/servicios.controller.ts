@@ -6,7 +6,7 @@ import Servicio from '../models/Servicio.models';
 class ServiciosController {
   static async listar(req: Request, res: Response) {
     try {
-      const servicios = await Servicio.findAll({ where: { activo: true } });
+      const servicios = await Servicio.findAll();
       res.status(200).json(servicios);
     } catch (error) {
       logger.error('Error al obtener servicios', error);
@@ -33,6 +33,66 @@ class ServiciosController {
     } catch (error) {
       logger.error('Error al crear servicio', error);
       res.status(500).json({ message: 'Error al crear servicio', error });
+    }
+  }
+
+  static async actualizar(req: Request, res: Response) {
+    const servicioId = Number(req.params.servicioId);
+    if (Number.isNaN(servicioId)) {
+      return res.status(400).json({ message: 'servicioId es requerido y debe ser numérico' });
+    }
+
+    const { nombre, descripcion, categoria, activo } = req.body || {};
+
+    if (nombre !== undefined && (typeof nombre !== 'string' || !nombre.trim())) {
+      return res.status(400).json({ message: 'nombre debe ser un string no vacío' });
+    }
+
+    try {
+      const servicio = await Servicio.findByPk(servicioId);
+      if (!servicio) {
+        return res.status(404).json({ message: 'Servicio no encontrado' });
+      }
+
+      const payload: { nombre?: string; descripcion?: string; categoria?: string; activo?: boolean } = {};
+      if (nombre !== undefined) payload.nombre = nombre.trim();
+      if (descripcion !== undefined) payload.descripcion = descripcion;
+      if (categoria !== undefined) payload.categoria = categoria;
+      if (typeof activo === 'boolean') payload.activo = activo;
+
+      if (!Object.keys(payload).length) {
+        return res.status(400).json({ message: 'No se enviaron campos para actualizar' });
+      }
+
+      await servicio.update(payload);
+      res.status(200).json(servicio);
+    } catch (error) {
+      logger.error('Error al actualizar servicio', error);
+      res.status(500).json({ message: 'Error al actualizar servicio', error });
+    }
+  }
+
+  static async bajaLogica(req: Request, res: Response) {
+    const servicioId = Number(req.params.servicioId);
+    if (Number.isNaN(servicioId)) {
+      return res.status(400).json({ message: 'servicioId es requerido y debe ser numérico' });
+    }
+
+    try {
+      const servicio = await Servicio.findByPk(servicioId);
+      if (!servicio) {
+        return res.status(404).json({ message: 'Servicio no encontrado' });
+      }
+
+      if (servicio.getDataValue('activo') === false) {
+        return res.status(200).json({ message: 'Servicio ya estaba dado de baja', servicioId });
+      }
+
+      await servicio.update({ activo: false });
+      res.status(200).json({ message: 'Servicio dado de baja', servicioId });
+    } catch (error) {
+      logger.error('Error al dar de baja servicio', error);
+      res.status(500).json({ message: 'Error al dar de baja servicio', error });
     }
   }
 
