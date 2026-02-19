@@ -1,41 +1,24 @@
 import { Model, DataTypes } from 'sequelize';
 import sequelize from '../configs/database';
+import Socio from './socio.models';
+import CajaSeguridad from './CajaSeguridad.models';
 
 class ContratoCofres extends Model {
   public contratoCofres_id!: number;
-  public contratoCofres_tipo!: string;
-  public contratoCofres_numero!: number;
   public contratoCofres_esSocioId!: number;
-  public contratoCofres_cofreLetra!: string;
-  public contratoCofres_cofreNumero!: number;
-  public contratoCofres_cofreTipo!: string;
   public contratoCofres_nombre!: string;
-  public contratoCofres_modalidad!: string;
-  public contratoCofres_conjunta1!: string;
-  public contratoCofres_conjunta2!: string;
-  public contratoCofres_conjunta3!: string;
-  public contratoCofres_fechaContratacion!: Date;
-  public contratoCofres_fechaVencimiento!: Date;
+  public contratoCofres_dni?: string | null;
+  public contratoCofres_domicilioFiscal?: string | null;
+  public contratoCofres_cajaId?: number | null;
+  public contratoCofres_cajaNumero?: string | null;
+  public contratoCofres_cofreNumero?: number | null;
   public contratoCofres_estado!: string;
-  public contratoCofres_recibirInfo!: boolean;
-  public contratoCofres_contactoCalle!: string;
-  public contratoCofres_contactoCalleNum!: string;
-  public contratoCofres_contactoCallePiso!: string;
-  public contratoCofres_contactoCalleDepto!: string;
-  public contratoCofres_contactoCP!: string;
-  public contratoCofres_contactoCiudad!: string;
-  public contratoCofres_contactoProvincia!: string;
-  public contratoCofres_contactoTel!: string;
-  public contratoCofres_contactoCel!: string;
-  public contratoCofres_contactoMail!: string;
-  public contratoCofres_deleted!: boolean;
-  public contratoCofres_modificado!: Date;
-  public contratoCofres_cuitFacturacion!: string;
-  public contratoCofres_factRazonSocial!: string;
-  public contratoCofres_factLocalidad!: string;
-  public contratoCofres_factDomicilio!: string;
-  public contratoCofres_factProvincia!: string;
-  public contratoCofres_factCF!: string;
+  public contratoCofres_fechaContratacion!: string;
+  public contratoCofres_fechaVencimiento?: string | null;
+  public contratoCofres_firmaDigital?: string | null;
+  public contratoCofres_firmante?: string | null;
+  public contratoCofres_fechaFirma?: Date | null;
+  public contratoCofres_modificado?: Date | null;
 }
 
 ContratoCofres.init({
@@ -44,39 +27,63 @@ ContratoCofres.init({
     autoIncrement: true,
     primaryKey: true,
   },
-  contratoCofres_tipo: DataTypes.STRING,
-  contratoCofres_numero: DataTypes.INTEGER,
-  contratoCofres_esSocioId: DataTypes.INTEGER,
-  contratoCofres_cofreLetra: DataTypes.STRING,
-  contratoCofres_cofreNumero: DataTypes.INTEGER,
-  contratoCofres_cofreTipo: DataTypes.STRING,
-  contratoCofres_nombre: DataTypes.STRING,
-  contratoCofres_modalidad: DataTypes.STRING,
-  contratoCofres_conjunta1: DataTypes.STRING,
-  contratoCofres_conjunta2: DataTypes.STRING,
-  contratoCofres_conjunta3: DataTypes.STRING,
-  contratoCofres_fechaContratacion: DataTypes.DATE,
-  contratoCofres_fechaVencimiento: DataTypes.DATE,
-  contratoCofres_estado: DataTypes.STRING,
-  contratoCofres_recibirInfo: DataTypes.BOOLEAN,
-  contratoCofres_contactoCalle: DataTypes.STRING,
-  contratoCofres_contactoCalleNum: DataTypes.STRING,
-  contratoCofres_contactoCallePiso: DataTypes.STRING,
-  contratoCofres_contactoCalleDepto: DataTypes.STRING,
-  contratoCofres_contactoCP: DataTypes.STRING,
-  contratoCofres_contactoCiudad: DataTypes.STRING,
-  contratoCofres_contactoProvincia: DataTypes.STRING,
-  contratoCofres_contactoTel: DataTypes.STRING,
-  contratoCofres_contactoCel: DataTypes.STRING,
-  contratoCofres_contactoMail: DataTypes.STRING,
-  contratoCofres_deleted: DataTypes.BOOLEAN,
-  contratoCofres_modificado: DataTypes.DATE,
-  contratoCofres_cuitFacturacion: DataTypes.STRING,
-  contratoCofres_factRazonSocial: DataTypes.STRING,
-  contratoCofres_factLocalidad: DataTypes.STRING,
-  contratoCofres_factDomicilio: DataTypes.STRING,
-  contratoCofres_factProvincia: DataTypes.STRING,
-  contratoCofres_factCF: DataTypes.STRING,
+  contratoCofres_esSocioId: {
+    type: DataTypes.BIGINT,
+    allowNull: false,
+  },
+  contratoCofres_nombre: {
+    type: DataTypes.STRING(200),
+    allowNull: false,
+  },
+  contratoCofres_dni: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+  },
+  contratoCofres_domicilioFiscal: {
+    type: DataTypes.STRING(300),
+    allowNull: true,
+  },
+  contratoCofres_cajaId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  contratoCofres_cajaNumero: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+  },
+  contratoCofres_cofreNumero: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  contratoCofres_estado: {
+    type: DataTypes.STRING(50),
+    allowNull: false,
+    defaultValue: 'Pendiente de firma',
+  },
+  contratoCofres_fechaContratacion: {
+    type: DataTypes.DATEONLY,
+    allowNull: false,
+  },
+  contratoCofres_fechaVencimiento: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+  },
+  contratoCofres_firmaDigital: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
+  contratoCofres_firmante: {
+    type: DataTypes.STRING(200),
+    allowNull: true,
+  },
+  contratoCofres_fechaFirma: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  contratoCofres_modificado: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
 }, {
   sequelize,
   modelName: 'ContratoCofres',
@@ -84,5 +91,12 @@ ContratoCofres.init({
   schema: 'dbo',
   timestamps: false,
 });
+
+if ((Socio as any)?.prototype instanceof Model) {
+  ContratoCofres.belongsTo(Socio, { foreignKey: 'contratoCofres_esSocioId', as: 'socio' });
+}
+if ((CajaSeguridad as any)?.prototype instanceof Model) {
+  ContratoCofres.belongsTo(CajaSeguridad, { foreignKey: 'contratoCofres_cajaId', as: 'caja' });
+}
 
 export default ContratoCofres;

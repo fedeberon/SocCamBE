@@ -4,8 +4,11 @@ import CajaSeguridad from '../models/CajaSeguridad.models';
 import SocioCajaSeguridad from '../models/SocioCajaSeguridad.models';
 import Socio from '../models/socio.models';
 import { ICajaSeguridadService } from '../interfaces/IcajaSeguridad.service';
+import ContratoCofresService, { ServiceError } from './contratoCofres.service';
 
 class CajaSeguridadService implements ICajaSeguridadService {
+  private contratoCofresService = new ContratoCofresService();
+
   async getTamanos(): Promise<any[]> {
     return await CajaSeguridadTamano.findAll({ where: { activo: true } });
   }
@@ -127,7 +130,7 @@ class CajaSeguridadService implements ICajaSeguridadService {
       return { alreadyAssigned: true, asignacion: yaExiste };
     }
 
-    return await SocioCajaSeguridad.create({
+    const asignacion = await SocioCajaSeguridad.create({
       socio_id: payload.socioId,
       caja_id: payload.cajaId,
       es_titular: payload.esTitular ?? true,
@@ -135,6 +138,22 @@ class CajaSeguridadService implements ICajaSeguridadService {
       fecha_fin: payload.fechaFin ?? null,
       nota: payload.nota,
     });
+
+    try {
+      const contrato = await this.contratoCofresService.createContratoCofre({
+        socioId: payload.socioId,
+        cajaId: payload.cajaId,
+        fechaInicio: payload.fechaInicio,
+      });
+      return { ...asignacion.get({ plain: true }), contrato };
+    } catch (error: any) {
+      // Evita dejar asignación activa sin contrato cuando falla la creación del contrato.
+      await asignacion.destroy();
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+      throw new Error('No se pudo crear el contrato automáticamente');
+    }
   }
 
   async unassignSocioDeCaja(socioId: number, cajaId: number): Promise<{ socioCajaId: number; cajaId: number; socioId: number } | null> {

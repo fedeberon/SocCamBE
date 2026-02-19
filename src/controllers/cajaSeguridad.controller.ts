@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import logger from '../configs/logger';
 import CajaSeguridadService from '../service/cajaSeguridad.service';
 import { ICajaSeguridadService } from '../interfaces/IcajaSeguridad.service';
+import { ServiceError } from '../service/contratoCofres.service';
 
 class CajaSeguridadController {
   private static cajaSeguridadService: ICajaSeguridadService = new CajaSeguridadService();
@@ -177,7 +178,10 @@ class CajaSeguridadController {
       }
 
       res.status(201).json(result);
-    } catch (error) {
+    } catch (error: any) {
+      if (error instanceof ServiceError) {
+        return res.status(error.statusCode).json({ message: error.message });
+      }
       logger.error('Error al asignar socio a caja:', error);
       res.status(500).json({ message: 'Error al asignar socio a caja', error });
     }
