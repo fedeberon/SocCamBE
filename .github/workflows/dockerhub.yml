@@ -12,8 +12,6 @@ env:
   MP_SUCCESS_URL: ${{ secrets.MP_SUCCESS_URL }}
   MP_FAILURE_URL: ${{ secrets.MP_FAILURE_URL }}
   MP_SUCCESS_REDIRECT: ${{ secrets.MP_SUCCESS_REDIRECT }}
-  AZURE_STORAGE_CONNECTION: ${{ secrets.AZURE_STORAGE_CONNECTION }}
-  AZURE_STORAGE_CONTAINER: ${{ secrets.AZURE_STORAGE_CONTAINER }}
   VPS_HOST: ${{ secrets.VPS_HOST }}
   VPS_USER: ${{ secrets.VPS_USER }}
   VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
@@ -39,11 +37,6 @@ jobs:
             echo "MP_ACCESS_TOKEN is present (hidden for security)."
           else
             echo "WARNING: MP_ACCESS_TOKEN is not set."
-          fi
-          if [ -n "${AZURE_STORAGE_CONNECTION:-}" ]; then
-            echo "AZURE_STORAGE_CONNECTION is present (hidden for security)."
-          else
-            echo "WARNING: AZURE_STORAGE_CONNECTION is not set."
           fi
           echo "VPS deploy enabled?: ${{ env.VPS_HOST != '' && env.VPS_USER != '' && env.VPS_SSH_KEY != '' && env.VPS_APP_PATH != '' }}"
 
@@ -100,8 +93,6 @@ jobs:
           MP_SUCCESS_URL: ${{ env.MP_SUCCESS_URL }}
           MP_FAILURE_URL: ${{ env.MP_FAILURE_URL }}
           MP_SUCCESS_REDIRECT: ${{ env.MP_SUCCESS_REDIRECT }}
-          AZURE_STORAGE_CONNECTION: ${{ env.AZURE_STORAGE_CONNECTION }}
-          AZURE_STORAGE_CONTAINER: ${{ env.AZURE_STORAGE_CONTAINER }}
         with:
           host: ${{ env.VPS_HOST }}
           username: ${{ env.VPS_USER }}
@@ -116,8 +107,6 @@ jobs:
             MP_SUCCESS_URL=${MP_SUCCESS_URL}
             MP_FAILURE_URL=${MP_FAILURE_URL}
             MP_SUCCESS_REDIRECT=${MP_SUCCESS_REDIRECT}
-            AZURE_STORAGE_CONNECTION=${AZURE_STORAGE_CONNECTION}
-            AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-socios-assets}
             PORT=5000
             EOF
 
