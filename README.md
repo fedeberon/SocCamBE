@@ -37,6 +37,21 @@ pnpm start
 
 Esto compilará el código TypeScript y ejecutará la aplicación.
 
+## Docker
+
+Para que el contenedor tome las variables del archivo `.env` (incluyendo `AZURE_STORAGE_CONNECTION`), levantá el servicio con `docker compose`:
+
+```bash
+docker compose up --build -d
+```
+
+Si preferís `docker run`, pasá el `.env` explícitamente:
+
+```bash
+docker build -t soccambe .
+docker run --env-file .env -p 5000:5000 soccambe
+```
+
 ## Scripts disponibles
 
 En el archivo `package.json` encontrarás varios scripts útiles:
