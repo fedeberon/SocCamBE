@@ -10,6 +10,7 @@ import { DateTime } from 'luxon';
 import convertirDatosSocio from '../utils/conversorSocio';
 import CajaSeguridadService from '../service/cajaSeguridad.service';
 import { ICajaSeguridadService } from '../interfaces/IcajaSeguridad.service';
+import azureBlobService from '../service/azureBlob.service';
 
 class SocioController {
   private static socioService: ISocioService = new SocioService(); 
@@ -41,7 +42,20 @@ class SocioController {
       const { id } = req.params;
       const socio = await SocioController.socioService.getSocioById(Number(id));
       if (socio) {
-        res.status(200).json(socio);
+        const socioData = typeof (socio as any).get === 'function'
+          ? (socio as any).get({ plain: true })
+          : socio;
+
+        const storedLogoUrl = (socioData as any)?.socio_firma || null;
+        const logoUrl = storedLogoUrl
+          ? azureBlobService.getReadOnlyUrl(storedLogoUrl)
+          : null;
+
+        res.status(200).json({
+          ...socioData,
+          socio_firma: logoUrl,
+          logoUrl,
+        });
       } else {
         res.status(404).json({ message: 'Socio no encontrado' });
       }

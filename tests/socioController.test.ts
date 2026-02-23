@@ -138,7 +138,8 @@ describe('SocioController', () => {
       const mockSocio = { 
         socio_id: 1, 
         socio_nombre: 'Juan',
-        get: () => ({ socio_id: 1, socio_nombre: 'Juan' })
+        socio_firma: 'https://storage.example/logo.png',
+        get: () => ({ socio_id: 1, socio_nombre: 'Juan', socio_firma: 'https://storage.example/logo.png' })
       };
       
       mockRequest = {
@@ -154,7 +155,12 @@ describe('SocioController', () => {
       );
 
       expect(mockResponse.status).toHaveBeenCalledWith(200);
-      expect(mockResponse.json).toHaveBeenCalledWith(mockSocio);
+      expect(mockResponse.json).toHaveBeenCalledWith({
+        socio_id: 1,
+        socio_nombre: 'Juan',
+        socio_firma: 'https://storage.example/logo.png',
+        logoUrl: 'https://storage.example/logo.png',
+      });
     });
 
     it('debería manejar errores de base de datos en búsqueda por ID', async () => {

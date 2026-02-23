@@ -21,6 +21,7 @@ import {checkJwt} from './middleware/authMiddleware';
 import cors from 'cors';
 import cuponesRoutes from './router/cupon.routes';
 import cajaSeguridadRoutes from './router/cajaSeguridad.routes';
+import filesRoutes from './router/files.routes';
 
 
 const app = express();
@@ -45,6 +46,7 @@ app.use('/dashboard', dashboardRoutes);
 app.use('/solicitudes-servicio', solicitudServicioRoutes);
 app.use('/servicios', serviciosRoutes);
 app.use('/mercadopago', mercadoPagoRoutes);
+app.use('/files', filesRoutes);
 // Webhook directo (para usar en MP_NOTIFICATION_URL)
 app.post('/webhook/mercadopago', MercadoPagoController.webhook);
 // Retorno success/failure desde back_urls de MP
