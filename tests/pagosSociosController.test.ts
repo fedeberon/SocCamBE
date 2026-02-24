@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import * as PagosSociosController from '../src/controllers/pagosSocios.controller';
 import PagosSociosService from '../src/service/pagosSocios.service';
+import Socio from '../src/models/socio.models';
+import sosContadorService from '../src/service/sosContador.service';
 
 jest.mock('../src/configs/database', () => {
   return {
@@ -32,6 +34,18 @@ jest.mock('../src/models/pagosSocios.models', () => {
 });
 
 jest.mock('../src/service/pagosSocios.service');
+jest.mock('../src/models/socio.models', () => ({
+  __esModule: true,
+  default: {
+    findByPk: jest.fn(),
+  }
+}));
+jest.mock('../src/service/sosContador.service', () => ({
+  __esModule: true,
+  default: {
+    getCobrosBySocioCuit: jest.fn(),
+  }
+}));
 
 describe('PagosSociosController', () => {
   let mockRequest: Partial<Request>;
@@ -158,36 +172,55 @@ describe('PagosSociosController', () => {
   });
 
   describe('getPagosSociosBySocio', () => {
-    it('debería devolver pagos cuando existen para el socio', async () => {
-      const mockPagosSocios = [
+    it('debería devolver cobros de SOS cuando encuentra el socio por CUIT', async () => {
+      const mockSocio = {
+        get: () => ({ socio_cuit: '20301405201' }),
+      };
+      const mockSosSocio = {
+        id: 48971634,
+        cuit: '20301405201',
+        clipro: 'ABAD LUCIANO CRISTIAN ROLANDO',
+      };
+      const mockCobros = [
         {
-          pagosSocios_id: 1,
-          pagosSocios_socio: 1,
-          pagosSocios_monto: 1000,
-          pagosSocios_estado: 'PAGADO'
-        }
+          id: 722381781,
+          fecha: '2026-01-15T03:00:00.000Z',
+          factura: 'FC-0004-00065305',
+          montototal: 284103,
+          referencia: '1er semestre 2026',
+          cliente: mockSosSocio,
+        },
       ];
 
       mockRequest = {
         params: { socioId: '1' }
       };
 
-      (PagosSociosService.getPagosSociosBySocio as jest.Mock).mockResolvedValue(mockPagosSocios);
+      (Socio.findByPk as jest.Mock).mockResolvedValue(mockSocio);
+      (sosContadorService.getCobrosBySocioCuit as jest.Mock).mockResolvedValue(mockCobros);
 
       await PagosSociosController.getPagosSociosBySocio(
         mockRequest as Request,
         mockResponse as Response
       );
 
-      expect(responseObject.json).toHaveBeenCalledWith(mockPagosSocios);
+      expect(responseObject.json).toHaveBeenCalledWith([
+        expect.objectContaining({
+          pagosSocios_id: 722381781,
+          pagosSocios_socio: 1,
+          pagosSocios_estado: 'PAGADO',
+          pagosSocios_monto: 284103,
+          sos_cliente: mockSosSocio,
+        }),
+      ]);
     });
 
-    it('debería devolver 404 cuando no hay pagos para el socio', async () => {
+    it('debería devolver 404 cuando el socio no existe', async () => {
       mockRequest = {
         params: { socioId: '999' }
       };
 
-      (PagosSociosService.getPagosSociosBySocio as jest.Mock).mockResolvedValue([]);
+      (Socio.findByPk as jest.Mock).mockResolvedValue(null);
 
       await PagosSociosController.getPagosSociosBySocio(
         mockRequest as Request,
@@ -196,7 +229,33 @@ describe('PagosSociosController', () => {
 
       expect(responseObject.status).toHaveBeenCalledWith(404);
       expect(responseObject.json).toHaveBeenCalledWith({
-        message: 'No se encontraron pagos para este socio'
+        message: 'Socio no encontrado'
+      });
+    });
+
+    it('debería devolver 404 cuando no hay pagos del socio en SOS', async () => {
+      mockRequest = {
+        params: { socioId: '1' }
+      };
+
+      const mockSocio = {
+        get: () => ({ socio_cuit: '20301405201' }),
+      };
+      const mockSosSocio = {
+        id: 48971634,
+        cuit: '20301405201',
+      };
+      (Socio.findByPk as jest.Mock).mockResolvedValue(mockSocio);
+      (sosContadorService.getCobrosBySocioCuit as jest.Mock).mockResolvedValue([]);
+
+      await PagosSociosController.getPagosSociosBySocio(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(responseObject.status).toHaveBeenCalledWith(404);
+      expect(responseObject.json).toHaveBeenCalledWith({
+        message: 'No se encontraron pagos del socio en SOS Contador'
       });
     });
 
@@ -205,8 +264,16 @@ describe('PagosSociosController', () => {
         params: { socioId: '1' }
       };
 
-      const mockError = new Error('Error de base de datos');
-      (PagosSociosService.getPagosSociosBySocio as jest.Mock).mockRejectedValue(mockError);
+      const mockError = new Error('Error de SOS');
+      const mockSocio = {
+        get: () => ({ socio_cuit: '20301405201' }),
+      };
+      const mockSosSocio = {
+        id: 48971634,
+        cuit: '20301405201',
+      };
+      (Socio.findByPk as jest.Mock).mockResolvedValue(mockSocio);
+      (sosContadorService.getCobrosBySocioCuit as jest.Mock).mockRejectedValue(mockError);
 
       await PagosSociosController.getPagosSociosBySocio(
         mockRequest as Request,
