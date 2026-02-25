@@ -13,6 +13,7 @@ import { ICajaSeguridadService } from '../interfaces/IcajaSeguridad.service';
 import azureBlobService from '../service/azureBlob.service';
 import sosContadorService from '../service/sosContador.service';
 import PagosSociosAdapter from '../adapters/PagosSociosAdapter';
+import sosMovimientosService from '../service/sosMovimientos.service';
 
 class SocioController {
   private static socioService: ISocioService = new SocioService(); 
@@ -131,6 +132,12 @@ class SocioController {
       });
 
       const pagosSos = PagosSociosAdapter.fromSosCobros(cobros as any[], Number(id), periodo);
+
+      try {
+        await sosMovimientosService.upsertFromPagosSos(Number(id), pagosSos as any[], periodo);
+      } catch (persistError) {
+        logger.error('No se pudieron persistir movimientos SOS en base local:', persistError);
+      }
 
       return res.status(200).json({
         ...socioWithPagos,
