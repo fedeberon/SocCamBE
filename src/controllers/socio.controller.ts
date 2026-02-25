@@ -11,6 +11,8 @@ import convertirDatosSocio from '../utils/conversorSocio';
 import CajaSeguridadService from '../service/cajaSeguridad.service';
 import { ICajaSeguridadService } from '../interfaces/IcajaSeguridad.service';
 import azureBlobService from '../service/azureBlob.service';
+import sosContadorService from '../service/sosContador.service';
+import PagosSociosAdapter from '../adapters/PagosSociosAdapter';
 
 class SocioController {
   private static socioService: ISocioService = new SocioService(); 
@@ -99,14 +101,44 @@ class SocioController {
     try {
       const { id } = req.params;
       const socioWithPagos = await SocioController.socioService.getSocioWithPagos(Number(id));
-      if (socioWithPagos) {
-        res.status(200).json(socioWithPagos);
-      } else {
-        res.status(404).json({ message: 'Socio no encontrado' });
+
+      if (!socioWithPagos) {
+        return res.status(404).json({ message: 'Socio no encontrado' });
       }
+
+      const query = (req.query || {}) as Record<string, any>;
+      const includeSos = String(query.includeSos || 'false').toLowerCase() === 'true';
+
+      if (!includeSos) {
+        return res.status(200).json(socioWithPagos);
+      }
+
+      const socioCuit = String((socioWithPagos as any)?.socio_cuit || '').replace(/\D/g, '');
+      if (!socioCuit) {
+        return res.status(200).json({
+          ...socioWithPagos,
+          pagos_sos: [],
+          pagos_sos_info: { message: 'El socio no tiene CUIT/CUIL configurado' },
+        });
+      }
+
+      const periodo = String(query.periodo || 'mes');
+      const cobros = await sosContadorService.getCobrosBySocioCuit({
+        socioCuit,
+        periodo: query.periodo,
+        registros: query.registros,
+        maxPaginas: query.maxPaginas,
+      });
+
+      const pagosSos = PagosSociosAdapter.fromSosCobros(cobros as any[], Number(id), periodo);
+
+      return res.status(200).json({
+        ...socioWithPagos,
+        pagos_sos: pagosSos,
+      });
     } catch (error) {
       logger.error('Error al obtener el socio con sus pagos:', error);
-      res.status(500).json({ message: 'Error al obtener el socio con sus pagos', error });
+      return res.status(500).json({ message: 'Error al obtener el socio con sus pagos', error });
     }
   }
 
