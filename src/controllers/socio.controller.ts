@@ -155,6 +155,10 @@ class SocioController {
         ...socioWithPagos,
         pagos_sos: pagosSos,
         movimientos_sos: movimientosSos,
+        movimientos_sos_info: {
+          count: movimientosSos.length,
+          source: 'SOS_CUENTACORRIENTE',
+        },
       });
     } catch (error) {
       logger.error('Error al obtener el socio con sus pagos:', error);

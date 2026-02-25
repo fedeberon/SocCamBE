@@ -375,7 +375,7 @@ class SosContadorService {
     });
 
     const candidateSocios = (sociosResponse.items || []).filter(
-      (item) => this.sanitizeCuit(item.cuit) === normalizedSocioCuit,
+      (item) => this.sanitizeCuit(item.cuit) === normalizedSocioCuit && Number(item.id) > 0,
     );
 
     if (!candidateSocios.length) {
