@@ -68,6 +68,38 @@ type GetCobrosBySocioCuitOptions = {
   maxPaginas?: string | number;
 };
 
+type SosCuentaCorrienteItem = {
+  idcomprobante?: string | number;
+  idtipo_operacion?: number;
+  idclipro?: string | number;
+  fecha?: string;
+  clipro?: string;
+  fcncnd?: string | null;
+  letra?: string | null;
+  sucursal?: number | null;
+  numero?: number | null;
+  memo?: string | null;
+  afip_moneda?: string | null;
+  montodebe?: number | null;
+  montohaber?: number | null;
+  montosaldo?: number | null;
+  estadoasociacion?: number | null;
+  [key: string]: any;
+};
+
+type SosCuentaCorrienteResponse = {
+  items?: SosCuentaCorrienteItem[];
+  error?: string;
+};
+
+type GetMovimientosCuentaCorrienteBySocioCuitOptions = {
+  socioCuit: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  cp?: 'C' | 'P';
+  tipo?: 'T' | 'D' | 'H';
+};
+
 class SosContadorService {
   private readonly baseUrl = (process.env.SOS_API_BASE_URL || 'https://api.sos-contador.com').replace(/\/+$/, '');
   private readonly authUser = process.env.SOS_AUTH_USERNAME || process.env.SOS_AUTH_USER || '';
@@ -315,6 +347,61 @@ class SosContadorService {
     }
 
     return cobros.sort((a, b) => {
+      const aTime = new Date(a.fecha || 0).getTime();
+      const bTime = new Date(b.fecha || 0).getTime();
+      return bTime - aTime;
+    });
+  }
+
+  async getMovimientosCuentaCorrienteBySocioCuit(
+    options: GetMovimientosCuentaCorrienteBySocioCuitOptions,
+  ): Promise<SosCuentaCorrienteItem[]> {
+    const normalizedSocioCuit = this.sanitizeCuit(options.socioCuit);
+    if (normalizedSocioCuit.length !== 11) {
+      throw new Error('El CUIT/CUIL del socio debe tener 11 dígitos');
+    }
+
+    const token = await this.getTokenByRepresentedCuit();
+    const socio = await this.findSocioByCuit({ socioCuit: normalizedSocioCuit, cliente: true, proveedor: true });
+
+    if (!socio?.id) {
+      return [];
+    }
+
+    const today = new Date();
+    const defaultDesde = `${today.getFullYear() - 1}-01-01`;
+    const defaultHasta = `${today.getFullYear()}-12-31`;
+
+    const body = {
+      CP: options.cp || 'C',
+      fechadesde: options.fechaDesde || defaultDesde,
+      fechahasta: options.fechaHasta || defaultHasta,
+      tipo: options.tipo || 'T',
+      idclipro: socio.id,
+    };
+
+    const response = await this.request<SosCuentaCorrienteResponse>('GET', '/api-comunidad/cuentacorriente/listado', {
+      token,
+      body,
+    });
+
+    if (response?.error) {
+      throw new Error(response.error);
+    }
+
+    const dedupe = new Set<string>();
+    const movements: SosCuentaCorrienteItem[] = [];
+
+    for (const item of response?.items || []) {
+      const key = String(
+        item?.idcomprobante || `${item?.fecha || ''}|${item?.numero || ''}|${item?.montodebe || ''}|${item?.montohaber || ''}`,
+      );
+      if (dedupe.has(key)) continue;
+      dedupe.add(key);
+      movements.push(item);
+    }
+
+    return movements.sort((a, b) => {
       const aTime = new Date(a.fecha || 0).getTime();
       const bTime = new Date(b.fecha || 0).getTime();
       return bTime - aTime;

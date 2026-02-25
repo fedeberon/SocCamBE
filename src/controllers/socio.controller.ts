@@ -109,6 +109,7 @@ class SocioController {
 
       const query = (req.query || {}) as Record<string, any>;
       const includeSos = String(query.includeSos || 'false').toLowerCase() === 'true';
+      const includeSosMovimientos = String(query.includeSosMovimientos || 'true').toLowerCase() === 'true';
 
       if (!includeSos) {
         return res.status(200).json(socioWithPagos);
@@ -119,6 +120,7 @@ class SocioController {
         return res.status(200).json({
           ...socioWithPagos,
           pagos_sos: [],
+          movimientos_sos: [],
           pagos_sos_info: { message: 'El socio no tiene CUIT/CUIL configurado' },
         });
       }
@@ -133,6 +135,16 @@ class SocioController {
 
       const pagosSos = PagosSociosAdapter.fromSosCobros(cobros as any[], Number(id), periodo);
 
+      const movimientosSos = includeSosMovimientos
+        ? await sosContadorService.getMovimientosCuentaCorrienteBySocioCuit({
+            socioCuit,
+            fechaDesde: query.fechaDesde,
+            fechaHasta: query.fechaHasta,
+            cp: query.cp,
+            tipo: query.tipo,
+          })
+        : [];
+
       try {
         await sosMovimientosService.upsertFromPagosSos(Number(id), pagosSos as any[], periodo);
       } catch (persistError) {
@@ -142,6 +154,7 @@ class SocioController {
       return res.status(200).json({
         ...socioWithPagos,
         pagos_sos: pagosSos,
+        movimientos_sos: movimientosSos,
       });
     } catch (error) {
       logger.error('Error al obtener el socio con sus pagos:', error);
