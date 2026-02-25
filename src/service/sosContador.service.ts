@@ -362,9 +362,23 @@ class SosContadorService {
     }
 
     const token = await this.getTokenByRepresentedCuit();
-    const socio = await this.findSocioByCuit({ socioCuit: normalizedSocioCuit, cliente: true, proveedor: true });
 
-    if (!socio?.id) {
+    const sociosResponse = await this.request<SosClienteListadoResponse>('GET', '/api-comunidad/cliente/listado', {
+      token,
+      query: {
+        proveedor: true,
+        cliente: true,
+        pagina: 1,
+        registros: 50,
+        txbuscar: normalizedSocioCuit,
+      } as Record<string, string | number | boolean | undefined>,
+    });
+
+    const candidateSocios = (sociosResponse.items || []).filter(
+      (item) => this.sanitizeCuit(item.cuit) === normalizedSocioCuit,
+    );
+
+    if (!candidateSocios.length) {
       return [];
     }
 
@@ -372,33 +386,44 @@ class SosContadorService {
     const defaultDesde = `${today.getFullYear() - 1}-01-01`;
     const defaultHasta = `${today.getFullYear()}-12-31`;
 
-    const body = {
-      CP: options.cp || 'C',
-      fechadesde: options.fechaDesde || defaultDesde,
-      fechahasta: options.fechaHasta || defaultHasta,
-      tipo: options.tipo || 'T',
-      idclipro: socio.id,
-    };
-
-    const response = await this.request<SosCuentaCorrienteResponse>('GET', '/api-comunidad/cuentacorriente/listado', {
-      token,
-      body,
-    });
-
-    if (response?.error) {
-      throw new Error(response.error);
-    }
+    const cpValues: Array<'C' | 'P'> = options.cp ? [options.cp] : ['C', 'P'];
+    const tipoValues: Array<'T' | 'D' | 'H'> = options.tipo ? [options.tipo] : ['T', 'D', 'H'];
 
     const dedupe = new Set<string>();
     const movements: SosCuentaCorrienteItem[] = [];
 
-    for (const item of response?.items || []) {
-      const key = String(
-        item?.idcomprobante || `${item?.fecha || ''}|${item?.numero || ''}|${item?.montodebe || ''}|${item?.montohaber || ''}`,
-      );
-      if (dedupe.has(key)) continue;
-      dedupe.add(key);
-      movements.push(item);
+    for (const socio of candidateSocios) {
+      for (const cpValue of cpValues) {
+        for (const tipoValue of tipoValues) {
+          try {
+            const response = await this.request<SosCuentaCorrienteResponse>('GET', '/api-comunidad/cuentacorriente/listado', {
+              token,
+              body: {
+                CP: cpValue,
+                fechadesde: options.fechaDesde || defaultDesde,
+                fechahasta: options.fechaHasta || defaultHasta,
+                tipo: tipoValue,
+                idclipro: socio.id,
+              },
+            });
+
+            if (response?.error) {
+              continue;
+            }
+
+            for (const item of response?.items || []) {
+              const key = String(
+                `${socio.id}|${item?.idcomprobante || ''}|${item?.fecha || ''}|${item?.numero || ''}|${item?.montodebe || ''}|${item?.montohaber || ''}`,
+              );
+              if (dedupe.has(key)) continue;
+              dedupe.add(key);
+              movements.push(item);
+            }
+          } catch {
+            // SOS tiene combinaciones CP/tipo que responden error; las omitimos para devolver todo lo disponible.
+          }
+        }
+      }
     }
 
     return movements.sort((a, b) => {
