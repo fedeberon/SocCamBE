@@ -278,6 +278,7 @@ class SosContadorService {
     const maxPaginas = this.parsePositiveInt(options.maxPaginas, 20, 1, 100);
 
     const cobros: SosCobroItem[] = [];
+    const dedupe = new Set<string>();
 
     for (let pagina = 1; pagina <= maxPaginas; pagina += 1) {
       const response = await this.request<SosCobroListadoResponse>('GET', `/api-comunidad/cobro/listado/${periodo}`, {
@@ -292,9 +293,20 @@ class SosContadorService {
       const items = response?.items || [];
       for (const item of items) {
         const itemCuit = this.sanitizeCuit(item?.cliente?.cuit || '');
-        if (itemCuit === normalizedSocioCuit) {
-          cobros.push(item);
+        if (itemCuit !== normalizedSocioCuit) {
+          continue;
         }
+
+        const dedupeKey = String(
+          item?.id || `${item?.fecha || ''}|${item?.factura || ''}|${item?.montototal || ''}|${item?.cliente?.id || ''}`,
+        );
+
+        if (dedupe.has(dedupeKey)) {
+          continue;
+        }
+
+        dedupe.add(dedupeKey);
+        cobros.push(item);
       }
 
       if (items.length < registros) {
