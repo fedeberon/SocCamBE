@@ -19,5 +19,5 @@ RUN pnpm run build
 # Expone el puerto en el que tu aplicación va a correr
 EXPOSE 5000
 
-# Comando por defecto para iniciar la aplicación
-CMD ["pnpm", "start"]
+# Comando por defecto: API; opcionalmente worker con APP_MODE=worker
+CMD ["sh", "-c", "if [ \"${APP_MODE:-api}\" = \"worker\" ]; then node dist/workers/sosQueueWorker.js; else pnpm start; fi"]
