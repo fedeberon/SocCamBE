@@ -30,21 +30,22 @@ if ! command -v az >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "[2/8] Limpiando sesión previa..."
-az logout >/dev/null 2>&1 || true
-az account clear >/dev/null 2>&1 || true
+echo "[2/8] Verificando sesión actual..."
+if az account show >/dev/null 2>&1; then
+  echo "Sesión activa detectada. Reutilizando login actual."
+else
+  echo "No hay sesión activa. Iniciando login con MFA (device code)..."
+  az login --use-device-code >/dev/null
+fi
 
-echo "[3/8] Login con MFA (device code)..."
-az login --use-device-code >/dev/null
-
-echo "[4/8] Suscripciones disponibles:"
+echo "[3/8] Suscripciones disponibles:"
 az account list --all --query "[].{name:name,id:id,tenantId:tenantId,state:state,isDefault:isDefault}" -o table
 
 if [[ -n "${SUBSCRIPTION_ID}" ]]; then
-  echo "[5/8] Seleccionando suscripción ${SUBSCRIPTION_ID}..."
+  echo "[4/8] Seleccionando suscripción ${SUBSCRIPTION_ID}..."
   az account set --subscription "${SUBSCRIPTION_ID}"
 else
-  echo "[5/8] No definiste SUBSCRIPTION_ID."
+  echo "[4/8] No definiste SUBSCRIPTION_ID."
   echo "Copiá el ID desde la tabla y ejecutá:"
   echo "  az account set --subscription <SUBSCRIPTION_ID>"
   echo "Luego volvés a correr este script si querés automatizar el resto."
@@ -54,7 +55,7 @@ fi
 echo "Suscripción activa:"
 az account show --query "{name:name,id:id,tenantId:tenantId}" -o table
 
-echo "[6/8] Verificando Resource Group..."
+echo "[5/8] Verificando Resource Group..."
 if az group show --name "${RESOURCE_GROUP}" >/dev/null 2>&1; then
   RG_LOCATION=$(az group show --name "${RESOURCE_GROUP}" --query location -o tsv)
   echo "Resource Group ya existe: ${RESOURCE_GROUP} (location=${RG_LOCATION})"
@@ -67,7 +68,7 @@ else
   RG_LOCATION="${LOCATION}"
 fi
 
-echo "[7/8] Verificando Storage Account..."
+echo "[6/8] Verificando Storage Account..."
 if az storage account show --name "${STORAGE_ACCOUNT}" --resource-group "${RESOURCE_GROUP}" >/dev/null 2>&1; then
   echo "Storage Account ya existe: ${STORAGE_ACCOUNT}"
 else
@@ -81,7 +82,7 @@ else
     -o table
 fi
 
-echo "[8/8] Creando Queue..."
+echo "[7/8] Creando Queue..."
 CONN_STRING=$(az storage account show-connection-string \
   --name "${STORAGE_ACCOUNT}" \
   --resource-group "${RESOURCE_GROUP}" \
