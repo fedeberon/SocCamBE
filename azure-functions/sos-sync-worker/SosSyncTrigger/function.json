@@ -1,0 +1,11 @@
+{
+  "bindings": [
+    {
+      "name": "message",
+      "type": "serviceBusTrigger",
+      "direction": "in",
+      "queueName": "%SOS_SYNC_QUEUE_NAME%",
+      "connection": "SERVICE_BUS_CONNECTION"
+    }
+  ]
+}

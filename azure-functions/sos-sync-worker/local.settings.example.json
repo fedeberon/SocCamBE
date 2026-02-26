@@ -1,0 +1,19 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "SERVICE_BUS_CONNECTION": "<service-bus-connection-string>",
+    "SOS_SYNC_QUEUE_NAME": "sos-sync-queue",
+    "DB_HOST": "<sql-host>",
+    "DB_PORT": "1433",
+    "DB_USER": "<sql-user>",
+    "DB_PASSWORD": "<sql-password>",
+    "DB_NAME": "<sql-database>",
+    "SOS_API_BASE_URL": "https://api.sos-contador.com",
+    "SOS_AUTH_USERNAME": "",
+    "SOS_AUTH_PASSWORD": "",
+    "SOS_REPRESENTED_CUIT": "",
+    "SOS_API_TIMEOUT_MS": "15000"
+  }
+}
