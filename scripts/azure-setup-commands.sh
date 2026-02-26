@@ -12,11 +12,13 @@ set -euo pipefail
 # Si querés versión "pro" con Service Bus + DLQ, te la armo después.
 
 # ---------- CONFIG ----------
-LOCATION="eastus"
+LOCATION="eastus2"
 RESOURCE_GROUP="camara-comercial-bolivar"
-STORAGE_ACCOUNT="intercamstore"   # existente
+STORAGE_ACCOUNT="intercamstore"         # storage actual (a eliminar si FORCE_RECREATE_STORAGE=true)
+NEW_STORAGE_ACCOUNT="intercamstorage"   # nombre correcto deseado en East US 2
 QUEUE_NAME="incoming-messages"
-CREATE_STORAGE_IF_MISSING="false"  # true para permitir crear uno nuevo
+CREATE_STORAGE_IF_MISSING="false"       # true para permitir crear uno nuevo
+FORCE_RECREATE_STORAGE="false"          # true => elimina STORAGE_ACCOUNT y crea NEW_STORAGE_ACCOUNT
 
 # Si ya sabés tu Subscription ID, pegala acá. Si no, dejá vacío y te deja elegir.
 SUBSCRIPTION_ID="67a337c3-ed79-4082-8438-7b2bbc31144f"
@@ -70,23 +72,53 @@ else
 fi
 
 echo "[6/8] Verificando Storage Account..."
-if az storage account show --name "${STORAGE_ACCOUNT}" --resource-group "${RESOURCE_GROUP}" >/dev/null 2>&1; then
-  echo "Storage Account ya existe: ${STORAGE_ACCOUNT}"
-else
-  if [[ "${CREATE_STORAGE_IF_MISSING}" == "true" ]]; then
-    echo "Storage Account no existe. Creándolo..."
-    az storage account create \
+if [[ "${FORCE_RECREATE_STORAGE}" == "true" ]]; then
+  echo "FORCE_RECREATE_STORAGE=true: se eliminará '${STORAGE_ACCOUNT}' (si existe) y se creará '${NEW_STORAGE_ACCOUNT}' en ${LOCATION}."
+
+  if az storage account show --name "${STORAGE_ACCOUNT}" --resource-group "${RESOURCE_GROUP}" >/dev/null 2>&1; then
+    echo "Eliminando storage existente: ${STORAGE_ACCOUNT} ..."
+    az storage account delete \
       --name "${STORAGE_ACCOUNT}" \
       --resource-group "${RESOURCE_GROUP}" \
-      --location "${RG_LOCATION}" \
-      --sku Standard_LRS \
-      --kind StorageV2 \
-      -o table
+      --yes
+
+    echo "Esperando borrado completo..."
+    while az storage account show --name "${STORAGE_ACCOUNT}" --resource-group "${RESOURCE_GROUP}" >/dev/null 2>&1; do
+      sleep 5
+      echo "...aún eliminando ${STORAGE_ACCOUNT}"
+    done
   else
-    echo "ERROR: Storage Account '${STORAGE_ACCOUNT}' no existe en RG '${RESOURCE_GROUP}'."
-    echo "Para evitar costos/recursos extra, CREATE_STORAGE_IF_MISSING=false bloquea la creación automática."
-    echo "Si querés crearlo automáticamente, cambiá CREATE_STORAGE_IF_MISSING=\"true\" y reintentá."
-    exit 1
+    echo "Storage '${STORAGE_ACCOUNT}' no existe, se omite borrado."
+  fi
+
+  STORAGE_ACCOUNT="${NEW_STORAGE_ACCOUNT}"
+  echo "Creando storage nuevo: ${STORAGE_ACCOUNT} en ${LOCATION} ..."
+  az storage account create \
+    --name "${STORAGE_ACCOUNT}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --location "${LOCATION}" \
+    --sku Standard_LRS \
+    --kind StorageV2 \
+    -o table
+else
+  if az storage account show --name "${STORAGE_ACCOUNT}" --resource-group "${RESOURCE_GROUP}" >/dev/null 2>&1; then
+    echo "Storage Account ya existe: ${STORAGE_ACCOUNT}"
+  else
+    if [[ "${CREATE_STORAGE_IF_MISSING}" == "true" ]]; then
+      echo "Storage Account no existe. Creándolo..."
+      az storage account create \
+        --name "${STORAGE_ACCOUNT}" \
+        --resource-group "${RESOURCE_GROUP}" \
+        --location "${RG_LOCATION}" \
+        --sku Standard_LRS \
+        --kind StorageV2 \
+        -o table
+    else
+      echo "ERROR: Storage Account '${STORAGE_ACCOUNT}' no existe en RG '${RESOURCE_GROUP}'."
+      echo "Para evitar costos/recursos extra, CREATE_STORAGE_IF_MISSING=false bloquea la creación automática."
+      echo "Si querés crearlo automáticamente, cambiá CREATE_STORAGE_IF_MISSING=\"true\" y reintentá."
+      exit 1
+    fi
   fi
 fi
 
