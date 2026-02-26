@@ -54,17 +54,24 @@ fi
 echo "Suscripción activa:"
 az account show --query "{name:name,id:id,tenantId:tenantId}" -o table
 
-echo "[6/8] Creando Resource Group..."
-az group create \
-  --name "${RESOURCE_GROUP}" \
-  --location "${LOCATION}" \
-  -o table
+echo "[6/8] Verificando Resource Group..."
+if az group show --name "${RESOURCE_GROUP}" >/dev/null 2>&1; then
+  RG_LOCATION=$(az group show --name "${RESOURCE_GROUP}" --query location -o tsv)
+  echo "Resource Group ya existe: ${RESOURCE_GROUP} (location=${RG_LOCATION})"
+else
+  echo "Resource Group no existe. Creándolo..."
+  az group create \
+    --name "${RESOURCE_GROUP}" \
+    --location "${LOCATION}" \
+    -o table
+  RG_LOCATION="${LOCATION}"
+fi
 
 echo "[7/8] Creando Storage Account..."
 az storage account create \
   --name "${STORAGE_ACCOUNT}" \
   --resource-group "${RESOURCE_GROUP}" \
-  --location "${LOCATION}" \
+  --location "${RG_LOCATION}" \
   --sku Standard_LRS \
   --kind StorageV2 \
   -o table
