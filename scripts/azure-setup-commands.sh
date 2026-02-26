@@ -14,8 +14,9 @@ set -euo pipefail
 # ---------- CONFIG ----------
 LOCATION="eastus"
 RESOURCE_GROUP="camara-comercial-bolivar"
-STORAGE_ACCOUNT="intercamstore"   # existente (si no existe, el script lo crea)
+STORAGE_ACCOUNT="intercamstore"   # existente
 QUEUE_NAME="incoming-messages"
+CREATE_STORAGE_IF_MISSING="false"  # true para permitir crear uno nuevo
 
 # Si ya sabés tu Subscription ID, pegala acá. Si no, dejá vacío y te deja elegir.
 SUBSCRIPTION_ID="67a337c3-ed79-4082-8438-7b2bbc31144f"
@@ -72,14 +73,21 @@ echo "[6/8] Verificando Storage Account..."
 if az storage account show --name "${STORAGE_ACCOUNT}" --resource-group "${RESOURCE_GROUP}" >/dev/null 2>&1; then
   echo "Storage Account ya existe: ${STORAGE_ACCOUNT}"
 else
-  echo "Storage Account no existe. Creándolo..."
-  az storage account create \
-    --name "${STORAGE_ACCOUNT}" \
-    --resource-group "${RESOURCE_GROUP}" \
-    --location "${RG_LOCATION}" \
-    --sku Standard_LRS \
-    --kind StorageV2 \
-    -o table
+  if [[ "${CREATE_STORAGE_IF_MISSING}" == "true" ]]; then
+    echo "Storage Account no existe. Creándolo..."
+    az storage account create \
+      --name "${STORAGE_ACCOUNT}" \
+      --resource-group "${RESOURCE_GROUP}" \
+      --location "${RG_LOCATION}" \
+      --sku Standard_LRS \
+      --kind StorageV2 \
+      -o table
+  else
+    echo "ERROR: Storage Account '${STORAGE_ACCOUNT}' no existe en RG '${RESOURCE_GROUP}'."
+    echo "Para evitar costos/recursos extra, CREATE_STORAGE_IF_MISSING=false bloquea la creación automática."
+    echo "Si querés crearlo automáticamente, cambiá CREATE_STORAGE_IF_MISSING=\"true\" y reintentá."
+    exit 1
+  fi
 fi
 
 echo "[7/8] Creando Queue..."
@@ -108,5 +116,7 @@ echo
 echo "2) Leer mensajes"
 echo "az storage message get --queue-name ${QUEUE_NAME} --num-messages 5 --connection-string \"\${CONN_STRING}\""
 echo
-echo "3) Guardar connection string en variable temporal"
-echo "export AZURE_STORAGE_CONNECTION_STRING=\"${CONN_STRING}\""
+echo "3) Guardar connection string en variables temporales"
+echo "export AZURE_BLOB_STORAGE_CONNECTION=\"${CONN_STRING}\""
+echo "export AZURE_QUEUE_STORAGE_CONNECTION=\"${CONN_STRING}\""
+echo "export AZURE_QUEUE_NAME=\"${QUEUE_NAME}\""

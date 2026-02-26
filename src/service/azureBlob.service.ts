@@ -22,8 +22,8 @@ class AzureBlobService {
   private readonly connectionString?: string;
 
   constructor() {
-    const connectionString = process.env.AZURE_STORAGE_CONNECTION;
-    const containerName = process.env.AZURE_STORAGE_CONTAINER || 'socios-assets';
+    const connectionString = process.env.AZURE_BLOB_STORAGE_CONNECTION || process.env.AZURE_STORAGE_CONNECTION;
+    const containerName = process.env.AZURE_BLOB_STORAGE_CONTAINER || process.env.AZURE_STORAGE_CONTAINER || 'socios-assets';
 
     this.connectionString = connectionString;
     this.containerName = containerName;
@@ -31,7 +31,7 @@ class AzureBlobService {
 
   private getContainerClient() {
     if (!this.connectionString) {
-      throw new Error('Falta la variable de entorno AZURE_STORAGE_CONNECTION');
+      throw new Error('Falta la variable de entorno AZURE_BLOB_STORAGE_CONNECTION (o AZURE_STORAGE_CONNECTION por compatibilidad)');
     }
 
     const blobServiceClient = BlobServiceClient.fromConnectionString(this.connectionString);
@@ -110,7 +110,7 @@ class AzureBlobService {
 
   getReadOnlyUrl(urlOrBlobPath: string, expiresInMinutes = 60): string {
     if (!this.connectionString) {
-      throw new Error('Falta la variable de entorno AZURE_STORAGE_CONNECTION');
+      throw new Error('Falta la variable de entorno AZURE_BLOB_STORAGE_CONNECTION (o AZURE_STORAGE_CONNECTION por compatibilidad)');
     }
 
     const accountName = this.getConnectionStringPart('AccountName');
@@ -119,7 +119,7 @@ class AzureBlobService {
     const endpointSuffix = this.getConnectionStringPart('EndpointSuffix') || 'core.windows.net';
 
     if (!accountName || !accountKey) {
-      throw new Error('No se pudo leer AccountName/AccountKey desde AZURE_STORAGE_CONNECTION');
+      throw new Error('No se pudo leer AccountName/AccountKey desde AZURE_BLOB_STORAGE_CONNECTION (o AZURE_STORAGE_CONNECTION)');
     }
 
     let containerName = this.containerName;
