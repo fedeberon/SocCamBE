@@ -8,6 +8,8 @@ pagosSociosRoutes.get('/', checkJwt, getAllPagosSocios);
 pagosSociosRoutes.get('/sos/socios/:cuit', checkJwt, getSociosSosByCuit);
 pagosSociosRoutes.get('/:id', checkJwt, getPagosSociosById);
 pagosSociosRoutes.get('/socio/:socioId', checkJwt, getPagosSociosBySocio);
+// Alias legacy (plural) para compatibilidad con clientes viejos
+pagosSociosRoutes.get('/socios/:socioId', checkJwt, getPagosSociosBySocio);
 pagosSociosRoutes.get('/deuda_socio/:socioId', checkJwt, getDeudaBySocio);
 
 export default pagosSociosRoutes;
