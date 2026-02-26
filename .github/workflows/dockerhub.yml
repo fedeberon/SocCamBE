@@ -52,10 +52,42 @@ jobs:
       - name: Deploy API + Worker on VPS (systemd)
         if: ${{ steps.verify.outputs.ready == 'true' }}
         uses: appleboy/ssh-action@v0.1.10
+        env:
+          PORT: ${{ secrets.PORT }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          HOST: ${{ secrets.HOST }}
+          USER: ${{ secrets.USER }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          DATABASE: ${{ secrets.DATABASE }}
+          BASE_URL: ${{ secrets.BASE_URL }}
+          AUDIENCE: ${{ secrets.AUDIENCE }}
+          ISSUER_BASEURL: ${{ secrets.ISSUER_BASEURL }}
+          AZURE_BLOB_STORAGE_CONNECTION: ${{ secrets.AZURE_BLOB_STORAGE_CONNECTION }}
+          AZURE_BLOB_STORAGE_CONTAINER: ${{ secrets.AZURE_BLOB_STORAGE_CONTAINER }}
+          AZURE_STORAGE_CONNECTION: ${{ secrets.AZURE_STORAGE_CONNECTION }}
+          AZURE_STORAGE_CONTAINER: ${{ secrets.AZURE_STORAGE_CONTAINER }}
+          AZURE_QUEUE_STORAGE_CONNECTION: ${{ secrets.AZURE_QUEUE_STORAGE_CONNECTION }}
+          AZURE_QUEUE_NAME: ${{ secrets.AZURE_QUEUE_NAME }}
+          SOS_QUEUE_WORKER_MODE: ${{ secrets.SOS_QUEUE_WORKER_MODE }}
+          SOS_QUEUE_WORKER_POLL_MS: ${{ secrets.SOS_QUEUE_WORKER_POLL_MS }}
+          SOS_PROXY_PORT: ${{ secrets.SOS_PROXY_PORT }}
+          SOS_API_BASE_URL: ${{ secrets.SOS_API_BASE_URL }}
+          SOS_AUTH_MODE: ${{ secrets.SOS_AUTH_MODE }}
+          SOS_BEARER_TOKEN: ${{ secrets.SOS_BEARER_TOKEN }}
+          SOS_AUTH_ENDPOINT: ${{ secrets.SOS_AUTH_ENDPOINT }}
+          SOS_AUTH_USERNAME: ${{ secrets.SOS_AUTH_USERNAME }}
+          SOS_AUTH_PASSWORD: ${{ secrets.SOS_AUTH_PASSWORD }}
+          SOS_REPRESENTED_CUIT: ${{ secrets.SOS_REPRESENTED_CUIT }}
+          SOS_API_KEY: ${{ secrets.SOS_API_KEY }}
+          SOS_API_SECRET: ${{ secrets.SOS_API_SECRET }}
+          SOS_API_KEY_HEADER: ${{ secrets.SOS_API_KEY_HEADER }}
+          SOS_API_SECRET_HEADER: ${{ secrets.SOS_API_SECRET_HEADER }}
+          SOS_API_TIMEOUT_MS: ${{ secrets.SOS_API_TIMEOUT_MS }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: PORT,DB_PORT,HOST,USER,PASSWORD,DATABASE,BASE_URL,AUDIENCE,ISSUER_BASEURL,AZURE_BLOB_STORAGE_CONNECTION,AZURE_BLOB_STORAGE_CONTAINER,AZURE_STORAGE_CONNECTION,AZURE_STORAGE_CONTAINER,AZURE_QUEUE_STORAGE_CONNECTION,AZURE_QUEUE_NAME,SOS_QUEUE_WORKER_MODE,SOS_QUEUE_WORKER_POLL_MS,SOS_PROXY_PORT,SOS_API_BASE_URL,SOS_AUTH_MODE,SOS_BEARER_TOKEN,SOS_AUTH_ENDPOINT,SOS_AUTH_USERNAME,SOS_AUTH_PASSWORD,SOS_REPRESENTED_CUIT,SOS_API_KEY,SOS_API_SECRET,SOS_API_KEY_HEADER,SOS_API_SECRET_HEADER,SOS_API_TIMEOUT_MS
           script: |
             set -euo pipefail
             VPS_APP_PATH='${{ secrets.VPS_APP_PATH }}'
@@ -68,11 +100,39 @@ jobs:
             git checkout release
             git pull --ff-only origin release
 
-            if [ ! -f .env ]; then
-              echo "ERROR: falta .env en VPS_APP_PATH (${VPS_APP_PATH})."
-              echo "Crealo en la VPS con las variables productivas y reintentá."
-              exit 1
-            fi
+            echo "[deploy] writing .env from GitHub Secrets"
+            cat > .env <<EOF
+            PORT=${PORT:-5000}
+            HOST=${HOST:-localhost}
+            USER=${USER:-}
+            PASSWORD=${PASSWORD:-}
+            DATABASE=${DATABASE:-}
+            DB_PORT=${DB_PORT:-1433}
+            BASE_URL=${BASE_URL:-http://localhost:5000}
+            AUDIENCE=${AUDIENCE:-}
+            ISSUER_BASEURL=${ISSUER_BASEURL:-}
+            AZURE_BLOB_STORAGE_CONNECTION=${AZURE_BLOB_STORAGE_CONNECTION:-}
+            AZURE_BLOB_STORAGE_CONTAINER=${AZURE_BLOB_STORAGE_CONTAINER:-socios-assets}
+            AZURE_STORAGE_CONNECTION=${AZURE_STORAGE_CONNECTION:-}
+            AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-socios-assets}
+            AZURE_QUEUE_STORAGE_CONNECTION=${AZURE_QUEUE_STORAGE_CONNECTION:-}
+            AZURE_QUEUE_NAME=${AZURE_QUEUE_NAME:-incoming-messages}
+            SOS_QUEUE_WORKER_MODE=${SOS_QUEUE_WORKER_MODE:-loop}
+            SOS_QUEUE_WORKER_POLL_MS=${SOS_QUEUE_WORKER_POLL_MS:-15000}
+            SOS_PROXY_PORT=${SOS_PROXY_PORT:-5001}
+            SOS_API_BASE_URL=${SOS_API_BASE_URL:-https://api.sos-contador.com}
+            SOS_AUTH_MODE=${SOS_AUTH_MODE:-bearer}
+            SOS_BEARER_TOKEN=${SOS_BEARER_TOKEN:-}
+            SOS_AUTH_ENDPOINT=${SOS_AUTH_ENDPOINT:-/api-comunidad/login}
+            SOS_AUTH_USERNAME=${SOS_AUTH_USERNAME:-}
+            SOS_AUTH_PASSWORD=${SOS_AUTH_PASSWORD:-}
+            SOS_REPRESENTED_CUIT=${SOS_REPRESENTED_CUIT:-}
+            SOS_API_KEY=${SOS_API_KEY:-}
+            SOS_API_SECRET=${SOS_API_SECRET:-}
+            SOS_API_KEY_HEADER=${SOS_API_KEY_HEADER:-x-api-key}
+            SOS_API_SECRET_HEADER=${SOS_API_SECRET_HEADER:-x-api-secret}
+            SOS_API_TIMEOUT_MS=${SOS_API_TIMEOUT_MS:-15000}
+            EOF
 
             echo "[deploy] deploy API service"
             sudo APP_DIR="${VPS_APP_PATH}" APP_USER="${VPS_USER}" APP_GROUP="${VPS_USER}" bash scripts/deploy-api.sh
