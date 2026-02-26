@@ -1,21 +1,21 @@
-import { Op } from 'sequelize';
-import PagosSocios from '../models/pagosSocios.models';
+import SosMovimiento from '../models/sosMovimiento.models';
 
 class DeudaService {
-
   async getDeudaSociosById(id: number): Promise<number> {
-    const resultado = await PagosSocios.sum('pagosSocios_monto', {
+    const rows = await SosMovimiento.findAll({
       where: {
-        pagosSocios_socio: id,
-        pagosSocios_deleted:false,
-        pagosSocios_estado: {
-          [Op.ne]: 0, // distinto de 0
-        },
+        socio_id: id,
+        deleted: false,
       },
-    });    
-    return resultado ?? 0;
-  }
+      attributes: ['montodebe', 'montohaber'],
+      raw: true,
+    } as any);
 
+    const debe = rows.reduce((acc: number, r: any) => acc + Number(r?.montodebe || 0), 0);
+    const haber = rows.reduce((acc: number, r: any) => acc + Number(r?.montohaber || 0), 0);
+
+    return Number((debe - haber).toFixed(2));
+  }
 }
 
 export default new DeudaService();
