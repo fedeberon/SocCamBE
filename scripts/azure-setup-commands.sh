@@ -14,7 +14,7 @@ set -euo pipefail
 # ---------- CONFIG ----------
 LOCATION="eastus"
 RESOURCE_GROUP="camara-comercial-bolivar"
-STORAGE_ACCOUNT="stmsg$(date +%s | tail -c 6)"   # debe ser único global y minúsculas
+STORAGE_ACCOUNT="intercamstore"   # existente (si no existe, el script lo crea)
 QUEUE_NAME="incoming-messages"
 
 # Si ya sabés tu Subscription ID, pegala acá. Si no, dejá vacío y te deja elegir.
@@ -67,14 +67,19 @@ else
   RG_LOCATION="${LOCATION}"
 fi
 
-echo "[7/8] Creando Storage Account..."
-az storage account create \
-  --name "${STORAGE_ACCOUNT}" \
-  --resource-group "${RESOURCE_GROUP}" \
-  --location "${RG_LOCATION}" \
-  --sku Standard_LRS \
-  --kind StorageV2 \
-  -o table
+echo "[7/8] Verificando Storage Account..."
+if az storage account show --name "${STORAGE_ACCOUNT}" --resource-group "${RESOURCE_GROUP}" >/dev/null 2>&1; then
+  echo "Storage Account ya existe: ${STORAGE_ACCOUNT}"
+else
+  echo "Storage Account no existe. Creándolo..."
+  az storage account create \
+    --name "${STORAGE_ACCOUNT}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --location "${RG_LOCATION}" \
+    --sku Standard_LRS \
+    --kind StorageV2 \
+    -o table
+fi
 
 echo "[8/8] Creando Queue..."
 CONN_STRING=$(az storage account show-connection-string \
