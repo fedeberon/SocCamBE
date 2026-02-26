@@ -46,10 +46,12 @@ npm ci --omit=dev
 echo "[2/7] Compilando TypeScript..."
 npm run build
 
-echo "[3/7] Validando vars mínimas en .env..."
+echo "[3/7] Validando vars mínimas en .env (solo API)..."
 required_vars=(
   "PORT"
   "DB_PORT"
+  "AUDIENCE"
+  "ISSUER_BASEURL"
 )
 for var in "${required_vars[@]}"; do
   if ! grep -qE "^${var}=" "${ENV_FILE}"; then

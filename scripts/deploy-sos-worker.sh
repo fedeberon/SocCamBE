@@ -46,7 +46,7 @@ npm ci --omit=dev
 echo "[2/7] Compilando TypeScript..."
 npm run build
 
-echo "[3/7] Validando vars críticas en .env..."
+echo "[3/7] Validando vars críticas en .env (solo worker)..."
 required_vars=(
   "AZURE_QUEUE_STORAGE_CONNECTION"
   "AZURE_QUEUE_NAME"
