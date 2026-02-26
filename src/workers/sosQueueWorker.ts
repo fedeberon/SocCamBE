@@ -49,6 +49,27 @@ async function processJob(job: QueueJob) {
   logger.info(`[sosQueueWorker] sync OK socioId=${socioId} cuit=${cuit} pagos=${pagosSos.length}`);
 }
 
+function parseQueueMessage(messageText?: string): QueueJob {
+  const raw = messageText || '{}';
+
+  // 1) formato JSON directo (recomendado)
+  try {
+    return JSON.parse(raw) as QueueJob;
+  } catch (_) {
+    // sigue
+  }
+
+  // 2) compatibilidad con mensajes base64 antiguos
+  try {
+    const decoded = Buffer.from(raw, 'base64').toString('utf8');
+    return JSON.parse(decoded) as QueueJob;
+  } catch (_) {
+    // sigue
+  }
+
+  throw new Error('Mensaje inválido: no es JSON ni base64(JSON)');
+}
+
 async function runOnce() {
   const { queueClient, queueName } = getQueueClient();
   await queueClient.createIfNotExists();
@@ -63,8 +84,7 @@ async function runOnce() {
 
   for (const msg of items) {
     try {
-      const raw = msg.messageText ? Buffer.from(msg.messageText, 'base64').toString('utf8') : '{}';
-      const job = JSON.parse(raw) as QueueJob;
+      const job = parseQueueMessage(msg.messageText);
 
       if (job.jobType && job.jobType !== 'sync_sos_movimientos') {
         logger.info(`[sosQueueWorker] jobType ignorado: ${job.jobType}`);

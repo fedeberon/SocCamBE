@@ -36,9 +36,8 @@ class SosSyncQueueService {
     };
 
     const body = JSON.stringify(payload);
-    const encoded = Buffer.from(body, 'utf8').toString('base64');
 
-    await client.sendMessage(encoded);
+    await client.sendMessage(body);
     logger.info(`[sosSyncQueue] job encolado en ${this.queueName} (socioId=${job.socioId})`);
   }
 }
