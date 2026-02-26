@@ -7,6 +7,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "node --inspect -r ts-node/register src/server.ts",
+    "worker:sos-queue": "node -r ts-node/register src/workers/sosQueueWorker.ts",
     "migrate": "sequelize db:migrate --config src/configs/config.js",
     "migrate:undo": "sequelize db:migrate:undo --config src/configs/config.js",
     "lint": "eslint . --ext .ts,.tsx",

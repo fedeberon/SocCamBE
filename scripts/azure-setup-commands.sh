@@ -152,3 +152,9 @@ echo "3) Guardar connection string en variables temporales"
 echo "export AZURE_BLOB_STORAGE_CONNECTION=\"${CONN_STRING}\""
 echo "export AZURE_QUEUE_STORAGE_CONNECTION=\"${CONN_STRING}\""
 echo "export AZURE_QUEUE_NAME=\"${QUEUE_NAME}\""
+echo "export SOS_QUEUE_WORKER_MODE=loop"
+echo "export SOS_QUEUE_WORKER_POLL_MS=15000"
+echo
+
+echo "4) Levantar worker local (desde SocCamBE)"
+echo "npm run worker:sos-queue"
