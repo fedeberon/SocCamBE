@@ -5,6 +5,7 @@ import deudaService from '../service/deuda.service';
 import sosContadorService from '../service/sosContador.service';
 import Socio from '../models/socio.models';
 import PagosSociosAdapter from '../adapters/PagosSociosAdapter';
+import SosMovimiento from '../models/sosMovimiento.models';
 
 
 export const getAllPagosSocios = async (req: Request, res: Response) => {
@@ -60,16 +61,43 @@ export const getPagosSociosBySocio = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'El socio no tiene CUIT configurado' });
     }
 
-    const cobros = await sosContadorService.getCobrosBySocioCuit({
-      socioCuit,
-      periodo: query.periodo,
-      registros: query.registros,
-      maxPaginas: query.maxPaginas,
+    const movimientos = await SosMovimiento.findAll({
+      where: {
+        socio_id: Number(socioId),
+        cuit_cuil: socioCuit,
+        deleted: false,
+      },
+      order: [['fecha', 'DESC'], ['sos_mov_id', 'DESC']],
     });
 
-    if (cobros.length === 0) {
-      return res.status(404).json({ message: 'No se encontraron pagos del socio en SOS Contador' });
+    if (!movimientos.length) {
+      return res.status(404).json({ message: 'No se encontraron pagos del socio en tabla local sincronizada' });
     }
+
+    const cobros = movimientos.map((m: any) => {
+      const raw = (() => {
+        try {
+          return m?.raw_json ? JSON.parse(m.raw_json) : null;
+        } catch {
+          return null;
+        }
+      })();
+
+      return {
+        id: m.sos_cobro_id || m.sos_mov_id,
+        fecha: m.fecha,
+        factura: m.factura,
+        montototal: Number(m.monto || 0),
+        referencia: m.referencia,
+        cliente: {
+          id: m.sos_cliente_id,
+          cuit: m.cuit_cuil,
+          clipro: m.cliente_nombre,
+          email: m.cliente_email,
+        },
+        ...(raw || {}),
+      };
+    });
 
     const pagos = PagosSociosAdapter.fromSosCobros(cobros as any[], Number(socioId), periodo);
 
