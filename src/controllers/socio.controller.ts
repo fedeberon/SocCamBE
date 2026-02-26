@@ -14,6 +14,7 @@ import azureBlobService from '../service/azureBlob.service';
 import sosContadorService from '../service/sosContador.service';
 import PagosSociosAdapter from '../adapters/PagosSociosAdapter';
 import sosMovimientosService from '../service/sosMovimientos.service';
+import sosSyncQueueService from '../service/sosSyncQueue.service';
 
 class SocioController {
   private static socioService: ISocioService = new SocioService(); 
@@ -182,6 +183,49 @@ class SocioController {
         message: 'Error al obtener los movimientos de cuenta corriente cofre del socio', 
         error 
       });
+    }
+  }
+
+  static async enqueueSosSync(req: Request, res: Response) {
+    try {
+      const socioId = Number(req.params.id);
+      if (Number.isNaN(socioId)) {
+        return res.status(400).json({ message: 'ID de socio inválido' });
+      }
+
+      const socio = await SocioController.socioService.getSocioById(socioId);
+      if (!socio) {
+        return res.status(404).json({ message: 'Socio no encontrado' });
+      }
+
+      const socioData = typeof (socio as any).get === 'function'
+        ? (socio as any).get({ plain: true })
+        : socio;
+
+      const cuit = String((socioData as any)?.socio_cuit || '').replace(/\D/g, '');
+      if (!cuit) {
+        return res.status(400).json({ message: 'El socio no tiene CUIT/CUIL configurado' });
+      }
+
+      const { fechaDesde, fechaHasta } = (req.body || {}) as { fechaDesde?: string; fechaHasta?: string };
+
+      await sosSyncQueueService.enqueue({
+        socioId,
+        cuit,
+        fechaDesde,
+        fechaHasta,
+        trigger: 'manual',
+      });
+
+      return res.status(202).json({
+        message: 'Sync SOS encolada correctamente',
+        socioId,
+        cuit,
+        queue: process.env.AZURE_QUEUE_NAME || 'incoming-messages',
+      });
+    } catch (error) {
+      logger.error('Error al encolar sync SOS:', error);
+      return res.status(500).json({ message: 'Error al encolar sync SOS', error });
     }
   }
 

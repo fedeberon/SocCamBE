@@ -5,6 +5,7 @@ const socioRoutes  = Router();
 
 socioRoutes.get('/', SocioController.getSocios);
 socioRoutes.get('/search', SocioController.searchSociosByName);
+socioRoutes.post('/:id/sync-sos', SocioController.enqueueSosSync);
 socioRoutes .get('/:id', SocioController.getSocioById);
 socioRoutes.get('/email/:email',  SocioController.getSociosByEmail);
 socioRoutes.get('/matricula/:matricula',  SocioController.getSociosByMatricula);
