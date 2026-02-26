@@ -1,3 +1,6 @@
+import http from 'http';
+import https from 'https';
+
 type SosLoginCuit = {
   id: number;
   cuit: string;
@@ -186,6 +189,56 @@ class SosContadorService {
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  private async requestGetWithJsonBody<T>(path: string, token: string, body: Record<string, unknown>): Promise<T> {
+    const url = new URL(`${this.baseUrl}${path}`);
+    const payload = JSON.stringify(body || {});
+    const client = url.protocol === 'https:' ? https : http;
+
+    return new Promise<T>((resolve, reject) => {
+      const req = client.request(
+        {
+          method: 'GET',
+          hostname: url.hostname,
+          port: url.port || (url.protocol === 'https:' ? 443 : 80),
+          path: `${url.pathname}${url.search}`,
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            'Content-Length': Buffer.byteLength(payload),
+          },
+          timeout: this.timeoutMs,
+        },
+        (res) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+          res.on('end', () => {
+            const raw = Buffer.concat(chunks).toString('utf8');
+            let data: any = null;
+            try {
+              data = raw ? JSON.parse(raw) : null;
+            } catch {
+              return reject(new Error(`Respuesta inválida de SOS API: ${raw.slice(0, 200)}`));
+            }
+
+            if ((res.statusCode || 500) >= 400 || (data && typeof data === 'object' && 'error' in data)) {
+              return reject(new Error(data?.error || `SOS API error ${res.statusCode}`));
+            }
+
+            return resolve(data as T);
+          });
+        },
+      );
+
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy(new Error(`Timeout llamando a SOS API (${this.timeoutMs}ms)`));
+      });
+      req.write(payload);
+      req.end();
+    });
   }
 
   private async login(): Promise<SosLoginResponse> {
@@ -396,16 +449,17 @@ class SosContadorService {
       for (const cpValue of cpValues) {
         for (const tipoValue of tipoValues) {
           try {
-            const response = await this.request<SosCuentaCorrienteResponse>('GET', '/api-comunidad/cuentacorriente/listado', {
+            const response = await this.requestGetWithJsonBody<SosCuentaCorrienteResponse>(
+              '/api-comunidad/cuentacorriente/listado',
               token,
-              body: {
+              {
                 CP: cpValue,
                 fechadesde: options.fechaDesde || defaultDesde,
                 fechahasta: options.fechaHasta || defaultHasta,
                 tipo: tipoValue,
                 idclipro: socio.id,
               },
-            });
+            );
 
             if (response?.error) {
               continue;
