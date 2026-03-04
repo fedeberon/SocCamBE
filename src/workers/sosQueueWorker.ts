@@ -38,6 +38,18 @@ async function processJob(job: QueueJob) {
     throw new Error('Job inválido: socioId/cuit requeridos');
   }
 
+  if (job.fechaDesde || job.fechaHasta) {
+    const movimientos = await sosContadorService.getMovimientosCuentaCorrienteBySocioCuit({
+      socioCuit: cuit,
+      fechaDesde: job.fechaDesde,
+      fechaHasta: job.fechaHasta,
+    });
+
+    await sosMovimientosService.upsertFromCuentaCorriente(socioId, cuit, movimientos as any[], periodo);
+    logger.info(`[sosQueueWorker] sync CC OK socioId=${socioId} cuit=${cuit} movimientos=${movimientos.length} rango=${job.fechaDesde || '-'}..${job.fechaHasta || '-'}`);
+    return;
+  }
+
   const cobros = await sosContadorService.getCobrosBySocioCuit({
     socioCuit: cuit,
     periodo,

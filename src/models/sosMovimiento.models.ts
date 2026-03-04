@@ -50,6 +50,14 @@ SosMovimiento.init(
       type: DataTypes.DECIMAL(18, 2),
       allowNull: true,
     },
+    montodebe: {
+      type: DataTypes.DECIMAL(18, 2),
+      allowNull: true,
+    },
+    montohaber: {
+      type: DataTypes.DECIMAL(18, 2),
+      allowNull: true,
+    },
     periodo: {
       type: DataTypes.STRING(20),
       allowNull: true,
