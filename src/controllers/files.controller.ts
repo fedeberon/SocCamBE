@@ -70,10 +70,13 @@ class FilesController {
         subcarpeta: 'logo',
         contentType: file.mimetype,
       });
-      const logoReadUrl = azureBlobService.getReadOnlyUrl(logoUrl);
+
+      const blobPath = azureBlobService.getBlobPathFromUrl(logoUrl) || logoUrl;
+      const logoReadUrl = azureBlobService.getReadOnlyUrl(blobPath);
 
       await FilesController.socioService.updateSocio(Number(socioId), {
-        socio_firma: logoUrl,
+        // Guardamos blobPath (más corto) para evitar overflow de columna.
+        socio_firma: blobPath,
       });
 
       return res.status(201).json({
