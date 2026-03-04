@@ -7,6 +7,7 @@ on:
 
 env:
   DOCKER_IMAGE: fedeberon/soccam-be
+  DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
 
 jobs:
   ci:
@@ -30,9 +31,70 @@ jobs:
       - name: Test (non-blocking)
         run: npm test -- --passWithNoTests || true
 
-  deploy-vps:
+  build-and-push:
     runs-on: ubuntu-latest
     needs: ci
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect non-test changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            deploy:
+              - '!tests/**'
+              - '!tests/**/__snapshots__/**'
+              - '!**/*.test.*'
+              - '!**/*.spec.*'
+              - '!**/__snapshots__/**'
+              - '!**/*.snap'
+
+      - name: Log context
+        if: steps.changes.outputs.deploy == 'true'
+        run: |
+          echo "::notice::Branch: ${{ github.ref }}"
+          echo "::notice::Commit: ${{ github.sha }}"
+          echo "::notice::Target image: ${{ env.DOCKER_IMAGE }}"
+
+      - name: Set up Docker Buildx
+        if: steps.changes.outputs.deploy == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to DockerHub
+        if: steps.changes.outputs.deploy == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        if: steps.changes.outputs.deploy == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          tags: |
+            ${{ env.DOCKER_IMAGE }}:latest
+            ${{ env.DOCKER_IMAGE }}:${{ github.sha }}
+          push: true
+
+      - name: Log publish result
+        if: steps.changes.outputs.deploy == 'true'
+        run: |
+          echo "::notice::Published tags: ${{ env.DOCKER_IMAGE }}:latest y ${{ env.DOCKER_IMAGE }}:${{ github.sha }}"
+          echo "::notice::Workflow run: ${{ github.run_id }}"
+
+      - name: Skip publish (tests only)
+        if: steps.changes.outputs.deploy != 'true'
+        run: |
+          echo "::notice::Docker publish skipped: only test changes detected."
+
+  deploy-vps:
+    runs-on: ubuntu-latest
+    needs: [ci, build-and-push]
     environment: production
     steps:
       - name: Verify required VPS secrets
