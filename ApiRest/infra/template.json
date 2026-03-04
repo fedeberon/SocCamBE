@@ -1,0 +1,1747 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "vulnerabilityAssessments_Default_storageContainerPath": {
+            "type": "SecureString"
+        },
+        "servers_intercam_bolivar_name": {
+            "defaultValue": "intercam-bolivar",
+            "type": "String"
+        },
+        "storageAccounts_intercamstorage_name": {
+            "defaultValue": "intercamstorage",
+            "type": "String"
+        },
+        "privateEndpoints_PE_0c352e6d_e6e7_4075_ad0a_a144a39b6f03_SyncIntercamDatabase_externalid": {
+            "defaultValue": "/subscriptions/48319aef-284e-4de8-8813-671df90a7012/resourceGroups/Default-Networking/providers/Microsoft.Network/privateEndpoints/PE_0c352e6d-e6e7-4075-ad0a-a144a39b6f03_SyncIntercamDatabase",
+            "type": "String"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Sql/servers",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[parameters('servers_intercam_bolivar_name')]",
+            "location": "eastus2",
+            "kind": "v12.0",
+            "properties": {
+                "administratorLogin": "intercam-dba",
+                "version": "12.0",
+                "minimalTlsVersion": "1.2",
+                "publicNetworkAccess": "Enabled",
+                "restrictOutboundNetworkAccess": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2025-01-01",
+            "name": "[parameters('storageAccounts_intercamstorage_name')]",
+            "location": "eastus2",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "allowCrossTenantReplication": false,
+                "minimumTlsVersion": "TLS1_0",
+                "allowBlobPublicAccess": false,
+                "networkAcls": {
+                    "bypass": "AzureServices",
+                    "virtualNetworkRules": [],
+                    "ipRules": [],
+                    "defaultAction": "Allow"
+                },
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "keyType": "Account",
+                            "enabled": true
+                        },
+                        "blob": {
+                            "keyType": "Account",
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                },
+                "accessTier": "Hot"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/advancedThreatProtectionSettings",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "state": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/advisors",
+            "apiVersion": "2014-04-01",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/CreateIndex')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "autoExecuteValue": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/advisors",
+            "apiVersion": "2014-04-01",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/DbParameterization')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "autoExecuteValue": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/advisors",
+            "apiVersion": "2014-04-01",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/DefragmentIndex')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "autoExecuteValue": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/advisors",
+            "apiVersion": "2014-04-01",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/DropIndex')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "autoExecuteValue": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/advisors",
+            "apiVersion": "2014-04-01",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/ForceLastGoodPlan')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "autoExecuteValue": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/auditingPolicies",
+            "apiVersion": "2014-04-01",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/Default')]",
+            "location": "East US 2",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "auditingState": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/auditingSettings",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "retentionDays": 0,
+                "auditActionsAndGroups": [],
+                "isStorageSecondaryKeyInUse": false,
+                "isAzureMonitorTargetEnabled": false,
+                "isManagedIdentityInUse": false,
+                "state": "Disabled",
+                "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/connectionPolicies",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/default')]",
+            "location": "eastus2",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "connectionType": "Default"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'))]",
+            "location": "eastus2",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "sku": {
+                "name": "Standard",
+                "tier": "Standard",
+                "capacity": 10
+            },
+            "kind": "v12.0,user",
+            "properties": {
+                "collation": "SQL_Latin1_General_CP1_CI_AS",
+                "maxSizeBytes": 10737418240,
+                "catalogCollation": "SQL_Latin1_General_CP1_CI_AS",
+                "zoneRedundant": false,
+                "readScale": "Disabled",
+                "requestedBackupStorageRedundancy": "Geo",
+                "maintenanceConfigurationId": "/subscriptions/67a337c3-ed79-4082-8438-7b2bbc31144f/providers/Microsoft.Maintenance/publicMaintenanceConfigurations/SQL_Default",
+                "isLedgerOn": false,
+                "availabilityZone": "NoPreference"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/advancedThreatProtectionSettings",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/master/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "state": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/auditingPolicies",
+            "apiVersion": "2014-04-01",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/master/Default')]",
+            "location": "East US 2",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "auditingState": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/auditingSettings",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/master/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "retentionDays": 0,
+                "isAzureMonitorTargetEnabled": false,
+                "state": "Disabled",
+                "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/extendedAuditingSettings",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/master/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "retentionDays": 0,
+                "isAzureMonitorTargetEnabled": false,
+                "state": "Disabled",
+                "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/geoBackupPolicies",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/master/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "state": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/ledgerDigestUploads",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/master/Current')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {}
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/securityAlertPolicies",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/master/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "state": "Disabled",
+                "disabledAlerts": [
+                    ""
+                ],
+                "emailAddresses": [
+                    ""
+                ],
+                "emailAccountAdmins": false,
+                "retentionDays": 0
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/transparentDataEncryption",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/master/Current')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "state": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/vulnerabilityAssessments",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/master/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "recurringScans": {
+                    "isEnabled": false,
+                    "emailSubscriptionAdmins": true
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/devOpsAuditingSettings",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "isAzureMonitorTargetEnabled": false,
+                "isManagedIdentityInUse": false,
+                "state": "Disabled",
+                "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/encryptionProtector",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/current')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "kind": "servicemanaged",
+            "properties": {
+                "serverKeyName": "ServiceManaged",
+                "serverKeyType": "ServiceManaged",
+                "autoRotationEnabled": false
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/extendedAuditingSettings",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "retentionDays": 0,
+                "auditActionsAndGroups": [],
+                "isStorageSecondaryKeyInUse": false,
+                "isAzureMonitorTargetEnabled": false,
+                "isManagedIdentityInUse": false,
+                "state": "Disabled",
+                "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/AllowAllWindowsAzureIps')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "0.0.0.0",
+                "endIpAddress": "0.0.0.0"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/ClientIPAddress_2024-11-12_08-36-45')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "98.97.134.227",
+                "endIpAddress": "98.97.134.227"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/ClientIPAddress_2024-11-14_15-06-45')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "45.176.22.190",
+                "endIpAddress": "45.176.22.190"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/ClientIPAddress_2024-11-8_8-21-9')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "148.222.194.45",
+                "endIpAddress": "148.222.194.45"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/ClientIPAddress_2025-12-15_08-34-15')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "148.227.75.222",
+                "endIpAddress": "148.227.75.222"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/ClientIPAddress_2025-12-18_17-08-58')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "143.105.136.42",
+                "endIpAddress": "143.105.136.42"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/ClientIPAddress_2025-12-23_17-47-19')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "143.105.136.188",
+                "endIpAddress": "143.105.136.188"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/ClientIPAddress_2026-02-19_14-42-10')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "181.6.189.132",
+                "endIpAddress": "181.6.189.132"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/ClientIPAddress_2026-02-19_20-24-47')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "98.97.134.63",
+                "endIpAddress": "98.97.134.63"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/ClientIPAddress_2026-02-20_10-13-13')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "129.224.215.24",
+                "endIpAddress": "129.224.215.24"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/ClientIPAddress_2026-02-23_11-16-44')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "143.105.137.188",
+                "endIpAddress": "143.105.137.188"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/ClientIPAddress_2026-02-24_13-48-17')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "148.222.222.187",
+                "endIpAddress": "148.222.222.187"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/ClientIPAddress_2026-02-25_17-27-35')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "148.222.222.182",
+                "endIpAddress": "148.222.222.182"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/DonWeb')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "200.58.105.14",
+                "endIpAddress": "200.58.105.14"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/Fede')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "200.189.31.94",
+                "endIpAddress": "200.189.31.94"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/Leo')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "181.4.91.6",
+                "endIpAddress": "181.4.91.6"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/Leo Tandil')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "186.136.226.70",
+                "endIpAddress": "186.136.226.70"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/leonardo2')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "172.29.224.1",
+                "endIpAddress": "172.29.224.1"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/Pablo')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "181.4.91.208",
+                "endIpAddress": "181.4.91.208"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/Server Camara')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "181.4.87.245",
+                "endIpAddress": "181.4.87.245"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/Servi')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "98.97.134.53",
+                "endIpAddress": "98.97.134.53"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/firewallRules",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/sync-agent-home')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "startIpAddress": "181.4.84.103",
+                "endIpAddress": "181.4.84.103"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/keys",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/ServiceManaged')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "kind": "servicemanaged",
+            "properties": {
+                "serverKeyType": "ServiceManaged"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/privateEndpointConnections",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/PE_0c352e6d-e6e7-4075-ad0a-a144a39b6f03_SyncIntercamDatabase-bc7061a1-397a-4e0e-8a24-b72fb2095c62')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "privateEndpoint": {
+                    "id": "[parameters('privateEndpoints_PE_0c352e6d_e6e7_4075_ad0a_a144a39b6f03_SyncIntercamDatabase_externalid')]"
+                },
+                "privateLinkServiceConnectionState": {
+                    "status": "Approved",
+                    "description": "Approve syncgroup"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/securityAlertPolicies",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "state": "Disabled",
+                "disabledAlerts": [
+                    ""
+                ],
+                "emailAddresses": [
+                    ""
+                ],
+                "emailAccountAdmins": false,
+                "retentionDays": 0
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/sqlVulnerabilityAssessments",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "state": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/vulnerabilityAssessments",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "recurringScans": {
+                    "isEnabled": false,
+                    "emailSubscriptionAdmins": true
+                },
+                "storageContainerPath": "[parameters('vulnerabilityAssessments_Default_storageContainerPath')]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices",
+            "apiVersion": "2025-01-01",
+            "name": "[concat(parameters('storageAccounts_intercamstorage_name'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_intercamstorage_name'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                },
+                "deleteRetentionPolicy": {
+                    "allowPermanentDelete": false,
+                    "enabled": false
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/fileServices",
+            "apiVersion": "2025-01-01",
+            "name": "[concat(parameters('storageAccounts_intercamstorage_name'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_intercamstorage_name'))]"
+            ],
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "properties": {
+                "protocolSettings": {
+                    "smb": {}
+                },
+                "cors": {
+                    "corsRules": []
+                },
+                "shareDeleteRetentionPolicy": {
+                    "enabled": true,
+                    "days": 7
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/queueServices",
+            "apiVersion": "2025-01-01",
+            "name": "[concat(parameters('storageAccounts_intercamstorage_name'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_intercamstorage_name'))]"
+            ],
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/tableServices",
+            "apiVersion": "2025-01-01",
+            "name": "[concat(parameters('storageAccounts_intercamstorage_name'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_intercamstorage_name'))]"
+            ],
+            "properties": {
+                "cors": {
+                    "corsRules": []
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/advancedThreatProtectionSettings",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "state": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/advisors",
+            "apiVersion": "2014-04-01",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/CreateIndex')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "autoExecuteValue": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/advisors",
+            "apiVersion": "2014-04-01",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/DbParameterization')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "autoExecuteValue": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/advisors",
+            "apiVersion": "2014-04-01",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/DefragmentIndex')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "autoExecuteValue": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/advisors",
+            "apiVersion": "2014-04-01",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/DropIndex')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "autoExecuteValue": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/advisors",
+            "apiVersion": "2014-04-01",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/ForceLastGoodPlan')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "autoExecuteValue": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/auditingPolicies",
+            "apiVersion": "2014-04-01",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/Default')]",
+            "location": "East US 2",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "auditingState": "Disabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/auditingSettings",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "retentionDays": 0,
+                "isAzureMonitorTargetEnabled": false,
+                "state": "Disabled",
+                "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/backupLongTermRetentionPolicies",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "weeklyRetention": "PT0S",
+                "monthlyRetention": "PT0S",
+                "yearlyRetention": "PT0S",
+                "weekOfYear": 0
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/backupShortTermRetentionPolicies",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "retentionDays": 7,
+                "diffBackupIntervalInHours": 24
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/extendedAuditingSettings",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "retentionDays": 0,
+                "isAzureMonitorTargetEnabled": false,
+                "state": "Disabled",
+                "storageAccountSubscriptionId": "00000000-0000-0000-0000-000000000000"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/geoBackupPolicies",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "state": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/ledgerDigestUploads",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/Current')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {}
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/securityAlertPolicies",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "state": "Disabled",
+                "disabledAlerts": [
+                    ""
+                ],
+                "emailAddresses": [
+                    ""
+                ],
+                "emailAccountAdmins": false,
+                "retentionDays": 0
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/syncGroups",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/SyncIntercamDatabase')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "interval": 10,
+                "conflictResolutionPolicy": "HubWin",
+                "syncDatabaseId": "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "hubDatabaseUserName": "intercam-dba",
+                "schema": {
+                    "tables": [
+                        {
+                            "columns": [
+                                {
+                                    "quotedName": "[[categoria_id]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[nombre]",
+                                    "dataSize": "100",
+                                    "dataType": "nvarchar"
+                                }
+                            ],
+                            "quotedName": "[[dbo].[acontecimiento_categoria]"
+                        },
+                        {
+                            "columns": [
+                                {
+                                    "quotedName": "[[acontecimiento_id]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[socio_id]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                }
+                            ],
+                            "quotedName": "[[dbo].[acontecimiento_socio]"
+                        },
+                        {
+                            "columns": [
+                                {
+                                    "quotedName": "[[ubicacion_id]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[nombre]",
+                                    "dataSize": "100",
+                                    "dataType": "nvarchar"
+                                }
+                            ],
+                            "quotedName": "[[dbo].[acontecimiento_ubicacion]"
+                        },
+                        {
+                            "columns": [
+                                {
+                                    "quotedName": "[[acontecimiento_id]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[nombre]",
+                                    "dataSize": "100",
+                                    "dataType": "nvarchar"
+                                },
+                                {
+                                    "quotedName": "[[categoria_id]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[deleted]",
+                                    "dataSize": "1",
+                                    "dataType": "bit"
+                                },
+                                {
+                                    "quotedName": "[[modificado]",
+                                    "dataSize": "8",
+                                    "dataType": "datetime"
+                                },
+                                {
+                                    "quotedName": "[[ubicacion_id]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[fecha]",
+                                    "dataSize": "8",
+                                    "dataType": "datetime"
+                                },
+                                {
+                                    "quotedName": "[[descripcion]",
+                                    "dataSize": "500",
+                                    "dataType": "nvarchar"
+                                }
+                            ],
+                            "quotedName": "[[dbo].[acontecimientos]"
+                        },
+                        {
+                            "columns": [
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteCofre_id]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteCofre_clienteId]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteCofre_fechaIngreso]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteCofre_tipoMovimiento]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteCofre_comprobanteRelacionado]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteCofre_importe]",
+                                    "dataSize": "13",
+                                    "dataType": "decimal"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteCofre_importeCobrar]",
+                                    "dataSize": "13",
+                                    "dataType": "decimal"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteCofre_procesado]",
+                                    "dataSize": "1",
+                                    "dataType": "bit"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteCofre_deleted]",
+                                    "dataSize": "1",
+                                    "dataType": "bit"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteCofre_modificado]",
+                                    "dataSize": "8",
+                                    "dataType": "datetime"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteCofre_comprobanteTipo]",
+                                    "dataSize": "13",
+                                    "dataType": "decimal"
+                                }
+                            ],
+                            "quotedName": "[[dbo].[MovimientoCuentaCorrienteCofre]"
+                        },
+                        {
+                            "columns": [
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteSocio_id]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteSocio_clienteId]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteSocio_fechaIngreso]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteSocio_tipoMovimiento]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteSocio_comprobanteRelacionado]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteSocio_importe]",
+                                    "dataSize": "13",
+                                    "dataType": "decimal"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteSocio_deleted]",
+                                    "dataSize": "1",
+                                    "dataType": "bit"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteSocio_modificado]",
+                                    "dataSize": "8",
+                                    "dataType": "datetime"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteSocio_procesado]",
+                                    "dataSize": "1",
+                                    "dataType": "bit"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteSocio_comprobanteTipo]",
+                                    "dataSize": "13",
+                                    "dataType": "decimal"
+                                },
+                                {
+                                    "quotedName": "[[MovimientoCuentaCorrienteSocio_importeCobrar]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                }
+                            ],
+                            "quotedName": "[[dbo].[MovimientoCuentaCorrienteSocio]"
+                        },
+                        {
+                            "columns": [
+                                {
+                                    "quotedName": "[[pagosCofres_id]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[pagosCofres_contrato]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[pagosCofres_importe]",
+                                    "dataSize": "13",
+                                    "dataType": "decimal"
+                                },
+                                {
+                                    "quotedName": "[[pagosCofres_periodo]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[pagosCofres_anio]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[pagosCofres_fechaPago]",
+                                    "dataSize": "3",
+                                    "dataType": "date"
+                                },
+                                {
+                                    "quotedName": "[[pagosCofres_estado]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[pagosCofres_deleted]",
+                                    "dataSize": "1",
+                                    "dataType": "bit"
+                                },
+                                {
+                                    "quotedName": "[[pagosCofres_modificado]",
+                                    "dataSize": "8",
+                                    "dataType": "datetime"
+                                },
+                                {
+                                    "quotedName": "[[pagosCofres_operacion]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[pagosCofres_facturaNumero]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[pagosCofres_bonificacion]",
+                                    "dataSize": "13",
+                                    "dataType": "decimal"
+                                },
+                                {
+                                    "quotedName": "[[pagosCofres_importeCuotaSocial]",
+                                    "dataSize": "5",
+                                    "dataType": "decimal"
+                                },
+                                {
+                                    "quotedName": "[[pagosCofres_depositoEnGarantia]",
+                                    "dataSize": "13",
+                                    "dataType": "decimal"
+                                },
+                                {
+                                    "quotedName": "[[pagosCofres_depositoEnGarantiaDetalle]",
+                                    "dataSize": "max",
+                                    "dataType": "varchar"
+                                },
+                                {
+                                    "quotedName": "[[pagosCofres_movimiento_cc]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                }
+                            ],
+                            "quotedName": "[[dbo].[pagosCofres]"
+                        },
+                        {
+                            "columns": [
+                                {
+                                    "quotedName": "[[pagosSocios_id]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_socio]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_plan]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_anio]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_periodo]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_periodicidad]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_fechaVencimiento]",
+                                    "dataSize": "3",
+                                    "dataType": "date"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_fechaPago]",
+                                    "dataSize": "3",
+                                    "dataType": "date"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_observaciones]",
+                                    "dataSize": "150",
+                                    "dataType": "nvarchar"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_estado]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_cobrador]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_monto]",
+                                    "dataSize": "13",
+                                    "dataType": "decimal"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_deleted]",
+                                    "dataSize": "1",
+                                    "dataType": "bit"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_modificado]",
+                                    "dataSize": "8",
+                                    "dataType": "datetime"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_crx_fechaVencimiento]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_crx_fechaPago]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_operacion]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[recibo_id]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_movimiento_cc]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[pagosSocios_bonificacion]",
+                                    "dataSize": "5",
+                                    "dataType": "decimal"
+                                }
+                            ],
+                            "quotedName": "[[dbo].[pagosSocios]"
+                        },
+                        {
+                            "columns": [
+                                {
+                                    "quotedName": "[[socio_id]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[socio_nombre]",
+                                    "dataSize": "150",
+                                    "dataType": "nvarchar"
+                                },
+                                {
+                                    "quotedName": "[[socio_apellido]",
+                                    "dataSize": "150",
+                                    "dataType": "nvarchar"
+                                },
+                                {
+                                    "quotedName": "[[socio_nacionalidad]",
+                                    "dataSize": "150",
+                                    "dataType": "nvarchar"
+                                },
+                                {
+                                    "quotedName": "[[socio_dni]",
+                                    "dataSize": "150",
+                                    "dataType": "nvarchar"
+                                },
+                                {
+                                    "quotedName": "[[socio_fechaNacimiento]",
+                                    "dataSize": "3",
+                                    "dataType": "date"
+                                },
+                                {
+                                    "quotedName": "[[socio_cuit]",
+                                    "dataSize": "11",
+                                    "dataType": "nvarchar"
+                                },
+                                {
+                                    "quotedName": "[[socio_mail]",
+                                    "dataSize": "150",
+                                    "dataType": "nvarchar"
+                                },
+                                {
+                                    "quotedName": "[[socio_firma]",
+                                    "dataSize": "150",
+                                    "dataType": "nvarchar"
+                                },
+                                {
+                                    "quotedName": "[[socio_tipoEmpresa]",
+                                    "dataSize": "150",
+                                    "dataType": "nvarchar"
+                                },
+                                {
+                                    "quotedName": "[[socio_domicilio]",
+                                    "dataSize": "150",
+                                    "dataType": "nvarchar"
+                                },
+                                {
+                                    "quotedName": "[[socio_telefono]",
+                                    "dataSize": "150",
+                                    "dataType": "nvarchar"
+                                },
+                                {
+                                    "quotedName": "[[socio_tipoSocio]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[socio_numero]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[socio_fechaAprobacion]",
+                                    "dataSize": "3",
+                                    "dataType": "date"
+                                },
+                                {
+                                    "quotedName": "[[socio_acta]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[socio_padrino1]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[socio_padrino2]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[socio_sector]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[socio_deleted]",
+                                    "dataSize": "1",
+                                    "dataType": "bit"
+                                },
+                                {
+                                    "quotedName": "[[socio_tieneCajaSeguridad]",
+                                    "dataSize": "1",
+                                    "dataType": "bit"
+                                },
+                                {
+                                    "quotedName": "[[socio_estado]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[socio_modificado]",
+                                    "dataSize": "8",
+                                    "dataType": "datetime"
+                                },
+                                {
+                                    "quotedName": "[[socio_motivoBaja]",
+                                    "dataSize": "max",
+                                    "dataType": "varchar"
+                                },
+                                {
+                                    "quotedName": "[[socio_gestion]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[socio_segmento]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[socio_habilitacion]",
+                                    "dataSize": "max",
+                                    "dataType": "varchar"
+                                },
+                                {
+                                    "quotedName": "[[socio_rubro]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[socio_localidad]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[socio_condicionFiscal]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[socio_celular]",
+                                    "dataSize": "max",
+                                    "dataType": "varchar"
+                                },
+                                {
+                                    "quotedName": "[[socio_otroTelefono]",
+                                    "dataSize": "max",
+                                    "dataType": "varchar"
+                                },
+                                {
+                                    "quotedName": "[[socio_tarjetaEntregada]",
+                                    "dataSize": "1",
+                                    "dataType": "bit"
+                                },
+                                {
+                                    "quotedName": "[[socio_tarjetaFechaEntrega]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[socio_Campanias]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[socio_enviarMail]",
+                                    "dataSize": "1",
+                                    "dataType": "bit"
+                                }
+                            ],
+                            "quotedName": "[[dbo].[socio]"
+                        },
+                        {
+                            "columns": [
+                                {
+                                    "quotedName": "[[sociosRubro_id]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[sociosRubro_nombre]",
+                                    "dataSize": "150",
+                                    "dataType": "nvarchar"
+                                },
+                                {
+                                    "quotedName": "[[sociosRubro_deleted]",
+                                    "dataSize": "1",
+                                    "dataType": "bit"
+                                },
+                                {
+                                    "quotedName": "[[sociosRubro_modificado]",
+                                    "dataSize": "8",
+                                    "dataType": "datetime"
+                                }
+                            ],
+                            "quotedName": "[[dbo].[sociosRubro]"
+                        },
+                        {
+                            "columns": [
+                                {
+                                    "quotedName": "[[sociosSegmento_id]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[sociosSegmento_nombre]",
+                                    "dataSize": "150",
+                                    "dataType": "nvarchar"
+                                },
+                                {
+                                    "quotedName": "[[sociosSegmento_deleted]",
+                                    "dataSize": "1",
+                                    "dataType": "bit"
+                                },
+                                {
+                                    "quotedName": "[[sociosSegmento_modificado]",
+                                    "dataSize": "8",
+                                    "dataType": "datetime"
+                                }
+                            ],
+                            "quotedName": "[[dbo].[sociosSegmento]"
+                        },
+                        {
+                            "columns": [
+                                {
+                                    "quotedName": "[[tipoSocio_id]",
+                                    "dataSize": "8",
+                                    "dataType": "bigint"
+                                },
+                                {
+                                    "quotedName": "[[tipoSocio_tipo]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[tipoSocio_nombre]",
+                                    "dataSize": "150",
+                                    "dataType": "nvarchar"
+                                },
+                                {
+                                    "quotedName": "[[tipoSocio_importe]",
+                                    "dataSize": "13",
+                                    "dataType": "decimal"
+                                },
+                                {
+                                    "quotedName": "[[tipoSocio_periodicidad]",
+                                    "dataSize": "4",
+                                    "dataType": "int"
+                                },
+                                {
+                                    "quotedName": "[[tipoSocio_deleted]",
+                                    "dataSize": "1",
+                                    "dataType": "bit"
+                                },
+                                {
+                                    "quotedName": "[[tipoSocio_modificado]",
+                                    "dataSize": "8",
+                                    "dataType": "datetime"
+                                },
+                                {
+                                    "quotedName": "[[tipoSocio_categoria]",
+                                    "dataSize": "1",
+                                    "dataType": "char"
+                                }
+                            ],
+                            "quotedName": "[[dbo].[tipoSocio]"
+                        }
+                    ]
+                },
+                "usePrivateLinkConnection": true
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/transparentDataEncryption",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/Current')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "state": "Enabled"
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/vulnerabilityAssessments",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/Default')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "recurringScans": {
+                    "isEnabled": false,
+                    "emailSubscriptionAdmins": true
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/syncAgents",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/AgentIntercam')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]"
+            ],
+            "properties": {
+                "syncDatabaseId": "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+            "apiVersion": "2025-01-01",
+            "name": "[concat(parameters('storageAccounts_intercamstorage_name'), '/default/socios-assets')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccounts_intercamstorage_name'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_intercamstorage_name'))]"
+            ],
+            "properties": {
+                "immutableStorageWithVersioning": {
+                    "enabled": false
+                },
+                "defaultEncryptionScope": "$account-encryption-key",
+                "denyEncryptionScopeOverride": false,
+                "publicAccess": "None"
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts/queueServices/queues",
+            "apiVersion": "2025-01-01",
+            "name": "[concat(parameters('storageAccounts_intercamstorage_name'), '/default/incoming-messages')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/queueServices', parameters('storageAccounts_intercamstorage_name'), 'default')]",
+                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccounts_intercamstorage_name'))]"
+            ],
+            "properties": {
+                "metadata": {}
+            }
+        },
+        {
+            "type": "Microsoft.Sql/servers/databases/syncGroups/syncMembers",
+            "apiVersion": "2024-05-01-preview",
+            "name": "[concat(parameters('servers_intercam_bolivar_name'), '/', parameters('servers_intercam_bolivar_name'), '/SyncIntercamDatabase/SyncIntercamDatabase')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases/syncGroups', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'), 'SyncIntercamDatabase')]",
+                "[resourceId('Microsoft.Sql/servers/databases', parameters('servers_intercam_bolivar_name'), parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers', parameters('servers_intercam_bolivar_name'))]",
+                "[resourceId('Microsoft.Sql/servers/syncAgents', parameters('servers_intercam_bolivar_name'), 'AgentIntercam')]"
+            ],
+            "properties": {
+                "databaseType": "SqlServerDatabase",
+                "syncAgentId": "[resourceId('Microsoft.Sql/servers/syncAgents', parameters('servers_intercam_bolivar_name'), 'AgentIntercam')]",
+                "sqlServerDatabaseId": "37eaee00-cc5b-454e-ab37-e4a32d1f7e05",
+                "syncDirection": "OneWayMemberToHub"
+            }
+        }
+    ]
+}

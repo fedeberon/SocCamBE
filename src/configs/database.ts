@@ -1,11 +1,39 @@
 import { Sequelize } from 'sequelize';
 
+const getEnv = (key: string, fallbackKeys: string[] = []) => {
+  const keys = [key, ...fallbackKeys];
+  for (const currentKey of keys) {
+    const value = process.env[currentKey];
+    if (value && value.trim().length > 0) {
+      return value;
+    }
+  }
+  return '';
+};
+
+const host = getEnv('DB_HOST', ['HOST']);
+const username = getEnv('DB_USER', ['USER']);
+const password = getEnv('DB_PASSWORD', ['PASSWORD']);
+const database = getEnv('DB_NAME', ['DATABASE']);
+
+const missingVars: string[] = [];
+if (!host) missingVars.push('DB_HOST');
+if (!username) missingVars.push('DB_USER');
+if (!password) missingVars.push('DB_PASSWORD');
+if (!database) missingVars.push('DB_NAME');
+
+if (missingVars.length > 0) {
+  throw new Error(
+    `Faltan variables de entorno de base de datos: ${missingVars.join(', ')}`
+  );
+}
+
 const sequelize = new Sequelize({
   dialect: 'mssql',
-  host: "intercam-bolivar.database.windows.net",
-  username: "intercam-dba",
-  password: "kwxh/$yz@}KZ",
-  database: "intercam-bolivar",
+  host,
+  username,
+  password,
+  database,
   port: parseInt(process.env.DB_PORT || '1433'),
   dialectOptions: {
     options: {

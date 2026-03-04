@@ -1,0 +1,19 @@
+resource_group_name        = "camara-comercial-bolivar"
+storage_account_name       = "intercamstorage"
+queue_name                 = "incoming-messages"
+function_service_plan_name = "EastUS2LinuxDynamicPlan"
+function_app_name          = "soccam-sos-sync-67a337c3"
+function_node_version      = "22"
+
+function_app_settings = {
+  DB_HOST             = "intercam-bolivar.database.windows.net"
+  DB_PORT             = "1433"
+  DB_NAME             = "intercam-bolivar"
+  DB_USER             = "<sql-user>"
+  DB_PASSWORD         = "<sql-password>"
+  SOS_API_BASE_URL    = "https://api.sos-contador.com"
+  SOS_AUTH_USERNAME   = "<sos-user>"
+  SOS_AUTH_PASSWORD   = "<sos-password>"
+  SOS_REPRESENTED_CUIT = "<cuit>"
+  SOS_API_TIMEOUT_MS  = "15000"
+}

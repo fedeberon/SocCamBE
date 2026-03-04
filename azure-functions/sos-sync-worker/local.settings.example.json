@@ -3,8 +3,8 @@
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "node",
-    "SERVICE_BUS_CONNECTION": "<service-bus-connection-string>",
-    "SOS_SYNC_QUEUE_NAME": "sos-sync-queue",
+    "AZURE_QUEUE_STORAGE_CONNECTION": "<azure-storage-connection-string>",
+    "AZURE_QUEUE_NAME": "incoming-messages",
     "DB_HOST": "<sql-host>",
     "DB_PORT": "1433",
     "DB_USER": "<sql-user>",

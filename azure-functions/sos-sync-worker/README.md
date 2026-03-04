@@ -1,10 +1,10 @@
-# SOS Sync Worker (Azure Function + Service Bus)
+# SOS Sync Worker (Azure Function + Storage Queue)
 
 Function App para desacoplar la sincronización con SOS Contador del request web.
 
 ## Qué hace hoy
 
-- Trigger: Service Bus queue (`SOS_SYNC_QUEUE_NAME`)
+- Trigger: Azure Storage Queue (`AZURE_QUEUE_NAME`)
 - Valida payload mínimo (`socioId`, `cuit`)
 - Marca estado en `dbo.sos_sync_status` (plumbing end-to-end)
 
@@ -12,7 +12,7 @@ Function App para desacoplar la sincronización con SOS Contador del request web
 
 ## Estructura
 
-- `SosSyncTrigger/function.json` → binding de Service Bus
+- `SosSyncTrigger/function.json` → binding de Storage Queue
 - `SosSyncTrigger/index.js` → worker
 - `host.json` → config de Function host
 - `local.settings.example.json` → variables necesarias
@@ -40,6 +40,6 @@ Function App para desacoplar la sincronización con SOS Contador del request web
 ## Integración con BE (siguiente)
 
 En el backend, al login/selección de socio:
-- encolar mensaje en `sos-sync-queue`
+- encolar mensaje en `incoming-messages` (o valor de `AZURE_QUEUE_NAME`)
 - responder inmediatamente desde DB local
 - frontend consulta estado por `sos_sync_status`

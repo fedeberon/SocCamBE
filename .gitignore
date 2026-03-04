@@ -44,3 +44,10 @@ coverage/
 .env
 .env.local
 .env.*.local
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfplan
