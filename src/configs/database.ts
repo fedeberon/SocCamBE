@@ -13,13 +13,12 @@ const getEnv = (key: string, fallbackKeys: string[] = []) => {
 
 const host = getEnv('DB_HOST', ['HOST']);
 const username = getEnv('DB_USER', ['USER']);
-const password = getEnv('DB_PASSWORD', ['PASSWORD']);
+const password = 'T7#qL9@vX2!mZ5$kR8*pH';
 const database = getEnv('DB_NAME', ['DATABASE']);
 
 const missingVars: string[] = [];
 if (!host) missingVars.push('DB_HOST');
 if (!username) missingVars.push('DB_USER');
-if (!password) missingVars.push('DB_PASSWORD');
 if (!database) missingVars.push('DB_NAME');
 
 if (missingVars.length > 0) {
