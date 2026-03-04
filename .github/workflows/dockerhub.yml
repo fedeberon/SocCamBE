@@ -231,6 +231,13 @@ jobs:
             EOF
 
             echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
+            echo "[deploy] docker cleanup (prune)"
+            docker container prune -f || true
+            docker image prune -af || true
+            docker builder prune -af || true
+            docker volume prune -f || true
+
             docker-compose pull backend backend-worker
             docker rm -f backend backend-worker || true
             docker-compose up -d --force-recreate --no-deps backend backend-worker
