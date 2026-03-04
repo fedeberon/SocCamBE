@@ -39,13 +39,14 @@ jobs:
         id: verify
         env:
           VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_SSH_PORT: ${{ vars.VPS_SSH_PORT }}
           VPS_USER: ${{ vars.VPS_USER }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           VPS_APP_PATH: ${{ vars.VPS_APP_PATH }}
         run: |
           if [ -z "${VPS_HOST}" ] || [ -z "${VPS_USER}" ] || [ -z "${VPS_SSH_KEY}" ] || [ -z "${VPS_APP_PATH}" ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "Faltan valores de deploy (vars: VPS_HOST/VPS_USER/VPS_APP_PATH, secret: VPS_SSH_KEY)."
+            echo "Faltan valores de deploy (vars: VPS_HOST/VPS_USER/VPS_APP_PATH, secret: VPS_SSH_KEY). VPS_SSH_PORT es opcional (default 22)."
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
@@ -91,6 +92,7 @@ jobs:
           SOS_API_TIMEOUT_MS: ${{ vars.SOS_API_TIMEOUT_MS }}
         with:
           host: ${{ vars.VPS_HOST }}
+          port: ${{ vars.VPS_SSH_PORT || 22 }}
           username: ${{ vars.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           envs: PORT,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD,DB_NAME,BASE_URL,AUDIENCE,ISSUER_BASEURL,MP_ACCESS_TOKEN,MP_NOTIFICATION_URL,MP_SUCCESS_URL,MP_FAILURE_URL,MP_SUCCESS_REDIRECT,AZURE_BLOB_STORAGE_CONNECTION,AZURE_BLOB_STORAGE_CONTAINER,AZURE_STORAGE_CONNECTION,AZURE_STORAGE_CONTAINER,AZURE_QUEUE_STORAGE_CONNECTION,AZURE_QUEUE_NAME,SOS_QUEUE_WORKER_MODE,SOS_QUEUE_WORKER_POLL_MS,SOS_PROXY_PORT,SOS_API_BASE_URL,SOS_AUTH_MODE,SOS_BEARER_TOKEN,SOS_AUTH_ENDPOINT,SOS_AUTH_USERNAME,SOS_AUTH_PASSWORD,SOS_REPRESENTED_CUIT,SOS_API_KEY,SOS_API_SECRET,SOS_API_KEY_HEADER,SOS_API_SECRET_HEADER,SOS_API_TIMEOUT_MS
