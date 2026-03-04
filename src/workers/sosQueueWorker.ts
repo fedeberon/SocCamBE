@@ -70,6 +70,17 @@ function parseQueueMessage(messageText?: string): QueueJob {
   throw new Error('Mensaje inválido: no es JSON ni base64(JSON)');
 }
 
+function logStartupConfig() {
+  const queueName = process.env.AZURE_QUEUE_NAME || 'incoming-messages';
+  const hasQueueConn = Boolean(process.env.AZURE_QUEUE_STORAGE_CONNECTION || process.env.AZURE_BLOB_STORAGE_CONNECTION || process.env.AZURE_STORAGE_CONNECTION);
+  const sosBaseUrl = String(process.env.SOS_API_BASE_URL || '').trim();
+  const authEndpoint = String(process.env.SOS_AUTH_ENDPOINT || '').trim();
+
+  logger.info(
+    `[sosQueueWorker] config queueName=${queueName} hasQueueConn=${hasQueueConn} sosBaseUrl=${sosBaseUrl || '(empty)'} authEndpoint=${authEndpoint || '(empty)'}`,
+  );
+}
+
 async function runOnce() {
   const { queueClient, queueName } = getQueueClient();
   await queueClient.createIfNotExists();
@@ -105,6 +116,7 @@ async function main() {
   const mode = process.env.SOS_QUEUE_WORKER_MODE || 'once'; // once | loop
   const sleepMs = Number(process.env.SOS_QUEUE_WORKER_POLL_MS || 15000);
 
+  logStartupConfig();
   await sequelize.authenticate();
 
   if (mode === 'loop') {

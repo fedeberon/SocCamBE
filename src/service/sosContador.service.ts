@@ -104,7 +104,8 @@ type GetMovimientosCuentaCorrienteBySocioCuitOptions = {
 };
 
 class SosContadorService {
-  private readonly baseUrl = (process.env.SOS_API_BASE_URL || 'https://api.sos-contador.com').replace(/\/+$/, '');
+  private readonly rawBaseUrl = (process.env.SOS_API_BASE_URL || 'https://api.sos-contador.com').trim();
+  private readonly baseUrl = this.normalizeBaseUrl(this.rawBaseUrl);
   private readonly authUser = process.env.SOS_AUTH_USERNAME || process.env.SOS_AUTH_USER || '';
   private readonly authPassword = process.env.SOS_AUTH_PASSWORD || '';
   private readonly representedCuit = process.env.SOS_REPRESENTED_CUIT || '';
@@ -112,6 +113,19 @@ class SosContadorService {
 
   private sanitizeCuit(value: string): string {
     return (value || '').replace(/\D/g, '');
+  }
+
+  private normalizeBaseUrl(value: string): string {
+    const trimmed = String(value || '').trim().replace(/\/+$/, '');
+    try {
+      const parsed = new URL(trimmed);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error(`Protocolo no soportado: ${parsed.protocol}`);
+      }
+      return parsed.toString().replace(/\/+$/, '');
+    } catch (error: any) {
+      throw new Error(`SOS_API_BASE_URL inválida: "${trimmed}" (${error?.message || 'formato inválido'})`);
+    }
   }
 
   private parseBoolean(value: boolean | undefined, fallback: boolean): boolean {
