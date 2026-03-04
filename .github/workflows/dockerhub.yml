@@ -98,7 +98,7 @@ jobs:
     needs: [ci, build-and-push]
     environment: production
     steps:
-      - name: Verify required VPS secrets
+      - name: Verify required VPS/DockerHub values
         id: verify
         env:
           VPS_HOST: ${{ vars.VPS_HOST }}
@@ -106,140 +106,36 @@ jobs:
           VPS_USER: ${{ vars.VPS_USER }}
           VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
           VPS_APP_PATH: ${{ vars.VPS_APP_PATH }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          if [ -z "${VPS_HOST}" ] || [ -z "${VPS_USER}" ] || [ -z "${VPS_PASSWORD}" ] || [ -z "${VPS_APP_PATH}" ]; then
+          if [ -z "${VPS_HOST}" ] || [ -z "${VPS_USER}" ] || [ -z "${VPS_PASSWORD}" ] || [ -z "${VPS_APP_PATH}" ] || [ -z "${DOCKERHUB_USERNAME}" ] || [ -z "${DOCKERHUB_TOKEN}" ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "Faltan valores de deploy (vars: VPS_HOST/VPS_USER/VPS_APP_PATH, secret: VPS_PASSWORD). VPS_SSH_PORT es opcional (default 22)."
+            echo "Faltan valores de deploy (vars: VPS_HOST/VPS_USER/VPS_APP_PATH, secrets: VPS_PASSWORD/DOCKERHUB_USERNAME/DOCKERHUB_TOKEN). VPS_SSH_PORT es opcional (default 22)."
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Deploy API + Worker on VPS (systemd)
+      - name: Deploy backend images on VPS (Docker only)
         if: ${{ steps.verify.outputs.ready == 'true' }}
-        uses: appleboy/ssh-action@v0.1.10
+        uses: appleboy/ssh-action@v1.0.0
         env:
-          PORT: ${{ vars.PORT }}
-          DB_HOST: ${{ vars.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_NAME: ${{ vars.DB_NAME }}
-          BASE_URL: ${{ vars.BASE_URL }}
-          AUDIENCE: ${{ vars.AUDIENCE }}
-          ISSUER_BASEURL: ${{ vars.ISSUER_BASEURL }}
-          MP_ACCESS_TOKEN: ${{ secrets.MP_ACCESS_TOKEN }}
-          MP_NOTIFICATION_URL: ${{ vars.MP_NOTIFICATION_URL }}
-          MP_SUCCESS_URL: ${{ vars.MP_SUCCESS_URL }}
-          MP_FAILURE_URL: ${{ vars.MP_FAILURE_URL }}
-          MP_SUCCESS_REDIRECT: ${{ vars.MP_SUCCESS_REDIRECT }}
-          AZURE_BLOB_STORAGE_CONNECTION: ${{ secrets.AZURE_BLOB_STORAGE_CONNECTION }}
-          AZURE_BLOB_STORAGE_CONTAINER: ${{ vars.AZURE_BLOB_STORAGE_CONTAINER }}
-          AZURE_STORAGE_CONNECTION: ${{ secrets.AZURE_STORAGE_CONNECTION }}
-          AZURE_STORAGE_CONTAINER: ${{ vars.AZURE_STORAGE_CONTAINER }}
-          AZURE_QUEUE_STORAGE_CONNECTION: ${{ secrets.AZURE_QUEUE_STORAGE_CONNECTION }}
-          AZURE_QUEUE_NAME: ${{ vars.AZURE_QUEUE_NAME }}
-          SOS_QUEUE_WORKER_MODE: ${{ vars.SOS_QUEUE_WORKER_MODE }}
-          SOS_QUEUE_WORKER_POLL_MS: ${{ vars.SOS_QUEUE_WORKER_POLL_MS }}
-          SOS_PROXY_PORT: ${{ vars.SOS_PROXY_PORT }}
-          SOS_API_BASE_URL: ${{ vars.SOS_API_BASE_URL }}
-          SOS_AUTH_MODE: ${{ vars.SOS_AUTH_MODE }}
-          SOS_BEARER_TOKEN: ${{ secrets.SOS_BEARER_TOKEN }}
-          SOS_AUTH_ENDPOINT: ${{ vars.SOS_AUTH_ENDPOINT }}
-          SOS_AUTH_USERNAME: ${{ vars.SOS_AUTH_USERNAME }}
-          SOS_AUTH_PASSWORD: ${{ secrets.SOS_AUTH_PASSWORD }}
-          SOS_REPRESENTED_CUIT: ${{ secrets.SOS_REPRESENTED_CUIT }}
-          SOS_API_KEY: ${{ secrets.SOS_API_KEY }}
-          SOS_API_SECRET: ${{ secrets.SOS_API_SECRET }}
-          SOS_API_KEY_HEADER: ${{ vars.SOS_API_KEY_HEADER }}
-          SOS_API_SECRET_HEADER: ${{ vars.SOS_API_SECRET_HEADER }}
-          SOS_API_TIMEOUT_MS: ${{ vars.SOS_API_TIMEOUT_MS }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         with:
           host: ${{ vars.VPS_HOST }}
           port: ${{ vars.VPS_SSH_PORT || 22 }}
           username: ${{ vars.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
-          envs: PORT,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD,DB_NAME,BASE_URL,AUDIENCE,ISSUER_BASEURL,MP_ACCESS_TOKEN,MP_NOTIFICATION_URL,MP_SUCCESS_URL,MP_FAILURE_URL,MP_SUCCESS_REDIRECT,AZURE_BLOB_STORAGE_CONNECTION,AZURE_BLOB_STORAGE_CONTAINER,AZURE_STORAGE_CONNECTION,AZURE_STORAGE_CONTAINER,AZURE_QUEUE_STORAGE_CONNECTION,AZURE_QUEUE_NAME,SOS_QUEUE_WORKER_MODE,SOS_QUEUE_WORKER_POLL_MS,SOS_PROXY_PORT,SOS_API_BASE_URL,SOS_AUTH_MODE,SOS_BEARER_TOKEN,SOS_AUTH_ENDPOINT,SOS_AUTH_USERNAME,SOS_AUTH_PASSWORD,SOS_REPRESENTED_CUIT,SOS_API_KEY,SOS_API_SECRET,SOS_API_KEY_HEADER,SOS_API_SECRET_HEADER,SOS_API_TIMEOUT_MS
+          envs: DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
           script: |
             set -euo pipefail
-            VPS_APP_PATH='${{ vars.VPS_APP_PATH }}'
-            VPS_USER='${{ vars.VPS_USER }}'
 
-            cd "${VPS_APP_PATH}"
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            cd "${{ vars.VPS_APP_PATH }}"
+            docker-compose pull backend backend-worker
+            docker-compose up -d --force-recreate backend backend-worker
 
-            echo "[deploy] updating release branch..."
-            git fetch --all --prune
-            git checkout release
-            git pull --ff-only origin release
-
-            normalize_url() {
-              local value="${1:-}"
-              if [ -z "${value}" ]; then
-                echo ""
-              elif [[ "${value}" =~ ^https?:// ]]; then
-                echo "${value}"
-              else
-                echo "https://${value}"
-              fi
-            }
-
-            MP_NOTIFICATION_URL="$(normalize_url "${MP_NOTIFICATION_URL:-}")"
-            MP_SUCCESS_URL="$(normalize_url "${MP_SUCCESS_URL:-}")"
-            MP_FAILURE_URL="$(normalize_url "${MP_FAILURE_URL:-}")"
-            MP_SUCCESS_REDIRECT="$(normalize_url "${MP_SUCCESS_REDIRECT:-}")"
-
-            if [[ "${SOS_API_BASE_URL:-}" == /* ]]; then
-              SOS_API_BASE_URL="https://api.sos-contador.com"
-            fi
-
-            echo "[deploy] writing .env from GitHub Environment (vars + secrets)"
-            cat > .env <<EOF
-            PORT=${PORT:-5000}
-            DB_HOST=${DB_HOST:-intercam-bolivar.database.windows.net}
-            DB_PORT=${DB_PORT:-1433}
-            DB_USER=${DB_USER:-}
-            DB_PASSWORD=${DB_PASSWORD:-}
-            DB_NAME=${DB_NAME:-intercam-bolivar}
-            HOST=${DB_HOST:-intercam-bolivar.database.windows.net}
-            USER=${DB_USER:-}
-            PASSWORD=${DB_PASSWORD:-}
-            DATABASE=${DB_NAME:-intercam-bolivar}
-            BASE_URL=${BASE_URL:-http://localhost:5000}
-            AUDIENCE=${AUDIENCE:-}
-            ISSUER_BASEURL=${ISSUER_BASEURL:-}
-            MP_ACCESS_TOKEN=${MP_ACCESS_TOKEN:-}
-            MP_NOTIFICATION_URL=${MP_NOTIFICATION_URL:-}
-            MP_SUCCESS_URL=${MP_SUCCESS_URL:-}
-            MP_FAILURE_URL=${MP_FAILURE_URL:-}
-            MP_SUCCESS_REDIRECT=${MP_SUCCESS_REDIRECT:-}
-            AZURE_BLOB_STORAGE_CONNECTION=${AZURE_BLOB_STORAGE_CONNECTION:-}
-            AZURE_BLOB_STORAGE_CONTAINER=${AZURE_BLOB_STORAGE_CONTAINER:-socios-assets}
-            AZURE_STORAGE_CONNECTION=${AZURE_STORAGE_CONNECTION:-}
-            AZURE_STORAGE_CONTAINER=${AZURE_STORAGE_CONTAINER:-socios-assets}
-            AZURE_QUEUE_STORAGE_CONNECTION=${AZURE_QUEUE_STORAGE_CONNECTION:-}
-            AZURE_QUEUE_NAME=${AZURE_QUEUE_NAME:-incoming-messages}
-            SOS_QUEUE_WORKER_MODE=${SOS_QUEUE_WORKER_MODE:-loop}
-            SOS_QUEUE_WORKER_POLL_MS=${SOS_QUEUE_WORKER_POLL_MS:-15000}
-            SOS_PROXY_PORT=${SOS_PROXY_PORT:-5001}
-            SOS_API_BASE_URL=${SOS_API_BASE_URL:-https://api.sos-contador.com}
-            SOS_AUTH_MODE=${SOS_AUTH_MODE:-bearer}
-            SOS_BEARER_TOKEN=${SOS_BEARER_TOKEN:-}
-            SOS_AUTH_ENDPOINT=${SOS_AUTH_ENDPOINT:-/api-comunidad/login}
-            SOS_AUTH_USERNAME=${SOS_AUTH_USERNAME:-}
-            SOS_AUTH_PASSWORD=${SOS_AUTH_PASSWORD:-}
-            SOS_REPRESENTED_CUIT=${SOS_REPRESENTED_CUIT:-}
-            SOS_API_KEY=${SOS_API_KEY:-}
-            SOS_API_SECRET=${SOS_API_SECRET:-}
-            SOS_API_KEY_HEADER=${SOS_API_KEY_HEADER:-x-api-key}
-            SOS_API_SECRET_HEADER=${SOS_API_SECRET_HEADER:-x-api-secret}
-            SOS_API_TIMEOUT_MS=${SOS_API_TIMEOUT_MS:-15000}
-            EOF
-
-            echo "[deploy] deploy API service"
-            sudo APP_DIR="${VPS_APP_PATH}" APP_USER="${VPS_USER}" APP_GROUP="${VPS_USER}" bash scripts/deploy-api.sh
-
-            echo "[deploy] deploy worker service"
-            sudo APP_DIR="${VPS_APP_PATH}" APP_USER="${VPS_USER}" APP_GROUP="${VPS_USER}" bash scripts/deploy-sos-worker.sh
-
-            echo "[deploy] service status"
-            sudo systemctl --no-pager --full status soccambe-api || true
-            sudo systemctl --no-pager --full status soccambe-sos-worker || true
+      - name: Log deployment done
+        if: ${{ steps.verify.outputs.ready == 'true' }}
+        run: echo "::notice::Backend Docker deploy triggered on host ${{ vars.VPS_HOST }} by ${{ github.actor }}"
