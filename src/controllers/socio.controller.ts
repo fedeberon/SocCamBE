@@ -60,6 +60,21 @@ class SocioController {
           }
         }
 
+        const shouldSync = String((req.query as any)?.sync ?? 'true').toLowerCase() !== 'false';
+        if (shouldSync) {
+          const cuit = String((socioData as any)?.socio_cuit || '').replace(/\D/g, '');
+          const socioId = Number((socioData as any)?.socio_id || id);
+          if (socioId && cuit.length === 11) {
+            sosSyncQueueService.enqueue({
+              socioId,
+              cuit,
+              trigger: 'auto',
+            }).catch((e) => {
+              logger.warn(`[socio.getSocioById] no se pudo encolar sync socioId=${socioId}: ${e?.message || e}`);
+            });
+          }
+        }
+
         res.status(200).json({
           ...socioData,
           socio_firma: logoUrl,
