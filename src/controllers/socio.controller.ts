@@ -65,9 +65,13 @@ class SocioController {
           const cuit = String((socioData as any)?.socio_cuit || '').replace(/\D/g, '');
           const socioId = Number((socioData as any)?.socio_id || id);
           if (socioId && cuit.length === 11) {
+            const fechaDesde = process.env.SOS_SYNC_DEFAULT_FROM || '2024-01-01';
+            const fechaHasta = new Date().toISOString().slice(0, 10);
             sosSyncQueueService.enqueue({
               socioId,
               cuit,
+              fechaDesde,
+              fechaHasta,
               trigger: 'auto',
             }).catch((e) => {
               logger.warn(`[socio.getSocioById] no se pudo encolar sync socioId=${socioId}: ${e?.message || e}`);
