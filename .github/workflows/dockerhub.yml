@@ -33,18 +33,19 @@ jobs:
   deploy-vps:
     runs-on: ubuntu-latest
     needs: ci
+    environment: production
     steps:
       - name: Verify required VPS secrets
         id: verify
         env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_USER: ${{ vars.VPS_USER }}
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          VPS_APP_PATH: ${{ secrets.VPS_APP_PATH }}
+          VPS_APP_PATH: ${{ vars.VPS_APP_PATH }}
         run: |
           if [ -z "${VPS_HOST}" ] || [ -z "${VPS_USER}" ] || [ -z "${VPS_SSH_KEY}" ] || [ -z "${VPS_APP_PATH}" ]; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "Faltan secrets de deploy (VPS_HOST, VPS_USER, VPS_SSH_KEY, VPS_APP_PATH)."
+            echo "Faltan valores de deploy (vars: VPS_HOST/VPS_USER/VPS_APP_PATH, secret: VPS_SSH_KEY)."
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
@@ -53,45 +54,49 @@ jobs:
         if: ${{ steps.verify.outputs.ready == 'true' }}
         uses: appleboy/ssh-action@v0.1.10
         env:
-          PORT: ${{ secrets.PORT }}
+          PORT: ${{ vars.PORT }}
+          DB_HOST: ${{ vars.DB_HOST }}
           DB_PORT: ${{ secrets.DB_PORT }}
-          HOST: ${{ secrets.HOST }}
-          USER: ${{ secrets.USER }}
-          PASSWORD: ${{ secrets.PASSWORD }}
-          DATABASE: ${{ secrets.DATABASE }}
-          BASE_URL: ${{ secrets.BASE_URL }}
-          AUDIENCE: ${{ secrets.AUDIENCE }}
-          ISSUER_BASEURL: ${{ secrets.ISSUER_BASEURL }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_NAME: ${{ vars.DB_NAME }}
+          BASE_URL: ${{ vars.BASE_URL }}
+          AUDIENCE: ${{ vars.AUDIENCE }}
+          ISSUER_BASEURL: ${{ vars.ISSUER_BASEURL }}
+          MP_ACCESS_TOKEN: ${{ secrets.MP_ACCESS_TOKEN }}
+          MP_NOTIFICATION_URL: ${{ vars.MP_NOTIFICATION_URL }}
+          MP_SUCCESS_URL: ${{ vars.MP_SUCCESS_URL }}
+          MP_FAILURE_URL: ${{ vars.MP_FAILURE_URL }}
+          MP_SUCCESS_REDIRECT: ${{ vars.MP_SUCCESS_REDIRECT }}
           AZURE_BLOB_STORAGE_CONNECTION: ${{ secrets.AZURE_BLOB_STORAGE_CONNECTION }}
-          AZURE_BLOB_STORAGE_CONTAINER: ${{ secrets.AZURE_BLOB_STORAGE_CONTAINER }}
+          AZURE_BLOB_STORAGE_CONTAINER: ${{ vars.AZURE_BLOB_STORAGE_CONTAINER }}
           AZURE_STORAGE_CONNECTION: ${{ secrets.AZURE_STORAGE_CONNECTION }}
-          AZURE_STORAGE_CONTAINER: ${{ secrets.AZURE_STORAGE_CONTAINER }}
+          AZURE_STORAGE_CONTAINER: ${{ vars.AZURE_STORAGE_CONTAINER }}
           AZURE_QUEUE_STORAGE_CONNECTION: ${{ secrets.AZURE_QUEUE_STORAGE_CONNECTION }}
-          AZURE_QUEUE_NAME: ${{ secrets.AZURE_QUEUE_NAME }}
-          SOS_QUEUE_WORKER_MODE: ${{ secrets.SOS_QUEUE_WORKER_MODE }}
-          SOS_QUEUE_WORKER_POLL_MS: ${{ secrets.SOS_QUEUE_WORKER_POLL_MS }}
-          SOS_PROXY_PORT: ${{ secrets.SOS_PROXY_PORT }}
-          SOS_API_BASE_URL: ${{ secrets.SOS_API_BASE_URL }}
-          SOS_AUTH_MODE: ${{ secrets.SOS_AUTH_MODE }}
+          AZURE_QUEUE_NAME: ${{ vars.AZURE_QUEUE_NAME }}
+          SOS_QUEUE_WORKER_MODE: ${{ vars.SOS_QUEUE_WORKER_MODE }}
+          SOS_QUEUE_WORKER_POLL_MS: ${{ vars.SOS_QUEUE_WORKER_POLL_MS }}
+          SOS_PROXY_PORT: ${{ vars.SOS_PROXY_PORT }}
+          SOS_API_BASE_URL: ${{ vars.SOS_API_BASE_URL }}
+          SOS_AUTH_MODE: ${{ vars.SOS_AUTH_MODE }}
           SOS_BEARER_TOKEN: ${{ secrets.SOS_BEARER_TOKEN }}
-          SOS_AUTH_ENDPOINT: ${{ secrets.SOS_AUTH_ENDPOINT }}
-          SOS_AUTH_USERNAME: ${{ secrets.SOS_AUTH_USERNAME }}
+          SOS_AUTH_ENDPOINT: ${{ vars.SOS_AUTH_ENDPOINT }}
+          SOS_AUTH_USERNAME: ${{ vars.SOS_AUTH_USERNAME }}
           SOS_AUTH_PASSWORD: ${{ secrets.SOS_AUTH_PASSWORD }}
           SOS_REPRESENTED_CUIT: ${{ secrets.SOS_REPRESENTED_CUIT }}
           SOS_API_KEY: ${{ secrets.SOS_API_KEY }}
           SOS_API_SECRET: ${{ secrets.SOS_API_SECRET }}
-          SOS_API_KEY_HEADER: ${{ secrets.SOS_API_KEY_HEADER }}
-          SOS_API_SECRET_HEADER: ${{ secrets.SOS_API_SECRET_HEADER }}
-          SOS_API_TIMEOUT_MS: ${{ secrets.SOS_API_TIMEOUT_MS }}
+          SOS_API_KEY_HEADER: ${{ vars.SOS_API_KEY_HEADER }}
+          SOS_API_SECRET_HEADER: ${{ vars.SOS_API_SECRET_HEADER }}
+          SOS_API_TIMEOUT_MS: ${{ vars.SOS_API_TIMEOUT_MS }}
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
+          host: ${{ vars.VPS_HOST }}
+          username: ${{ vars.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: PORT,DB_PORT,HOST,USER,PASSWORD,DATABASE,BASE_URL,AUDIENCE,ISSUER_BASEURL,AZURE_BLOB_STORAGE_CONNECTION,AZURE_BLOB_STORAGE_CONTAINER,AZURE_STORAGE_CONNECTION,AZURE_STORAGE_CONTAINER,AZURE_QUEUE_STORAGE_CONNECTION,AZURE_QUEUE_NAME,SOS_QUEUE_WORKER_MODE,SOS_QUEUE_WORKER_POLL_MS,SOS_PROXY_PORT,SOS_API_BASE_URL,SOS_AUTH_MODE,SOS_BEARER_TOKEN,SOS_AUTH_ENDPOINT,SOS_AUTH_USERNAME,SOS_AUTH_PASSWORD,SOS_REPRESENTED_CUIT,SOS_API_KEY,SOS_API_SECRET,SOS_API_KEY_HEADER,SOS_API_SECRET_HEADER,SOS_API_TIMEOUT_MS
+          envs: PORT,DB_HOST,DB_PORT,DB_USER,DB_NAME,BASE_URL,AUDIENCE,ISSUER_BASEURL,MP_ACCESS_TOKEN,MP_NOTIFICATION_URL,MP_SUCCESS_URL,MP_FAILURE_URL,MP_SUCCESS_REDIRECT,AZURE_BLOB_STORAGE_CONNECTION,AZURE_BLOB_STORAGE_CONTAINER,AZURE_STORAGE_CONNECTION,AZURE_STORAGE_CONTAINER,AZURE_QUEUE_STORAGE_CONNECTION,AZURE_QUEUE_NAME,SOS_QUEUE_WORKER_MODE,SOS_QUEUE_WORKER_POLL_MS,SOS_PROXY_PORT,SOS_API_BASE_URL,SOS_AUTH_MODE,SOS_BEARER_TOKEN,SOS_AUTH_ENDPOINT,SOS_AUTH_USERNAME,SOS_AUTH_PASSWORD,SOS_REPRESENTED_CUIT,SOS_API_KEY,SOS_API_SECRET,SOS_API_KEY_HEADER,SOS_API_SECRET_HEADER,SOS_API_TIMEOUT_MS
           script: |
             set -euo pipefail
-            VPS_APP_PATH='${{ secrets.VPS_APP_PATH }}'
-            VPS_USER='${{ secrets.VPS_USER }}'
+            VPS_APP_PATH='${{ vars.VPS_APP_PATH }}'
+            VPS_USER='${{ vars.VPS_USER }}'
 
             cd "${VPS_APP_PATH}"
 
@@ -100,17 +105,44 @@ jobs:
             git checkout release
             git pull --ff-only origin release
 
-            echo "[deploy] writing .env from GitHub Secrets"
+            normalize_url() {
+              local value="${1:-}"
+              if [ -z "${value}" ]; then
+                echo ""
+              elif [[ "${value}" =~ ^https?:// ]]; then
+                echo "${value}"
+              else
+                echo "https://${value}"
+              fi
+            }
+
+            MP_NOTIFICATION_URL="$(normalize_url "${MP_NOTIFICATION_URL:-}")"
+            MP_SUCCESS_URL="$(normalize_url "${MP_SUCCESS_URL:-}")"
+            MP_FAILURE_URL="$(normalize_url "${MP_FAILURE_URL:-}")"
+            MP_SUCCESS_REDIRECT="$(normalize_url "${MP_SUCCESS_REDIRECT:-}")"
+
+            if [[ "${SOS_API_BASE_URL:-}" == /* ]]; then
+              SOS_API_BASE_URL="https://api.sos-contador.com"
+            fi
+
+            echo "[deploy] writing .env from GitHub Environment (vars + secrets)"
             cat > .env <<EOF
             PORT=${PORT:-5000}
-            HOST=${HOST:-localhost}
-            USER=${USER:-}
-            PASSWORD=${PASSWORD:-}
-            DATABASE=${DATABASE:-}
+            DB_HOST=${DB_HOST:-intercam-bolivar.database.windows.net}
             DB_PORT=${DB_PORT:-1433}
+            DB_USER=${DB_USER:-}
+            DB_NAME=${DB_NAME:-intercam-bolivar}
+            HOST=${DB_HOST:-intercam-bolivar.database.windows.net}
+            USER=${DB_USER:-}
+            DATABASE=${DB_NAME:-intercam-bolivar}
             BASE_URL=${BASE_URL:-http://localhost:5000}
             AUDIENCE=${AUDIENCE:-}
             ISSUER_BASEURL=${ISSUER_BASEURL:-}
+            MP_ACCESS_TOKEN=${MP_ACCESS_TOKEN:-}
+            MP_NOTIFICATION_URL=${MP_NOTIFICATION_URL:-}
+            MP_SUCCESS_URL=${MP_SUCCESS_URL:-}
+            MP_FAILURE_URL=${MP_FAILURE_URL:-}
+            MP_SUCCESS_REDIRECT=${MP_SUCCESS_REDIRECT:-}
             AZURE_BLOB_STORAGE_CONNECTION=${AZURE_BLOB_STORAGE_CONNECTION:-}
             AZURE_BLOB_STORAGE_CONTAINER=${AZURE_BLOB_STORAGE_CONTAINER:-socios-assets}
             AZURE_STORAGE_CONNECTION=${AZURE_STORAGE_CONNECTION:-}
