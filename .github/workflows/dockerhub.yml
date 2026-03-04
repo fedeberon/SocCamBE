@@ -242,8 +242,8 @@ jobs:
             docker rm -f backend backend-worker || true
             docker-compose up -d --force-recreate --no-deps backend backend-worker
 
-            echo "[deploy] running DB migrations in backend container"
-            docker exec backend npm run migrate
+            echo "[deploy] running SQL migrations in backend container"
+            docker exec backend node scripts/run-sql-migrations.js
 
       - name: Log deployment done
         if: ${{ steps.verify.outputs.ready == 'true' }}
