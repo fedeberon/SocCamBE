@@ -157,12 +157,13 @@ jobs:
           SOS_API_KEY_HEADER: ${{ vars.SOS_API_KEY_HEADER }}
           SOS_API_SECRET_HEADER: ${{ vars.SOS_API_SECRET_HEADER }}
           SOS_API_TIMEOUT_MS: ${{ vars.SOS_API_TIMEOUT_MS }}
+          SOS_SYNC_CRON: ${{ vars.SOS_SYNC_CRON }}
         with:
           host: ${{ vars.VPS_HOST }}
           port: ${{ vars.VPS_SSH_PORT || 22 }}
           username: ${{ vars.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
-          envs: DOCKERHUB_USERNAME,DOCKERHUB_TOKEN,PORT,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD,DB_NAME,BASE_URL,AUDIENCE,ISSUER_BASEURL,MP_ACCESS_TOKEN,MP_NOTIFICATION_URL,MP_SUCCESS_URL,MP_FAILURE_URL,MP_SUCCESS_REDIRECT,AZURE_BLOB_STORAGE_CONNECTION,AZURE_BLOB_STORAGE_CONTAINER,AZURE_STORAGE_CONNECTION,AZURE_STORAGE_CONTAINER,AZURE_QUEUE_STORAGE_CONNECTION,AZURE_QUEUE_NAME,SOS_QUEUE_WORKER_MODE,SOS_QUEUE_WORKER_POLL_MS,SOS_PROXY_PORT,SOS_API_BASE_URL,SOS_AUTH_MODE,SOS_BEARER_TOKEN,SOS_AUTH_ENDPOINT,SOS_AUTH_USERNAME,SOS_AUTH_PASSWORD,SOS_REPRESENTED_CUIT,SOS_API_KEY,SOS_API_SECRET,SOS_API_KEY_HEADER,SOS_API_SECRET_HEADER,SOS_API_TIMEOUT_MS
+          envs: DOCKERHUB_USERNAME,DOCKERHUB_TOKEN,PORT,DB_HOST,DB_PORT,DB_USER,DB_PASSWORD,DB_NAME,BASE_URL,AUDIENCE,ISSUER_BASEURL,MP_ACCESS_TOKEN,MP_NOTIFICATION_URL,MP_SUCCESS_URL,MP_FAILURE_URL,MP_SUCCESS_REDIRECT,AZURE_BLOB_STORAGE_CONNECTION,AZURE_BLOB_STORAGE_CONTAINER,AZURE_STORAGE_CONNECTION,AZURE_STORAGE_CONTAINER,AZURE_QUEUE_STORAGE_CONNECTION,AZURE_QUEUE_NAME,SOS_QUEUE_WORKER_MODE,SOS_QUEUE_WORKER_POLL_MS,SOS_PROXY_PORT,SOS_API_BASE_URL,SOS_AUTH_MODE,SOS_BEARER_TOKEN,SOS_AUTH_ENDPOINT,SOS_AUTH_USERNAME,SOS_AUTH_PASSWORD,SOS_REPRESENTED_CUIT,SOS_API_KEY,SOS_API_SECRET,SOS_API_KEY_HEADER,SOS_API_SECRET_HEADER,SOS_API_TIMEOUT_MS,SOS_SYNC_CRON
           script: |
             set -euo pipefail
 
@@ -244,6 +245,16 @@ jobs:
 
             echo "[deploy] running SQL migrations in backend container"
             docker exec backend node scripts/run-sql-migrations.js
+
+            echo "[deploy] installing versioned cron for SOS sync"
+            CRON_SCHEDULE="${SOS_SYNC_CRON:-*/20 * * * *}"
+            sudo tee /etc/cron.d/soccambe-sos-sync >/dev/null <<EOF
+            SHELL=/bin/bash
+            PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+            ${CRON_SCHEDULE} root cd ${{ vars.VPS_APP_PATH }} && docker exec backend node scripts/enqueue-stale-sos-sync.js >> /var/log/soccambe-sos-sync.log 2>&1
+            EOF
+            sudo chmod 0644 /etc/cron.d/soccambe-sos-sync
+            sudo chown root:root /etc/cron.d/soccambe-sos-sync
 
       - name: Log deployment done
         if: ${{ steps.verify.outputs.ready == 'true' }}

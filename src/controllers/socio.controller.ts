@@ -168,6 +168,9 @@ class SocioController {
       });
 
       const pagosSos = PagosSociosAdapter.fromSosCobros(cobrosLocales as any[], Number(id), periodo);
+      const lastSyncAt = movimientosLocales.length
+        ? (movimientosLocales[0] as any)?.updated_at || (movimientosLocales[0] as any)?.fecha || null
+        : null;
 
       return res.status(200).json({
         ...socioWithPagos,
@@ -177,6 +180,7 @@ class SocioController {
           count: cobrosLocales.length,
           source: 'SOS_LOCAL_SYNC',
           synced: true,
+          last_sync_at: lastSyncAt,
         },
       });
     } catch (error) {
