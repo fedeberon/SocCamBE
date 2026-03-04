@@ -134,7 +134,8 @@ jobs:
             echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
             cd "${{ vars.VPS_APP_PATH }}"
             docker-compose pull backend backend-worker
-            docker-compose up -d --force-recreate backend backend-worker
+            docker rm -f backend backend-worker || true
+            docker-compose up -d --force-recreate --no-deps backend backend-worker
 
       - name: Log deployment done
         if: ${{ steps.verify.outputs.ready == 'true' }}
