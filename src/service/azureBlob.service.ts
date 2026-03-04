@@ -23,9 +23,9 @@ class AzureBlobService {
 
   constructor() {
     const rawConnectionString =
+      process.env.AZURE_QUEUE_STORAGE_CONNECTION ||
       process.env.AZURE_BLOB_STORAGE_CONNECTION ||
-      process.env.AZURE_STORAGE_CONNECTION ||
-      process.env.AZURE_QUEUE_STORAGE_CONNECTION;
+      process.env.AZURE_STORAGE_CONNECTION;
     const connectionString = rawConnectionString
       ? String(rawConnectionString).trim().replace(/^"|"$/g, '').replace(/^'|'$/g, '').replace(/[\r\n]+/g, '')
       : undefined;
