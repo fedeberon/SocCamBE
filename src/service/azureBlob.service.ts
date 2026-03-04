@@ -22,7 +22,10 @@ class AzureBlobService {
   private readonly connectionString?: string;
 
   constructor() {
-    const connectionString = process.env.AZURE_BLOB_STORAGE_CONNECTION || process.env.AZURE_STORAGE_CONNECTION;
+    const rawConnectionString = process.env.AZURE_BLOB_STORAGE_CONNECTION || process.env.AZURE_STORAGE_CONNECTION;
+    const connectionString = rawConnectionString
+      ? String(rawConnectionString).trim().replace(/^"|"$/g, '').replace(/^'|'$/g, '').replace(/[\r\n]+/g, '')
+      : undefined;
     const containerName = process.env.AZURE_BLOB_STORAGE_CONTAINER || process.env.AZURE_STORAGE_CONTAINER || 'socios-assets';
 
     this.connectionString = connectionString;
@@ -122,21 +125,31 @@ class AzureBlobService {
       throw new Error('No se pudo leer AccountName/AccountKey desde AZURE_BLOB_STORAGE_CONNECTION (o AZURE_STORAGE_CONNECTION)');
     }
 
+    // Siempre firmar contra la configuración actual del backend
+    // (evita romper cuando en DB queda una URL vieja con otro container/account).
     let containerName = this.containerName;
-    let blobName = urlOrBlobPath;
+    let blobName = String(urlOrBlobPath || '').trim().replace(/^"|"$/g, '').replace(/^'|'$/g, '');
 
     try {
-      const parsedUrl = new URL(urlOrBlobPath);
+      const parsedUrl = new URL(blobName);
       const parts = parsedUrl.pathname.split('/').filter(Boolean);
       if (parts.length < 2) {
         throw new Error('URL de blob inválida');
       }
 
-      containerName = parts[0];
+      // Si viene URL completa: /<container>/<blobPath>
+      // ignoramos el container persistido y usamos el actual.
       blobName = parts.slice(1).join('/');
     } catch (error) {
-      blobName = urlOrBlobPath.replace(/^\/+/, '');
+      blobName = blobName.replace(/^\/+/, '');
+      // Si vino como '<container>/<blobPath>', quitar el container viejo.
+      if (blobName.startsWith(`${containerName}/`)) {
+        blobName = blobName.substring(containerName.length + 1);
+      }
     }
+
+    // limpiar query/hash residuales si quedaron en la ruta
+    blobName = blobName.split('?')[0].split('#')[0];
 
     const sharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
     const expiresOn = new Date(Date.now() + expiresInMinutes * 60 * 1000);

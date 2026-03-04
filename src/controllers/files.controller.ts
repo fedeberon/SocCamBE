@@ -85,8 +85,8 @@ class FilesController {
         logoUrl: logoReadUrl,
         socio_firma: logoReadUrl,
       });
-    } catch (error) {
-      logger.error('Error al subir logo de socio:', error);
+    } catch (error: any) {
+      logger.error(`Error al subir logo de socio: ${error?.message || error}`);
       return res.status(500).json({
         message: 'Error al subir logo del socio',
       });
