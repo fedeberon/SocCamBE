@@ -11,10 +11,9 @@ import convertirDatosSocio from '../utils/conversorSocio';
 import CajaSeguridadService from '../service/cajaSeguridad.service';
 import { ICajaSeguridadService } from '../interfaces/IcajaSeguridad.service';
 import azureBlobService from '../service/azureBlob.service';
-import sosContadorService from '../service/sosContador.service';
 import PagosSociosAdapter from '../adapters/PagosSociosAdapter';
-import sosMovimientosService from '../service/sosMovimientos.service';
 import sosSyncQueueService from '../service/sosSyncQueue.service';
+import SosMovimiento from '../models/sosMovimiento.models';
 
 class SocioController {
   private static socioService: ISocioService = new SocioService(); 
@@ -51,9 +50,15 @@ class SocioController {
           : socio;
 
         const storedLogoUrl = (socioData as any)?.socio_firma || null;
-        const logoUrl = storedLogoUrl
-          ? azureBlobService.getReadOnlyUrl(storedLogoUrl)
-          : null;
+        let logoUrl: string | null = null;
+        if (storedLogoUrl) {
+          try {
+            logoUrl = azureBlobService.getReadOnlyUrl(storedLogoUrl);
+          } catch (e) {
+            const raw = String(storedLogoUrl || '').trim();
+            logoUrl = /^https?:\/\//i.test(raw) ? raw : null;
+          }
+        }
 
         res.status(200).json({
           ...socioData,
@@ -127,38 +132,51 @@ class SocioController {
       }
 
       const periodo = String(query.periodo || 'mes');
-      const cobros = await sosContadorService.getCobrosBySocioCuit({
-        socioCuit,
-        periodo: query.periodo,
-        registros: query.registros,
-        maxPaginas: query.maxPaginas,
+
+      const movimientosLocales = await SosMovimiento.findAll({
+        where: {
+          socio_id: Number(id),
+          cuit_cuil: socioCuit,
+          deleted: false,
+        },
+        order: [['fecha', 'DESC'], ['sos_mov_id', 'DESC']],
       });
 
-      const pagosSos = PagosSociosAdapter.fromSosCobros(cobros as any[], Number(id), periodo);
+      const cobrosLocales = movimientosLocales.map((m: any) => {
+        const raw = (() => {
+          try {
+            return m?.raw_json ? JSON.parse(m.raw_json) : null;
+          } catch {
+            return null;
+          }
+        })();
 
-      const movimientosSos = includeSosMovimientos
-        ? await sosContadorService.getMovimientosCuentaCorrienteBySocioCuit({
-            socioCuit,
-            fechaDesde: query.fechaDesde,
-            fechaHasta: query.fechaHasta,
-            cp: query.cp,
-            tipo: query.tipo,
-          })
-        : [];
+        return {
+          id: m.sos_cobro_id || m.sos_mov_id,
+          fecha: m.fecha,
+          factura: m.factura,
+          montototal: Number(m.monto || 0),
+          referencia: m.referencia,
+          cliente: {
+            id: m.sos_cliente_id,
+            cuit: m.cuit_cuil,
+            clipro: m.cliente_nombre,
+            email: m.cliente_email,
+          },
+          ...(raw || {}),
+        };
+      });
 
-      try {
-        await sosMovimientosService.upsertFromPagosSos(Number(id), pagosSos as any[], periodo);
-      } catch (persistError) {
-        logger.error('No se pudieron persistir movimientos SOS en base local:', persistError);
-      }
+      const pagosSos = PagosSociosAdapter.fromSosCobros(cobrosLocales as any[], Number(id), periodo);
 
       return res.status(200).json({
         ...socioWithPagos,
         pagos_sos: pagosSos,
-        movimientos_sos: movimientosSos,
+        movimientos_sos: includeSosMovimientos ? cobrosLocales : [],
         movimientos_sos_info: {
-          count: movimientosSos.length,
-          source: 'SOS_CUENTACORRIENTE',
+          count: cobrosLocales.length,
+          source: 'SOS_LOCAL_SYNC',
+          synced: true,
         },
       });
     } catch (error) {
