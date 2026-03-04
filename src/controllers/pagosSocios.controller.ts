@@ -1,19 +1,38 @@
 import { Request, Response } from 'express';
 import logger from '../configs/logger';
-import PagosSociosService from '../service/pagosSocios.service';
 import deudaService from '../service/deuda.service';
 import sosContadorService from '../service/sosContador.service';
 import Socio from '../models/socio.models';
 import PagosSociosAdapter from '../adapters/PagosSociosAdapter';
 import SosMovimiento from '../models/sosMovimiento.models';
 
+const mapMovimientoToPago = (m: any) => ({
+  id: m.sos_mov_id,
+  socio_id: m.socio_id,
+  sos_cobro_id: m.sos_cobro_id,
+  cuit: m.cuit_cuil,
+  fecha: m.fecha,
+  factura: m.factura,
+  referencia: m.referencia,
+  monto: Number(m.monto || 0),
+  montodebe: Number(m.montodebe || 0),
+  montohaber: Number(m.montohaber || 0),
+  periodo: m.periodo,
+  source: m.source,
+});
 
 export const getAllPagosSocios = async (req: Request, res: Response) => {
   try {
-    const pagosSocios = await PagosSociosService.getAllPagosSocios();
-    res.json(pagosSocios);
+    const limit = Math.min(Number(req.query.limit || 200), 1000);
+    const movimientos = await SosMovimiento.findAll({
+      where: { deleted: false },
+      order: [['fecha', 'DESC'], ['sos_mov_id', 'DESC']],
+      limit,
+    });
+
+    res.json(movimientos.map((m: any) => mapMovimientoToPago(m)));
   } catch (error) {
-    logger.error('Error al obtener pagos de socios', error)
+    logger.error('Error al obtener pagos de socios (tabla SOS local)', error)
     res.status(500).json({ message: 'Error al obtener pagos de socios', error });
   }
 };
@@ -33,15 +52,21 @@ export const getDeudaBySocio = async (req: Request, res : Response) => {
 export const getPagosSociosById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const pagoSocio = await PagosSociosService.getPagosSociosById(Number(id));
-    if (pagoSocio) {
-      res.json(pagoSocio);
-    } else {
-      res.status(404).json({ message: 'Pago de socio no encontrado' });
+    const movimiento = await SosMovimiento.findOne({
+      where: {
+        sos_mov_id: Number(id),
+        deleted: false,
+      },
+    });
+
+    if (!movimiento) {
+      return res.status(404).json({ message: 'Pago de socio no encontrado' });
     }
+
+    return res.json(mapMovimientoToPago(movimiento as any));
   } catch (error) {
-    logger.error('Error al obtener pagos de socios', error)
-    res.status(500).json({ message: 'Error al obtener el pago de socio', error });
+    logger.error('Error al obtener pago de socio por id (tabla SOS local)', error)
+    return res.status(500).json({ message: 'Error al obtener el pago de socio', error });
   }
 };
 
