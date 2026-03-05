@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import logger from '../configs/logger';
 import ComercioPuntos from '../models/ComercioPuntos.models';
 import SocioPuntos from '../models/SocioPuntos.models';
+import Socio from '../models/socio.models';
 
 class PuntosController {
   static async getComercios(_req: Request, res: Response) {
@@ -54,6 +55,60 @@ class PuntosController {
     } catch (error) {
       logger.error('Error al actualizar comercio de puntos', error);
       return res.status(500).json({ message: 'Error al actualizar comercio de puntos' });
+    }
+  }
+
+  static async getComerciosResumen(_req: Request, res: Response) {
+    try {
+      const comercios = await ComercioPuntos.findAll({ order: [['nombre', 'ASC']] });
+      const movimientos = await SocioPuntos.findAll({ order: [['fecha_carga', 'DESC']] });
+
+      const socioIds = Array.from(new Set(movimientos.map((m: any) => Number(m.get('socio_id'))).filter(Boolean)));
+      const socios = socioIds.length
+        ? await Socio.findAll({ where: { socio_id: socioIds as any } })
+        : [];
+      const socioMap = new Map<number, any>();
+      socios.forEach((s: any) => socioMap.set(Number(s.get('socio_id')), s));
+
+      const byComercio = new Map<string, { totalPuntos: number; scans: number; socios: any[] }>();
+      movimientos.forEach((m: any) => {
+        const nombreComercio = String(m.get('comercio') || 'Sin comercio');
+        const socioId = Number(m.get('socio_id'));
+        const puntos = Number(m.get('puntos') || 0);
+        const socio = socioMap.get(socioId);
+
+        if (!byComercio.has(nombreComercio)) {
+          byComercio.set(nombreComercio, { totalPuntos: 0, scans: 0, socios: [] });
+        }
+        const row = byComercio.get(nombreComercio)!;
+        row.totalPuntos += puntos;
+        row.scans += 1;
+        row.socios.push({
+          socio_id: socioId,
+          nombre: socio ? `${String(socio.get('socio_nombre') || '').trim()} ${String(socio.get('socio_apellido') || '').trim()}`.trim() : `Socio ${socioId}`,
+          puntos,
+          fecha_carga: m.get('fecha_carga'),
+        });
+      });
+
+      const items = comercios.map((c: any) => {
+        const nombre = String(c.get('nombre'));
+        const agg = byComercio.get(nombre) || { totalPuntos: 0, scans: 0, socios: [] };
+        return {
+          comercio_id: c.get('comercio_id'),
+          nombre,
+          puntos_por_carga: c.get('puntos_por_carga'),
+          activo: c.get('activo'),
+          totalPuntos: agg.totalPuntos,
+          totalScans: agg.scans,
+          socios: agg.socios,
+        };
+      });
+
+      return res.status(200).json(items);
+    } catch (error) {
+      logger.error('Error al obtener resumen de comercios de puntos', error);
+      return res.status(500).json({ message: 'Error al obtener resumen de comercios de puntos' });
     }
   }
 
