@@ -6,6 +6,7 @@ class ComercioPuntos extends Model {
   public nombre!: string;
   public activo!: boolean;
   public puntos_por_carga!: number;
+  public logo_url?: string;
 }
 
 ComercioPuntos.init(
@@ -28,6 +29,10 @@ ComercioPuntos.init(
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 100,
+    },
+    logo_url: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
     },
   },
   {

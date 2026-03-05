@@ -3,6 +3,7 @@ import logger from '../configs/logger';
 import ComercioPuntos from '../models/ComercioPuntos.models';
 import SocioPuntos from '../models/SocioPuntos.models';
 import Socio from '../models/socio.models';
+import azureBlobService from '../service/azureBlob.service';
 
 class PuntosController {
   static async getComercios(_req: Request, res: Response) {
@@ -94,11 +95,17 @@ class PuntosController {
       const items = comercios.map((c: any) => {
         const nombre = String(c.get('nombre'));
         const agg = byComercio.get(nombre) || { totalPuntos: 0, scans: 0, socios: [] };
+        const logoRaw = c.get('logo_url');
+        let logo_url = logoRaw || null;
+        if (logoRaw) {
+          try { logo_url = azureBlobService.getReadOnlyUrl(String(logoRaw)); } catch {}
+        }
         return {
           comercio_id: c.get('comercio_id'),
           nombre,
           puntos_por_carga: c.get('puntos_por_carga'),
           activo: c.get('activo'),
+          logo_url,
           totalPuntos: agg.totalPuntos,
           totalScans: agg.scans,
           socios: agg.socios,

@@ -3,6 +3,7 @@ import logger from '../configs/logger';
 import azureBlobService from '../service/azureBlob.service';
 import SocioService from '../service/socio.service';
 import { ISocioService } from '../interfaces/Isocio.service';
+import ComercioPuntos from '../models/ComercioPuntos.models';
 
 class FilesController {
   private static socioService: ISocioService = new SocioService();
@@ -90,6 +91,51 @@ class FilesController {
       return res.status(500).json({
         message: 'Error al subir logo del socio',
       });
+    }
+  }
+
+  static async subirLogoComercio(req: Request, res: Response) {
+    try {
+      const { comercioId } = req.params;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ message: 'Debe enviar un archivo en el campo "file"' });
+      }
+
+      if (!file.mimetype.startsWith('image/')) {
+        return res.status(400).json({ message: 'El logo debe ser una imagen' });
+      }
+
+      const comercio = await ComercioPuntos.findByPk(Number(comercioId));
+      if (!comercio) {
+        return res.status(404).json({ message: 'Comercio no encontrado' });
+      }
+
+      const nombreArchivo = `logo-comercio-${Date.now()}-${file.originalname}`;
+      const logoUrl = await azureBlobService.subirArchivo({
+        buffer: file.buffer,
+        nombreArchivo,
+        carpeta: 'comercios',
+        entidadId: comercioId,
+        subcarpeta: 'logo',
+        contentType: file.mimetype,
+      });
+
+      const blobPath = azureBlobService.getBlobPathFromUrl(logoUrl) || logoUrl;
+      const logoReadUrl = azureBlobService.getReadOnlyUrl(blobPath);
+
+      comercio.set('logo_url', blobPath);
+      await comercio.save();
+
+      return res.status(201).json({
+        message: 'Logo de comercio subido correctamente',
+        comercioId: Number(comercioId),
+        logo_url: logoReadUrl,
+      });
+    } catch (error: any) {
+      logger.error(`Error al subir logo de comercio: ${error?.message || error}`);
+      return res.status(500).json({ message: 'Error al subir logo del comercio' });
     }
   }
 }

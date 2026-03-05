@@ -7,5 +7,6 @@ const filesRoutes = Router();
 
 filesRoutes.post('/upload', checkJwt, upload.single('file'), FilesController.subirArchivo);
 filesRoutes.post('/socios/:socioId/logo', checkJwt, upload.single('file'), FilesController.subirLogoSocio);
+filesRoutes.post('/comercios/:comercioId/logo', checkJwt, upload.single('file'), FilesController.subirLogoComercio);
 
 export default filesRoutes;
