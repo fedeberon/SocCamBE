@@ -4,11 +4,28 @@ import ComercioPuntos from '../models/ComercioPuntos.models';
 import SocioPuntos from '../models/SocioPuntos.models';
 import Socio from '../models/socio.models';
 import azureBlobService from '../service/azureBlob.service';
+import { Op } from 'sequelize';
 
 class PuntosController {
+  private static async findComerciosSafe() {
+    try {
+      return await ComercioPuntos.findAll({ order: [['nombre', 'ASC']] });
+    } catch (error: any) {
+      // Compat: si la columna logo_url aún no existe en DB, continuamos sin ella.
+      const msg = String(error?.message || '');
+      if (msg.toLowerCase().includes('logo_url') || msg.toLowerCase().includes('invalid column')) {
+        return await ComercioPuntos.findAll({
+          attributes: ['comercio_id', 'nombre', 'activo', 'puntos_por_carga'],
+          order: [['nombre', 'ASC']],
+        });
+      }
+      throw error;
+    }
+  }
+
   static async getComercios(_req: Request, res: Response) {
     try {
-      const items = await ComercioPuntos.findAll({ order: [['nombre', 'ASC']] });
+      const items = await PuntosController.findComerciosSafe();
       return res.status(200).json(items);
     } catch (error) {
       logger.error('Error al obtener comercios de puntos', error);
@@ -61,12 +78,12 @@ class PuntosController {
 
   static async getComerciosResumen(_req: Request, res: Response) {
     try {
-      const comercios = await ComercioPuntos.findAll({ order: [['nombre', 'ASC']] });
+      const comercios = await PuntosController.findComerciosSafe();
       const movimientos = await SocioPuntos.findAll({ order: [['fecha_carga', 'DESC']] });
 
       const socioIds = Array.from(new Set(movimientos.map((m: any) => Number(m.get('socio_id'))).filter(Boolean)));
       const socios = socioIds.length
-        ? await Socio.findAll({ where: { socio_id: socioIds as any } })
+        ? await Socio.findAll({ where: { socio_id: { [Op.in]: socioIds as any } } as any })
         : [];
       const socioMap = new Map<number, any>();
       socios.forEach((s: any) => socioMap.set(Number(s.get('socio_id')), s));
