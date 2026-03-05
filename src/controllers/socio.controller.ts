@@ -14,6 +14,7 @@ import azureBlobService from '../service/azureBlob.service';
 import PagosSociosAdapter from '../adapters/PagosSociosAdapter';
 import sosSyncQueueService from '../service/sosSyncQueue.service';
 import SosMovimiento from '../models/sosMovimiento.models';
+import SocioPuntos from '../models/SocioPuntos.models';
 
 class SocioController {
   private static socioService: ISocioService = new SocioService(); 
@@ -339,7 +340,60 @@ class SocioController {
         console.error('Error al buscar socios:', error);
         return res.status(500).json({ message: 'Error al obtener los socios', error });
     }
-}
+  }
+
+  static async getPuntosBySocio(req: Request, res: Response) {
+    try {
+      const socioId = Number(req.params.id);
+      if (Number.isNaN(socioId)) return res.status(400).json({ message: 'ID de socio inválido' });
+
+      const items = await SocioPuntos.findAll({
+        where: { socio_id: socioId },
+        order: [['fecha_carga', 'DESC'], ['socio_puntos_id', 'DESC']],
+      });
+
+      const totalPuntos = items.reduce((acc: number, it: any) => acc + Number(it.puntos || 0), 0);
+
+      return res.status(200).json({
+        socioId,
+        totalPuntos,
+        items,
+      });
+    } catch (error) {
+      logger.error('Error al obtener puntos del socio:', error);
+      return res.status(500).json({ message: 'Error al obtener puntos del socio', error });
+    }
+  }
+
+  static async addPuntosBySocio(req: Request, res: Response) {
+    try {
+      const socioId = Number(req.params.id);
+      if (Number.isNaN(socioId)) return res.status(400).json({ message: 'ID de socio inválido' });
+
+      const comercio = String((req.body || {}).comercio || '').trim();
+      const puntos = Number((req.body || {}).puntos);
+      const fechaCarga = (req.body || {}).fecha_carga;
+      const qrPayload = (req.body || {}).qr_payload;
+
+      if (!comercio) return res.status(400).json({ message: 'comercio es requerido' });
+      if (!Number.isFinite(puntos) || puntos <= 0) {
+        return res.status(400).json({ message: 'puntos debe ser un número mayor a 0' });
+      }
+
+      const created = await SocioPuntos.create({
+        socio_id: socioId,
+        comercio,
+        puntos: Math.round(puntos),
+        fecha_carga: fechaCarga ? new Date(fechaCarga) : new Date(),
+        qr_payload: qrPayload ? String(qrPayload) : null,
+      } as any);
+
+      return res.status(201).json(created);
+    } catch (error) {
+      logger.error('Error al cargar puntos al socio:', error);
+      return res.status(500).json({ message: 'Error al cargar puntos al socio', error });
+    }
+  }
 
 }
 
