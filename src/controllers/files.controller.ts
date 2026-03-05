@@ -125,14 +125,28 @@ class FilesController {
       const blobPath = azureBlobService.getBlobPathFromUrl(logoUrl) || logoUrl;
       const logoReadUrl = azureBlobService.getReadOnlyUrl(blobPath);
 
-      comercio.set('logo_url', blobPath);
-      await comercio.save();
+      try {
+        comercio.set('logo_url', blobPath);
+        await comercio.save();
 
-      return res.status(201).json({
-        message: 'Logo de comercio subido correctamente',
-        comercioId: Number(comercioId),
-        logo_url: logoReadUrl,
-      });
+        return res.status(201).json({
+          message: 'Logo de comercio subido correctamente',
+          comercioId: Number(comercioId),
+          logo_url: logoReadUrl,
+        });
+      } catch (saveError: any) {
+        const msg = String(saveError?.message || '');
+        if (msg.toLowerCase().includes('logo_url') || msg.toLowerCase().includes('invalid column')) {
+          // Compat temporal: el archivo se subió, pero la DB aún no tiene la columna.
+          return res.status(202).json({
+            message: 'Logo subido, pero falta columna logo_url en DB para persistirlo',
+            comercioId: Number(comercioId),
+            logo_url: logoReadUrl,
+            warning: 'DB_MISSING_LOGO_URL_COLUMN',
+          });
+        }
+        throw saveError;
+      }
     } catch (error: any) {
       logger.error(`Error al subir logo de comercio: ${error?.message || error}`);
       return res.status(500).json({ message: 'Error al subir logo del comercio' });
