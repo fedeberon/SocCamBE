@@ -85,11 +85,23 @@ class MercadoPagoService {
 
     const resolvePago = async () => {
       if (tipoNormalized === 'cuota') {
-        const pago = await PagosSocios.findByPk(pagoId);
+        let pago: any = await PagosSocios.findByPk(pagoId);
+
+        // Fallback: en algunas pantallas el frontend manda idcomprobante/recibo_id
+        if (!pago) {
+          pago = await PagosSocios.findOne({ where: { recibo_id: pagoId } as any });
+        }
+
+        // Fallback adicional por movimiento de cuenta corriente
+        if (!pago) {
+          pago = await PagosSocios.findOne({ where: { pagosSocios_movimiento_cc: pagoId } as any });
+        }
+
         if (!pago) throw new Error('Pago de socio no encontrado');
         return {
-          title: `Cuota socio #${pagoId}`,
+          title: `Cuota socio #${pago.getDataValue('pagosSocios_id') || pagoId}`,
           amount: Number(pago.getDataValue('pagosSocios_monto') || 0),
+          referenceId: Number(pago.getDataValue('pagosSocios_id') || pagoId),
         };
       }
 
@@ -143,7 +155,8 @@ class MercadoPagoService {
           }
         : undefined;
 
-    const externalReference = `${tipoNormalized}:${pagoId}`;
+    const referenceId = Number((pagoInfo as any).referenceId || pagoId);
+    const externalReference = `${tipoNormalized}:${referenceId}`;
 
     const body: any = {
       items: [
@@ -158,7 +171,7 @@ class MercadoPagoService {
       external_reference: externalReference,
       notification_url: notificationUrl || undefined,
       metadata: {
-        pagoId,
+        pagoId: referenceId,
         tipo: tipoNormalized,
       },
     };
