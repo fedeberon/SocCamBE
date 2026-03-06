@@ -5,6 +5,7 @@ import CajaSeguridad from '../models/CajaSeguridad.models';
 import CajaSeguridadTamano from '../models/CajaSeguridadTamano.models';
 import Servicio from '../models/Servicio.models';
 import SocioServicio from '../models/SocioServicio.models';
+import SosMovimiento from '../models/sosMovimiento.models';
 import logger from '../configs/logger';
 
 const { MP_ACCESS_TOKEN, MP_NOTIFICATION_URL, MP_SUCCESS_URL, MP_FAILURE_URL } = process.env;
@@ -97,11 +98,23 @@ class MercadoPagoService {
           pago = await PagosSocios.findOne({ where: { pagosSocios_movimiento_cc: pagoId } as any });
         }
 
-        if (!pago) throw new Error('Pago de socio no encontrado');
+        if (pago) {
+          return {
+            title: `Cuota socio #${pago.getDataValue('pagosSocios_id') || pagoId}`,
+            amount: Number(pago.getDataValue('pagosSocios_monto') || 0),
+            referenceId: Number(pago.getDataValue('pagosSocios_id') || pagoId),
+          };
+        }
+
+        // Fallback SOS (cuando el frontend manda idcomprobante de movimientos sincronizados)
+        let mov: any = await SosMovimiento.findOne({ where: { sos_mov_id: pagoId, deleted: false } as any });
+        if (!mov) mov = await SosMovimiento.findOne({ where: { sos_cobro_id: pagoId, deleted: false } as any });
+        if (!mov) throw new Error('Pago de socio no encontrado');
+
         return {
-          title: `Cuota socio #${pago.getDataValue('pagosSocios_id') || pagoId}`,
-          amount: Number(pago.getDataValue('pagosSocios_monto') || 0),
-          referenceId: Number(pago.getDataValue('pagosSocios_id') || pagoId),
+          title: `Cuota socio #${mov.getDataValue('sos_mov_id') || pagoId}`,
+          amount: Number(mov.getDataValue('monto') || mov.getDataValue('montodebe') || 0),
+          referenceId: Number(mov.getDataValue('sos_mov_id') || pagoId),
         };
       }
 
