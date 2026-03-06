@@ -154,6 +154,7 @@ class PuntosController {
       const puntos = Number(comercio.get('puntos_por_carga') || 0);
       const created = await SocioPuntos.create({
         socio_id: socioId,
+        comercio_id: Number(comercio.get('comercio_id')),
         comercio: String(comercio.get('nombre')),
         puntos,
         fecha_carga: new Date(),

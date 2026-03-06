@@ -357,8 +357,10 @@ class SocioController {
         const payload = String(json.qr_payload || '');
         const parts = payload.split('|');
         const comercioId = Number(parts[2]);
+        const comercioIdFinal = Number.isFinite(Number(json.comercio_id)) ? Number(json.comercio_id) : (Number.isFinite(comercioId) ? comercioId : null);
         return {
           ...json,
+          comercio_id: comercioIdFinal,
           comercio_id_derivado: Number.isFinite(comercioId) ? comercioId : null,
         };
       });
@@ -385,6 +387,7 @@ class SocioController {
       const puntos = Number((req.body || {}).puntos);
       const fechaCarga = (req.body || {}).fecha_carga;
       const qrPayload = (req.body || {}).qr_payload;
+      const comercioIdBody = Number((req.body || {}).comercio_id);
 
       if (!comercio) return res.status(400).json({ message: 'comercio es requerido' });
       if (!Number.isFinite(puntos) || puntos <= 0) {
@@ -393,6 +396,7 @@ class SocioController {
 
       const created = await SocioPuntos.create({
         socio_id: socioId,
+        comercio_id: Number.isFinite(comercioIdBody) ? comercioIdBody : null,
         comercio,
         puntos: Math.round(puntos),
         fecha_carga: fechaCarga ? new Date(fechaCarga) : new Date(),

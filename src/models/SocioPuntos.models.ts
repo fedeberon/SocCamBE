@@ -6,6 +6,7 @@ class SocioPuntos extends Model {
   public socio_puntos_id!: number;
   public socio_id!: number;
   public comercio!: string;
+  public comercio_id?: number;
   public puntos!: number;
   public fecha_carga!: Date;
   public qr_payload?: string;
@@ -25,6 +26,10 @@ SocioPuntos.init(
     comercio: {
       type: DataTypes.STRING(180),
       allowNull: false,
+    },
+    comercio_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     },
     puntos: {
       type: DataTypes.INTEGER,
