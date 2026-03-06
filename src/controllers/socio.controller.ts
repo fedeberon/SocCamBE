@@ -347,9 +347,20 @@ class SocioController {
       const socioId = Number(req.params.id);
       if (Number.isNaN(socioId)) return res.status(400).json({ message: 'ID de socio inválido' });
 
-      const items = await SocioPuntos.findAll({
+      const itemsRaw = await SocioPuntos.findAll({
         where: { socio_id: socioId },
         order: [['fecha_carga', 'DESC'], ['socio_puntos_id', 'DESC']],
+      });
+
+      const items = itemsRaw.map((it: any) => {
+        const json = it.toJSON ? it.toJSON() : it;
+        const payload = String(json.qr_payload || '');
+        const parts = payload.split('|');
+        const comercioId = Number(parts[2]);
+        return {
+          ...json,
+          comercio_id_derivado: Number.isFinite(comercioId) ? comercioId : null,
+        };
       });
 
       const totalPuntos = items.reduce((acc: number, it: any) => acc + Number(it.puntos || 0), 0);

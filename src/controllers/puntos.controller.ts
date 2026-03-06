@@ -162,6 +162,7 @@ class PuntosController {
 
       return res.status(201).json({
         ok: true,
+        comercio_id: Number(comercio.get('comercio_id')),
         comercio: comercio.get('nombre'),
         puntos,
         movimiento: created,
