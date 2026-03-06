@@ -7,6 +7,7 @@ router.get('/comercios', PuntosController.getComercios);
 router.post('/comercios', PuntosController.createComercio);
 router.put('/comercios/:id', PuntosController.updateComercio);
 router.get('/comercios-resumen', PuntosController.getComerciosResumen);
+router.post('/preview', PuntosController.previewQr);
 router.post('/scan', PuntosController.scanQr);
 
 export default router;

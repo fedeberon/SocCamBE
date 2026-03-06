@@ -136,6 +136,31 @@ class PuntosController {
     }
   }
 
+  static async previewQr(req: Request, res: Response) {
+    try {
+      const qrPayload = String((req.body || {}).qr_payload || '');
+      if (!qrPayload.startsWith('SCMPTS|')) return res.status(400).json({ message: 'QR inválido' });
+
+      const parts = qrPayload.split('|');
+      const comercioId = Number(parts[2]);
+      if (!Number.isFinite(comercioId)) return res.status(400).json({ message: 'QR inválido (comercio)' });
+
+      const comercio = await ComercioPuntos.findByPk(comercioId);
+      if (!comercio || !comercio.get('activo')) return res.status(400).json({ message: 'Comercio inactivo o no encontrado' });
+
+      const puntos = Number(comercio.get('puntos_por_carga') || 0);
+      return res.status(200).json({
+        ok: true,
+        comercio_id: Number(comercio.get('comercio_id')),
+        comercio: String(comercio.get('nombre')),
+        puntos,
+      });
+    } catch (error) {
+      logger.error('Error al previsualizar QR de puntos', error);
+      return res.status(500).json({ message: 'Error al previsualizar QR de puntos' });
+    }
+  }
+
   static async scanQr(req: Request, res: Response) {
     try {
       const socioId = Number((req.body || {}).socio_id);
