@@ -153,7 +153,8 @@ class MarketplaceController {
   static async listProductos(req: Request, res: Response) {
     try {
       const comercio_id = Number(req.query.comercio_id);
-      const where: any = { activo: true };
+      const includeInactivos = String((req.query as any)?.include_inactivos || '').trim() === '1';
+      const where: any = includeInactivos ? {} : { activo: true };
       if (Number.isFinite(comercio_id)) where.comercio_id = comercio_id;
       const items = await ProductoStore.findAll({ where, order: [['producto_id', 'DESC']] });
       return res.status(200).json(items.map((item) => MarketplaceController.mapProducto(item)));
