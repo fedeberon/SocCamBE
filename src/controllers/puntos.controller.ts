@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
 import logger from '../configs/logger';
+import sequelize from '../configs/database';
 import ComercioPuntos from '../models/ComercioPuntos.models';
 import ComercioPuntosAdmin from '../models/ComercioPuntosAdmin.models';
 import SocioPuntos from '../models/SocioPuntos.models';
@@ -292,7 +293,11 @@ class PuntosController {
       const existing = await ComercioPuntosAdmin.findOne({ where: { comercio_id: comercioId, socio_id: socioId } as any });
       if (existing) return res.status(200).json({ ok: true, message: 'Asociación ya existente' });
 
-      await ComercioPuntosAdmin.create({ comercio_id: comercioId, socio_id: socioId } as any);
+      await sequelize.query(
+        `INSERT INTO dbo.comercio_puntos_admin (comercio_id, socio_id, fecha_alta)
+         VALUES (:comercioId, :socioId, GETDATE())`,
+        { replacements: { comercioId, socioId } }
+      );
       return res.status(201).json({ ok: true });
     } catch (error) {
       logger.error('Error al asociar socio admin a comercio', error);
