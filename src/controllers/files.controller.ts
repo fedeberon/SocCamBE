@@ -4,6 +4,7 @@ import azureBlobService from '../service/azureBlob.service';
 import SocioService from '../service/socio.service';
 import { ISocioService } from '../interfaces/Isocio.service';
 import ComercioPuntos from '../models/ComercioPuntos.models';
+import ProductoStore from '../models/ProductoStore.models';
 
 class FilesController {
   private static socioService: ISocioService = new SocioService();
@@ -150,6 +151,52 @@ class FilesController {
     } catch (error: any) {
       logger.error(`Error al subir logo de comercio: ${error?.message || error}`);
       return res.status(500).json({ message: 'Error al subir logo del comercio' });
+    }
+  }
+
+  static async subirImagenProducto(req: Request, res: Response) {
+    try {
+      const { productoId } = req.params;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ message: 'Debe enviar un archivo en el campo "file"' });
+      }
+
+      if (!file.mimetype.startsWith('image/')) {
+        return res.status(400).json({ message: 'La imagen del producto debe ser una imagen' });
+      }
+
+      const producto = await ProductoStore.findByPk(Number(productoId));
+      if (!producto) {
+        return res.status(404).json({ message: 'Producto no encontrado' });
+      }
+
+      const comercioId = Number(producto.get('comercio_id'));
+      const nombreArchivo = `producto-${Date.now()}-${file.originalname}`;
+      const imageUrl = await azureBlobService.subirArchivo({
+        buffer: file.buffer,
+        nombreArchivo,
+        carpeta: 'comercios',
+        entidadId: comercioId,
+        subcarpeta: `productos/${productoId}`,
+        contentType: file.mimetype,
+      });
+
+      const blobPath = azureBlobService.getBlobPathFromUrl(imageUrl) || imageUrl;
+      const imageReadUrl = azureBlobService.getReadOnlyUrl(blobPath);
+
+      producto.set('imagen_url', blobPath);
+      await producto.save();
+
+      return res.status(201).json({
+        message: 'Imagen de producto subida correctamente',
+        productoId: Number(productoId),
+        imagen_url: imageReadUrl,
+      });
+    } catch (error: any) {
+      logger.error(`Error al subir imagen de producto: ${error?.message || error}`);
+      return res.status(500).json({ message: 'Error al subir imagen del producto' });
     }
   }
 }

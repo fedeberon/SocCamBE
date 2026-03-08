@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import logger from '../configs/logger';
 import ComercioStore from '../models/ComercioStore.models';
 import ProductoStore from '../models/ProductoStore.models';
+import azureBlobService from '../service/azureBlob.service';
 
 const slugify = (value: string) =>
   String(value || '')
@@ -13,6 +14,24 @@ const slugify = (value: string) =>
     .slice(0, 180);
 
 class MarketplaceController {
+  private static buildProductoImagenUrl(producto: any) {
+    const raw = producto?.get ? producto.get('imagen_url') : producto?.imagen_url;
+    if (!raw) return null;
+    try {
+      return azureBlobService.getReadOnlyUrl(String(raw));
+    } catch {
+      return String(raw);
+    }
+  }
+
+  private static mapProducto(item: any) {
+    const plain = item?.toJSON ? item.toJSON() : { ...(item || {}) };
+    return {
+      ...plain,
+      imagen_url: MarketplaceController.buildProductoImagenUrl(item),
+    };
+  }
+
   static async listComercios(_req: Request, res: Response) {
     try {
       const items = await ComercioStore.findAll({ where: { activo: true } as any, order: [['nombre', 'ASC']] });
@@ -90,7 +109,7 @@ class MarketplaceController {
       const where: any = { activo: true };
       if (Number.isFinite(comercio_id)) where.comercio_id = comercio_id;
       const items = await ProductoStore.findAll({ where, order: [['producto_id', 'DESC']] });
-      return res.status(200).json(items);
+      return res.status(200).json(items.map((item) => MarketplaceController.mapProducto(item)));
     } catch (error) {
       logger.error('Error listando productos marketplace', error);
       return res.status(500).json({ message: 'Error listando productos' });
@@ -103,7 +122,7 @@ class MarketplaceController {
       if (!Number.isFinite(id)) return res.status(400).json({ message: 'ID inválido' });
       const item = await ProductoStore.findByPk(id);
       if (!item) return res.status(404).json({ message: 'Producto no encontrado' });
-      return res.status(200).json(item);
+      return res.status(200).json(MarketplaceController.mapProducto(item));
     } catch (error) {
       logger.error('Error obteniendo producto marketplace', error);
       return res.status(500).json({ message: 'Error obteniendo producto' });
@@ -130,7 +149,7 @@ class MarketplaceController {
         activo: body.activo !== false,
       } as any);
 
-      return res.status(201).json(created);
+      return res.status(201).json(MarketplaceController.mapProducto(created));
     } catch (error) {
       logger.error('Error creando producto marketplace', error);
       return res.status(500).json({ message: 'Error creando producto' });
@@ -153,7 +172,7 @@ class MarketplaceController {
       if (body.activo !== undefined) item.set('activo', Boolean(body.activo));
 
       await item.save();
-      return res.status(200).json(item);
+      return res.status(200).json(MarketplaceController.mapProducto(item));
     } catch (error) {
       logger.error('Error actualizando producto marketplace', error);
       return res.status(500).json({ message: 'Error actualizando producto' });
