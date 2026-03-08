@@ -24,6 +24,24 @@ class MarketplaceController {
     }
   }
 
+  private static buildComercioLogoUrl(comercio: any) {
+    const raw = comercio?.get ? comercio.get('logo_url') : comercio?.logo_url;
+    if (!raw) return null;
+    try {
+      return azureBlobService.getReadOnlyUrl(String(raw));
+    } catch {
+      return String(raw);
+    }
+  }
+
+  private static mapComercio(item: any) {
+    const plain = item?.toJSON ? item.toJSON() : { ...(item || {}) };
+    return {
+      ...plain,
+      logo_url: MarketplaceController.buildComercioLogoUrl(item),
+    };
+  }
+
   private static mapProducto(item: any) {
     const plain = item?.toJSON ? item.toJSON() : { ...(item || {}) };
     return {
@@ -35,7 +53,7 @@ class MarketplaceController {
   static async listComercios(_req: Request, res: Response) {
     try {
       const items = await ComercioStore.findAll({ where: { activo: true } as any, order: [['nombre', 'ASC']] });
-      return res.status(200).json(items);
+      return res.status(200).json(items.map((item) => MarketplaceController.mapComercio(item)));
     } catch (error) {
       logger.error('Error listando comercios marketplace', error);
       return res.status(500).json({ message: 'Error listando comercios' });
@@ -47,7 +65,7 @@ class MarketplaceController {
       const slug = String(req.params.slug || '').trim().toLowerCase();
       const comercio = await ComercioStore.findOne({ where: { slug, activo: true } as any });
       if (!comercio) return res.status(404).json({ message: 'Comercio no encontrado' });
-      return res.status(200).json(comercio);
+      return res.status(200).json(MarketplaceController.mapComercio(comercio));
     } catch (error) {
       logger.error('Error obteniendo comercio por slug', error);
       return res.status(500).json({ message: 'Error obteniendo comercio' });
@@ -74,7 +92,7 @@ class MarketplaceController {
         logo_url: body.logo_url || null,
         activo: body.activo !== false,
       } as any);
-      return res.status(201).json(created);
+      return res.status(201).json(MarketplaceController.mapComercio(created));
     } catch (error) {
       logger.error('Error creando comercio marketplace', error);
       return res.status(500).json({ message: 'Error creando comercio' });
@@ -96,7 +114,7 @@ class MarketplaceController {
       if (body.slug !== undefined) item.set('slug', slugify(body.slug));
 
       await item.save();
-      return res.status(200).json(item);
+      return res.status(200).json(MarketplaceController.mapComercio(item));
     } catch (error) {
       logger.error('Error actualizando comercio marketplace', error);
       return res.status(500).json({ message: 'Error actualizando comercio' });
