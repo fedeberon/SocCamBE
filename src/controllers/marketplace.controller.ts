@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import logger from '../configs/logger';
 import ComercioStore from '../models/ComercioStore.models';
 import ProductoStore from '../models/ProductoStore.models';
+import ComercioPuntos from '../models/ComercioPuntos.models';
 import azureBlobService from '../service/azureBlob.service';
 
 const slugify = (value: string) =>
@@ -53,7 +54,25 @@ class MarketplaceController {
   static async listComercios(_req: Request, res: Response) {
     try {
       const items = await ComercioStore.findAll({ where: { activo: true } as any, order: [['nombre', 'ASC']] });
-      return res.status(200).json(items.map((item) => MarketplaceController.mapComercio(item)));
+      const puntos = await ComercioPuntos.findAll({ where: { activo: true } as any });
+      const puntosByNombre = new Map<string, any>();
+      for (const p of puntos as any[]) {
+        const nombre = String(p?.get ? p.get('nombre') : p?.nombre || '').trim().toLowerCase();
+        if (nombre && !puntosByNombre.has(nombre)) puntosByNombre.set(nombre, p);
+      }
+
+      const mapped = items.map((item: any) => {
+        const plain = item?.toJSON ? item.toJSON() : { ...(item || {}) };
+        const storeLogo = plain.logo_url || null;
+        if (storeLogo) return MarketplaceController.mapComercio(item);
+
+        const nombre = String(plain.nombre || '').trim().toLowerCase();
+        const match = nombre ? puntosByNombre.get(nombre) : null;
+        const logoFallback = match ? MarketplaceController.buildComercioLogoUrl(match) : null;
+        return { ...plain, logo_url: logoFallback };
+      });
+
+      return res.status(200).json(mapped);
     } catch (error) {
       logger.error('Error listando comercios marketplace', error);
       return res.status(500).json({ message: 'Error listando comercios' });
@@ -65,7 +84,17 @@ class MarketplaceController {
       const slug = String(req.params.slug || '').trim().toLowerCase();
       const comercio = await ComercioStore.findOne({ where: { slug, activo: true } as any });
       if (!comercio) return res.status(404).json({ message: 'Comercio no encontrado' });
-      return res.status(200).json(MarketplaceController.mapComercio(comercio));
+
+      const mapped = MarketplaceController.mapComercio(comercio) as any;
+      if (!mapped.logo_url) {
+        const nombre = String(mapped.nombre || '').trim();
+        if (nombre) {
+          const punto = await ComercioPuntos.findOne({ where: { nombre } as any });
+          if (punto) mapped.logo_url = MarketplaceController.buildComercioLogoUrl(punto);
+        }
+      }
+
+      return res.status(200).json(mapped);
     } catch (error) {
       logger.error('Error obteniendo comercio por slug', error);
       return res.status(500).json({ message: 'Error obteniendo comercio' });
