@@ -182,9 +182,18 @@ class CuponController {
       const codigo = `SCM-${descuentoFinal}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
       const fechaExpiracion = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
+      // Intentamos usar una plantilla de cupón existente (misma estructura que usa SocCamWeb)
+      const plantilla = await Cupon.findOne({
+        where: {
+          descuento: descuentoFinal,
+          deleted: false,
+        } as any,
+        order: [['id', 'DESC']],
+      });
+
       const cupon = await Cupon.create({
-        comercio: 'Cámara Comercial Bolívar',
-        descripcion: `Cupón de descuento ${descuentoFinal}%`,
+        comercio: plantilla?.get('comercio') || 'Cámara Comercial Bolívar',
+        descripcion: plantilla?.get('descripcion') || `Cupón de descuento ${descuentoFinal}%`,
         descuento: descuentoFinal,
         fechaExpiracion,
         codigo,
