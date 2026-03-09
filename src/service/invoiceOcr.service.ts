@@ -108,7 +108,7 @@ class InvoiceOcrService {
         'Ocp-Apim-Subscription-Key': this.key,
         'Content-Type': 'application/octet-stream',
       },
-      body: imageBuffer,
+      body: imageBuffer as unknown as BodyInit,
     });
 
     if (submitResp.status !== 202) {
