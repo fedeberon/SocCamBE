@@ -1,3 +1,5 @@
+import azureBlobService from './azureBlob.service';
+
 type AzureReadLine = { text: string };
 
 type AzureReadResult = {
@@ -98,8 +100,19 @@ class InvoiceOcrService {
     throw new Error('Timeout esperando resultado OCR');
   }
 
-  async scanInvoiceImage(imageBuffer: Buffer) {
+  async scanInvoiceImage(imageBuffer: Buffer, opts?: { socioId?: number; fileName?: string; contentType?: string }) {
     this.ensureConfig();
+
+    const socioId = Number(opts?.socioId || 0) || 0;
+    const blobFileName = opts?.fileName || `factura-${Date.now()}.jpg`;
+    const blobUrl = await azureBlobService.subirArchivo({
+      buffer: imageBuffer,
+      nombreArchivo: blobFileName,
+      carpeta: 'facturas-ocr',
+      entidadId: socioId > 0 ? socioId : 'anon',
+      subcarpeta: new Date().toISOString().slice(0, 10),
+      contentType: opts?.contentType || 'image/jpeg',
+    });
 
     const submitUrl = `${this.endpoint}/vision/${this.apiVersion}/read/analyze`;
     const submitResp = await fetch(submitUrl, {
@@ -137,6 +150,9 @@ class InvoiceOcrService {
       },
       ocr: {
         linesCount: lines.length,
+      },
+      storage: {
+        imageUrl: blobUrl,
       },
     };
   }

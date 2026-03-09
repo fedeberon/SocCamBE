@@ -10,7 +10,12 @@ class InvoiceOcrController {
         return res.status(400).json({ message: 'image es requerido (multipart/form-data, field: image)' });
       }
 
-      const result = await invoiceOcrService.scanInvoiceImage(file.buffer);
+      const socioId = Number((req.body || {}).socio_id || 0);
+      const result = await invoiceOcrService.scanInvoiceImage(file.buffer, {
+        socioId: Number.isFinite(socioId) ? socioId : 0,
+        fileName: file.originalname || `factura-${Date.now()}.jpg`,
+        contentType: file.mimetype || 'image/jpeg',
+      });
       return res.status(200).json(result);
     } catch (error: any) {
       logger.error('Error en OCR de factura', error);
