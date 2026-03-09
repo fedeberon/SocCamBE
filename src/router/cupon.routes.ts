@@ -11,5 +11,6 @@ router.put('/mark-as-used/:id', CuponController.markAsUsed);
 router.delete('/:id', CuponController.deleteCupon);
 router.post('/asignar', CuponController.assignCupon);
 router.post('/desasignar', CuponController.unassignCupon);
+router.post('/canjear-descuento', CuponController.canjearPorDescuento);
 
 export default router;

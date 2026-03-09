@@ -1,7 +1,11 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import logger from '../configs/logger';
 import CuponService from '../service/cupon.service';
 import { ICuponService } from '../interfaces/Icupon.service';
+import SocioPuntos from '../models/SocioPuntos.models';
+import Cupon from '../models/Cupon.models';
+import AsignarCupon from '../models/AsignarCupon.models';
 
 class CuponController {
   private static cuponService: ICuponService = new CuponService();
@@ -149,6 +153,63 @@ class CuponController {
           name: error.name,
         } : 'Error desconocido',
       });
+    }
+  }
+
+  static async canjearPorDescuento(req: Request, res: Response) {
+    try {
+      const socioId = Number((req.body || {}).socioId);
+      const descuento = Number((req.body || {}).descuento || 5);
+
+      if (!Number.isFinite(socioId) || socioId <= 0) return res.status(400).json({ message: 'socioId inválido' });
+      if (!Number.isFinite(descuento) || descuento <= 0) return res.status(400).json({ message: 'descuento inválido' });
+
+      const bloques = Math.max(1, Math.round(descuento / 5));
+      const puntosNecesarios = bloques * 50000;
+      const descuentoFinal = bloques * 5;
+
+      const movimientos = await SocioPuntos.findAll({ where: { socio_id: socioId } as any });
+      const totalPuntos = movimientos.reduce((acc: number, m: any) => acc + Number(m.get('puntos') || 0), 0);
+
+      if (totalPuntos < puntosNecesarios) {
+        return res.status(400).json({
+          message: `Puntos insuficientes. Necesitás ${puntosNecesarios} para canjear ${descuentoFinal}%`,
+          totalPuntos,
+          puntosNecesarios,
+        });
+      }
+
+      const codigo = `SCM-${descuentoFinal}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+      const fechaExpiracion = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+      const cupon = await Cupon.create({
+        comercio: 'Cámara Comercial Bolívar',
+        descripcion: `Cupón de descuento ${descuentoFinal}%`,
+        descuento: descuentoFinal,
+        fechaExpiracion,
+        codigo,
+        utilizado: false,
+        deleted: false,
+      } as any);
+
+      await AsignarCupon.create({ socio_id: socioId, cupon_id: Number(cupon.get('id')) } as any);
+      await SocioPuntos.create({
+        socio_id: socioId,
+        comercio: `Canje cupón ${descuentoFinal}%`,
+        puntos: -puntosNecesarios,
+        fecha_carga: new Date(),
+        qr_payload: `CANJE_${codigo}`,
+      } as any);
+
+      return res.status(201).json({
+        ok: true,
+        cupon,
+        puntosConsumidos: puntosNecesarios,
+        puntosRestantes: totalPuntos - puntosNecesarios,
+      });
+    } catch (error) {
+      logger.error('Error al canjear puntos por descuento:', error);
+      return res.status(500).json({ message: 'Error al canjear puntos por descuento' });
     }
   }
 }
