@@ -42,6 +42,14 @@ class InvoiceOcrService {
     const apMatch = all.match(/Apellido\s+y\s+Nombre\s*\/\s*Raz[oó]n\s+Social\s*:\s*(.+)/i);
     const holderName = (apMatch?.[1] || rsMatch?.[1] || '').trim() || null;
 
+    const vencMatch = all.match(/(?:Venc(?:imiento)?|Vto\.?)[^\d]{0,10}(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
+    const taxMatch = all.match(/(?:Condici[oó]n\s+Fiscal|IVA)\s*:?\s*([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+)(?:\n|$)/i);
+    const addrMatch = all.match(/(?:Domicilio\s*(?:de\s*suministro)?|Direcci[oó]n)\s*:?\s*(.+)/i);
+
+    const dueDate = (vencMatch?.[1] || '').trim() || null;
+    const fiscalCondition = (taxMatch?.[1] || '').trim() || null;
+    const address = (addrMatch?.[1] || '').trim() || null;
+
     let totalAmount: number | null = null;
 
     const totalRegexes = [
@@ -67,7 +75,7 @@ class InvoiceOcrService {
       if (candidates.length) totalAmount = Math.max(...candidates);
     }
 
-    return { holderName, totalAmount };
+    return { holderName, totalAmount, dueDate, fiscalCondition, address };
   }
 
   private calculatePoints(totalAmount: number | null) {
@@ -135,7 +143,7 @@ class InvoiceOcrService {
     const ocrResult = await this.pollResult(operationLocation);
     const lines = (ocrResult.analyzeResult?.readResults || []).flatMap((p) => p.lines || []).map((l) => l.text);
 
-    const { holderName, totalAmount } = this.extractFields(lines);
+    const { holderName, totalAmount, dueDate, fiscalCondition, address } = this.extractFields(lines);
     const awarded = this.calculatePoints(totalAmount);
 
     return {
@@ -143,6 +151,9 @@ class InvoiceOcrService {
       invoice: {
         holderName,
         totalAmount,
+        dueDate,
+        fiscalCondition,
+        address,
       },
       points: {
         awarded,
