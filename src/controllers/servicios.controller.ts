@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import logger from '../configs/logger';
 import SocioServicio from '../models/SocioServicio.models';
 import Servicio from '../models/Servicio.models';
+import Socio from '../models/socio.models';
 
 class ServiciosController {
   static async listar(req: Request, res: Response) {
@@ -159,6 +160,38 @@ class ServiciosController {
     } catch (error) {
       logger.error('Error al obtener asociaciones socio-servicio', error);
       res.status(500).json({ message: 'Error al obtener asociaciones socio-servicio', error });
+    }
+  }
+
+  static async listarAsociacionesPorServicio(req: Request, res: Response) {
+    const servicioId = Number(req.params.servicioId);
+    if (Number.isNaN(servicioId)) {
+      return res.status(400).json({ message: 'servicioId es requerido y debe ser numérico' });
+    }
+
+    try {
+      const asociaciones = await SocioServicio.findAll({
+        where: { servicio_id: servicioId },
+        include: [
+          {
+            model: Socio,
+            as: 'socio',
+            attributes: ['socio_id', 'socio_nombre', 'socio_mail', 'socio_celular', 'socio_telefono'],
+          },
+        ],
+      });
+
+      const response = asociaciones.map((a: any) => ({
+        socio_id: a.socio_id,
+        socio_nombre: a.socio?.socio_nombre || a.contacto_nombre || null,
+        socio_mail: a.socio?.socio_mail || a.contacto_email || null,
+        socio_celular: a.socio?.socio_celular || a.socio?.socio_telefono || a.contacto_telefono || null,
+      }));
+
+      return res.status(200).json(response);
+    } catch (error) {
+      logger.error('Error al obtener asociaciones por servicio', error);
+      return res.status(500).json({ message: 'Error al obtener asociaciones por servicio', error });
     }
   }
 

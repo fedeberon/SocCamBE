@@ -8,6 +8,7 @@ router.post('/', ServiciosController.crear);
 router.put('/:servicioId', ServiciosController.actualizar);
 router.delete('/:servicioId', ServiciosController.bajaLogica);
 router.post('/asociaciones', ServiciosController.crearAsociacion);
+router.get('/asociaciones/:servicioId', ServiciosController.listarAsociacionesPorServicio);
 router.get('/asociaciones/socio/:socioId', ServiciosController.listarAsociacionesPorSocio);
 router.delete('/asociaciones/:socioId/:servicioId', ServiciosController.eliminarAsociacion);
 
