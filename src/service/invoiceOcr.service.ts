@@ -1,4 +1,5 @@
 import azureBlobService from './azureBlob.service';
+import logger from '../configs/logger';
 
 type AzureReadLine = { text: string };
 
@@ -38,17 +39,41 @@ class InvoiceOcrService {
   private extractFields(lines: string[]) {
     const all = lines.join('\n');
 
-    const rsMatch = all.match(/Raz[oó]n\s+Social\s*:\s*(.+)/i);
-    const apMatch = all.match(/Apellido\s+y\s+Nombre\s*\/\s*Raz[oó]n\s+Social\s*:\s*(.+)/i);
-    const holderName = (apMatch?.[1] || rsMatch?.[1] || '').trim() || null;
+    const clean = (v: string | null | undefined) =>
+      String(v || '')
+        .replace(/\s+/g, ' ')
+        .replace(/[|]+/g, ' ')
+        .trim()
+        .slice(0, 180);
 
-    const vencMatch = all.match(/(?:Venc(?:imiento)?|Vto\.?)[^\d]{0,10}(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
-    const taxMatch = all.match(/(?:Condici[oó]n\s+Fiscal|IVA)\s*:?\s*([A-Za-zÁÉÍÓÚáéíóúñÑ\s]+)(?:\n|$)/i);
-    const addrMatch = all.match(/(?:Domicilio\s*(?:de\s*suministro)?|Direcci[oó]n)\s*:?\s*(.+)/i);
+    const pickByLabel = (patterns: RegExp[]) => {
+      for (const p of patterns) {
+        const m = all.match(p);
+        const value = clean(m?.[1]);
+        if (value) return value;
+      }
+      return null;
+    };
 
-    const dueDate = (vencMatch?.[1] || '').trim() || null;
-    const fiscalCondition = (taxMatch?.[1] || '').trim() || null;
-    const address = (addrMatch?.[1] || '').trim() || null;
+    const holderName =
+      pickByLabel([
+        /(?:^|\n)\s*Apellido\s+y\s+Nombre\s*\/\s*Raz[oó]n\s+Social\s*:?\s*([^\n\r]{3,180})/i,
+        /(?:^|\n)\s*Raz[oó]n\s+Social\s*:?\s*([^\n\r]{3,180})/i,
+        /(?:^|\n)\s*Titular\s*:?\s*([^\n\r]{3,180})/i,
+      ]) || null;
+
+    const dueDate =
+      clean(all.match(/(?:Venc(?:imiento)?|Vto\.?)[^\d]{0,10}(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i)?.[1]) ||
+      null;
+
+    const fiscalCondition =
+      pickByLabel([/(?:^|\n)\s*(?:Condici[oó]n\s+Fiscal|IVA)\s*:?\s*([^\n\r]{2,120})/i]) || null;
+
+    const address =
+      pickByLabel([
+        /(?:^|\n)\s*Domicilio\s*(?:de\s*suministro)?\s*:?\s*([^\n\r]{3,180})/i,
+        /(?:^|\n)\s*Direcci[oó]n\s*:?\s*([^\n\r]{3,180})/i,
+      ]) || null;
 
     let totalAmount: number | null = null;
 
@@ -70,9 +95,9 @@ class InvoiceOcrService {
     if (!totalAmount) {
       const candidates = [...all.matchAll(/\b\d{1,3}(?:\.\d{3})*(?:,\d{2})\b/g)]
         .map((m) => this.normalizeMoney(m[0]))
-        .filter((n): n is number => Number.isFinite(n as number));
+        .filter((n): n is number => Number.isFinite(n as number) && (n as number) > 0);
 
-      if (candidates.length) totalAmount = Math.max(...candidates);
+      if (candidates.length) totalAmount = candidates[candidates.length - 1];
     }
 
     return { holderName, totalAmount, dueDate, fiscalCondition, address };
@@ -146,14 +171,29 @@ class InvoiceOcrService {
     const { holderName, totalAmount, dueDate, fiscalCondition, address } = this.extractFields(lines);
     const awarded = this.calculatePoints(totalAmount);
 
+    logger.info('[invoiceOcr] parser result', {
+      socioId,
+      fileName: blobFileName,
+      linesCount: lines.length,
+      holderName: holderName || null,
+      totalAmount: totalAmount || null,
+      dueDate: dueDate || null,
+      fiscalCondition: fiscalCondition || null,
+      address: address || null,
+      awarded,
+      sampleLines: lines.slice(0, 12),
+    });
+
     return {
       status: holderName && totalAmount ? 'approved' : 'needs_review',
       invoice: {
         holderName,
+        customerName: holderName,
         totalAmount,
         dueDate,
         fiscalCondition,
         address,
+        customerAddress: address,
       },
       points: {
         awarded,
@@ -161,6 +201,8 @@ class InvoiceOcrService {
       },
       ocr: {
         linesCount: lines.length,
+        lines,
+        rawText: lines.join('\n'),
       },
       storage: {
         imageUrl: blobUrl,

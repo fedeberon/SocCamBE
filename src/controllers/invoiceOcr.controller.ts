@@ -11,11 +11,26 @@ class InvoiceOcrController {
       }
 
       const socioId = Number((req.body || {}).socio_id || 0);
+      logger.info('[invoiceOcr] request received', {
+        socioId,
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        size: file.size,
+      });
+
       const result = await invoiceOcrService.scanInvoiceImage(file.buffer, {
         socioId: Number.isFinite(socioId) ? socioId : 0,
         fileName: file.originalname || `factura-${Date.now()}.jpg`,
         contentType: file.mimetype || 'image/jpeg',
       });
+      logger.info('[invoiceOcr] response ready', {
+        socioId,
+        status: (result as any)?.status,
+        hasHolder: Boolean((result as any)?.invoice?.holderName),
+        hasTotal: Boolean((result as any)?.invoice?.totalAmount),
+        linesCount: (result as any)?.ocr?.linesCount || 0,
+      });
+
       return res.status(200).json(result);
     } catch (error: any) {
       logger.error('Error en OCR de factura', error);
