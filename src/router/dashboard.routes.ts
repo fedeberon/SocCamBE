@@ -11,6 +11,7 @@ router.get('/pagos/pagos-vs-impagos/:anio', DashboardController.pagoVsImpagoPorM
 router.get('/pagos/total-recaudado', DashboardController.totalRecaudado);
 router.get('/socios/resumen', DashboardController.resumenSocios);
 router.get('/socios/por-categoria', DashboardController.sociosPorCategoria);
+router.get('/socio/:socioId/inicio-resumen', DashboardController.resumenInicioSocio);
 
 // Alias cortos
 router.get('/resumen', DashboardController.resumenCajas);
@@ -21,5 +22,6 @@ router.get('/pagos-vs-impagos/:anio', DashboardController.pagoVsImpagoPorMes);
 router.get('/total-recaudado', DashboardController.totalRecaudado);
 router.get('/socios-resumen', DashboardController.resumenSocios);
 router.get('/socios-por-categoria', DashboardController.sociosPorCategoria);
+router.get('/socio-inicio-resumen/:socioId', DashboardController.resumenInicioSocio);
 
 export default router;

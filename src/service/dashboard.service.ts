@@ -6,6 +6,76 @@ import PagosSocios from '../models/pagosSocios.models';
 import sequelize from '../configs/database';
 
 class DashboardService {
+  async resumenInicioSocio(socioId: number) {
+    const sid = Number(socioId);
+    if (!Number.isFinite(sid) || sid <= 0) {
+      return {
+        socioId: sid,
+        deudaTotal: 0,
+        puntosTotal: 0,
+        cuponesAsignados: 0,
+        misCupones: [],
+      };
+    }
+
+    const [deudaRow, puntosRow, cuponesCountRow, misCuponesRows] = await Promise.all([
+      sequelize.query(
+        `
+          SELECT ISNULL(SUM(CAST(pagosSocios_monto AS DECIMAL(18,2))), 0) AS deudaTotal
+          FROM dbo.pagosSocios
+          WHERE pagosSocios_socio = :socioId
+            AND (pagosSocios_deleted = 0 OR pagosSocios_deleted IS NULL)
+            AND LOWER(CONVERT(NVARCHAR(50), pagosSocios_estado)) NOT IN ('pagado','pago','approved')
+        `,
+        { replacements: { socioId: sid }, type: QueryTypes.SELECT },
+      ),
+      sequelize.query(
+        `
+          SELECT ISNULL(SUM(CAST(puntos AS INT)), 0) AS puntosTotal
+          FROM dbo.socio_puntos
+          WHERE socio_id = :socioId
+        `,
+        { replacements: { socioId: sid }, type: QueryTypes.SELECT },
+      ),
+      sequelize.query(
+        `
+          SELECT COUNT(*) AS total
+          FROM dbo.asignar_cupon ac
+          INNER JOIN dbo.cupones c ON c.id = ac.cupon_id
+          WHERE ac.socio_id = :socioId
+            AND ISNULL(c.deleted, 0) = 0
+        `,
+        { replacements: { socioId: sid }, type: QueryTypes.SELECT },
+      ),
+      sequelize.query(
+        `
+          SELECT TOP 10
+            c.id,
+            c.comercio,
+            c.descripcion,
+            c.descuento,
+            c.fechaExpiracion,
+            c.codigo,
+            c.utilizado
+          FROM dbo.asignar_cupon ac
+          INNER JOIN dbo.cupones c ON c.id = ac.cupon_id
+          WHERE ac.socio_id = :socioId
+            AND ISNULL(c.deleted, 0) = 0
+          ORDER BY c.id DESC
+        `,
+        { replacements: { socioId: sid }, type: QueryTypes.SELECT },
+      ),
+    ]);
+
+    return {
+      socioId: sid,
+      deudaTotal: Number((deudaRow[0] as any)?.deudaTotal || 0),
+      puntosTotal: Number((puntosRow[0] as any)?.puntosTotal || 0),
+      cuponesAsignados: Number((cuponesCountRow[0] as any)?.total || 0),
+      misCupones: Array.isArray(misCuponesRows) ? misCuponesRows : [],
+    };
+  }
+
   async resumenSocios() {
     const total = await sequelize.query(
       `SELECT COUNT(*) AS total FROM dbo.socio WHERE ISNULL(socio_deleted, 0) = 0`,

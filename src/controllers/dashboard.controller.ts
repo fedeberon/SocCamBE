@@ -3,6 +3,21 @@ import logger from '../configs/logger';
 import DashboardService from '../service/dashboard.service';
 
 class DashboardController {
+  static async resumenInicioSocio(req: Request, res: Response) {
+    const socioId = Number(req.params.socioId);
+    if (Number.isNaN(socioId) || socioId <= 0) {
+      return res.status(400).json({ message: 'socioId debe ser numérico y mayor a 0' });
+    }
+
+    try {
+      const data = await DashboardService.resumenInicioSocio(socioId);
+      return res.status(200).json(data);
+    } catch (error) {
+      logger.error('Error al obtener resumen de inicio por socio', error);
+      return res.status(500).json({ message: 'Error al obtener resumen de inicio por socio', error });
+    }
+  }
+
   static async resumenSocios(req: Request, res: Response) {
     try {
       const data = await DashboardService.resumenSocios();
