@@ -1,10 +1,11 @@
-import { Op } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import CajaSeguridadTamano from '../models/CajaSeguridadTamano.models';
 import CajaSeguridad from '../models/CajaSeguridad.models';
 import SocioCajaSeguridad from '../models/SocioCajaSeguridad.models';
 import Socio from '../models/socio.models';
 import { ICajaSeguridadService } from '../interfaces/IcajaSeguridad.service';
 import ContratoCofresService, { ServiceError } from './contratoCofres.service';
+import sequelize from '../configs/database';
 
 class CajaSeguridadService implements ICajaSeguridadService {
   private contratoCofresService = new ContratoCofresService();
@@ -68,10 +69,17 @@ class CajaSeguridadService implements ICajaSeguridadService {
     data.deleted = false;
 
     if (!data.numero) {
-      // Autogenera el siguiente número consecutivo como string
-      const maxNumero = await CajaSeguridad.max('numero', { where: {} });
-      const nextNumero = Number(maxNumero || 0) + 1;
-      data.numero = String(nextNumero);
+      // Autogenera siguiente número usando cast numérico para evitar max lexicográfico de strings.
+      const row = (await sequelize.query(
+        `
+          SELECT ISNULL(MAX(TRY_CAST(numero AS INT)), 0) AS maxNumero
+          FROM dbo.caja_seguridad
+        `,
+        { type: QueryTypes.SELECT },
+      )) as any[];
+
+      const maxNumero = Number(row?.[0]?.maxNumero || 0);
+      data.numero = String(maxNumero + 1);
     }
 
     return await CajaSeguridad.create(data);
@@ -147,12 +155,12 @@ class CajaSeguridadService implements ICajaSeguridadService {
       });
       return { ...asignacion.get({ plain: true }), contrato };
     } catch (error: any) {
-      // Evita dejar asignación activa sin contrato cuando falla la creación del contrato.
-      await asignacion.destroy();
-      if (error instanceof ServiceError) {
-        throw error;
-      }
-      throw new Error('No se pudo crear el contrato automáticamente');
+      // No revertimos la asignación: la caja queda creada/asignada y el contrato se podrá generar luego.
+      const warning =
+        error instanceof ServiceError
+          ? error.message
+          : 'Asignación creada, pero no se pudo generar el contrato automáticamente';
+      return { ...asignacion.get({ plain: true }), contrato: null, warning };
     }
   }
 
