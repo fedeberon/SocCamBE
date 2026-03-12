@@ -13,6 +13,11 @@ router.get('/productos/:id', MarketplaceController.getProducto);
 router.post('/productos', MarketplaceController.createProducto);
 router.put('/productos/:id', MarketplaceController.updateProducto);
 
+router.get('/emprendedores', MarketplaceController.listEmprendedores);
+router.post('/emprendedores/registro', MarketplaceController.registerEmprendedor);
+router.post('/emprendedores/ia-sugerir', MarketplaceController.sugerirProductoIa);
+router.post('/emprendedores/publicar-producto', MarketplaceController.publicarProductoEmprendedor);
+
 router.post('/seed', MarketplaceController.seedDemo);
 
 export default router;

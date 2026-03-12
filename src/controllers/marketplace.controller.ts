@@ -15,6 +15,36 @@ const slugify = (value: string) =>
     .slice(0, 180);
 
 class MarketplaceController {
+  private static encodeEmprendedorMeta(meta: {
+    nombreMarca: string;
+    rubro: string;
+    telefono: string;
+    whatsapp?: string;
+    bio?: string;
+    estado?: 'informal' | 'en_formalizacion' | 'formalizado';
+  }) {
+    return JSON.stringify({
+      tipo: 'emprendedor',
+      nombreMarca: String(meta.nombreMarca || '').trim(),
+      rubro: String(meta.rubro || '').trim(),
+      telefono: String(meta.telefono || '').trim(),
+      whatsapp: String(meta.whatsapp || '').trim() || undefined,
+      bio: String(meta.bio || '').trim() || undefined,
+      estado: meta.estado || 'informal',
+    });
+  }
+
+  private static parseEmprendedorMeta(descripcion?: string | null) {
+    if (!descripcion) return null;
+    try {
+      const obj = JSON.parse(String(descripcion));
+      if (obj?.tipo === 'emprendedor') return obj;
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   private static buildProductoImagenUrl(producto: any) {
     const raw = producto?.get ? producto.get('imagen_url') : producto?.imagen_url;
     if (!raw) return null;
@@ -37,9 +67,12 @@ class MarketplaceController {
 
   private static mapComercio(item: any) {
     const plain = item?.toJSON ? item.toJSON() : { ...(item || {}) };
+    const emprendedor = MarketplaceController.parseEmprendedorMeta(plain.descripcion);
     return {
       ...plain,
       logo_url: MarketplaceController.buildComercioLogoUrl(item),
+      emprendedor,
+      es_emprendedor: Boolean(emprendedor),
     };
   }
 
@@ -224,6 +257,131 @@ class MarketplaceController {
     } catch (error) {
       logger.error('Error actualizando producto marketplace', error);
       return res.status(500).json({ message: 'Error actualizando producto' });
+    }
+  }
+
+  static async registerEmprendedor(req: Request, res: Response) {
+    try {
+      const body: any = req.body || {};
+      const nombreMarca = String(body.nombre_marca || body.nombreMarca || '').trim();
+      const rubro = String(body.rubro || '').trim();
+      const telefono = String(body.telefono || '').trim();
+      const whatsapp = String(body.whatsapp || '').trim();
+      const bio = String(body.bio || '').trim();
+
+      if (!nombreMarca || !rubro || !telefono) {
+        return res.status(400).json({ message: 'nombre_marca, rubro y telefono son requeridos' });
+      }
+
+      let slug = slugify(nombreMarca);
+      if (!slug) slug = `emprendedor-${Date.now()}`;
+      const exists = await ComercioStore.findOne({ where: { slug } as any });
+      if (exists) slug = `${slug}-${Date.now().toString().slice(-5)}`;
+
+      const created = await ComercioStore.create({
+        socio_id: 0,
+        nombre: nombreMarca,
+        slug,
+        descripcion: MarketplaceController.encodeEmprendedorMeta({
+          nombreMarca,
+          rubro,
+          telefono,
+          whatsapp,
+          bio,
+          estado: 'informal',
+        }),
+        activo: true,
+      } as any);
+
+      return res.status(201).json(MarketplaceController.mapComercio(created));
+    } catch (error) {
+      logger.error('Error registrando emprendedor', error);
+      return res.status(500).json({ message: 'Error registrando emprendedor' });
+    }
+  }
+
+  static async listEmprendedores(_req: Request, res: Response) {
+    try {
+      const items = await ComercioStore.findAll({ where: { socio_id: 0, activo: true } as any, order: [['comercio_id', 'DESC']] });
+      return res.status(200).json(items.map((i) => MarketplaceController.mapComercio(i)));
+    } catch (error) {
+      logger.error('Error listando emprendedores', error);
+      return res.status(500).json({ message: 'Error listando emprendedores' });
+    }
+  }
+
+  static async sugerirProductoIa(req: Request, res: Response) {
+    try {
+      const body: any = req.body || {};
+      const rubro = String(body.rubro || '').trim() || 'general';
+      const nombreMarca = String(body.nombre_marca || body.nombreMarca || 'Emprendedor').trim();
+      const fotoNombre = String(body.foto_nombre || body.fotoNombre || 'producto').trim();
+      const baseName = fotoNombre.replace(/\.[a-z0-9]+$/i, '').replace(/[_-]+/g, ' ').trim();
+
+      const priceByRubro: Record<string, number> = {
+        indumentaria: 18000,
+        gastronomia: 9500,
+        tecnologia: 65000,
+        hogar: 23000,
+        belleza: 14000,
+        artesania: 12000,
+        servicios: 25000,
+      };
+
+      const key = slugify(rubro).replace(/-/g, '');
+      const precioBase = priceByRubro[key] || 15000;
+      const precioSugerido = Number((precioBase * (0.9 + Math.random() * 0.3)).toFixed(0));
+
+      const title = baseName
+        ? `${baseName.charAt(0).toUpperCase() + baseName.slice(1)} · ${nombreMarca}`
+        : `Producto de ${nombreMarca}`;
+
+      const descripcion = `Producto publicado por ${nombreMarca} (${rubro}). Ideal para venta local en Bolívar. Consultá disponibilidad y coordina compra directa por WhatsApp.`;
+
+      return res.status(200).json({
+        titulo: title.slice(0, 220),
+        descripcion: descripcion.slice(0, 1000),
+        precio_sugerido: precioSugerido,
+        categoria: rubro,
+        confianza: 0.78,
+      });
+    } catch (error) {
+      logger.error('Error sugiriendo producto con IA', error);
+      return res.status(500).json({ message: 'Error sugiriendo producto con IA' });
+    }
+  }
+
+  static async publicarProductoEmprendedor(req: Request, res: Response) {
+    try {
+      const body: any = req.body || {};
+      const comercio_id = Number(body.comercio_id);
+      const nombre = String(body.nombre || '').trim();
+      const descripcion = String(body.descripcion || '').trim();
+      const precio = Number(body.precio || 0);
+      const stock = Number(body.stock || 1);
+      const imagen_url = body.imagen_url || null;
+
+      if (!Number.isFinite(comercio_id) || !nombre) {
+        return res.status(400).json({ message: 'comercio_id y nombre son requeridos' });
+      }
+
+      const comercio = await ComercioStore.findByPk(comercio_id);
+      if (!comercio) return res.status(404).json({ message: 'Comercio no encontrado' });
+
+      const created = await ProductoStore.create({
+        comercio_id,
+        nombre,
+        descripcion: descripcion || null,
+        precio: Number.isFinite(precio) ? precio : 0,
+        stock: Number.isFinite(stock) ? stock : 1,
+        imagen_url,
+        activo: true,
+      } as any);
+
+      return res.status(201).json(MarketplaceController.mapProducto(created));
+    } catch (error) {
+      logger.error('Error publicando producto de emprendedor', error);
+      return res.status(500).json({ message: 'Error publicando producto de emprendedor' });
     }
   }
 
