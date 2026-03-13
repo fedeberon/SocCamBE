@@ -205,6 +205,55 @@ class MarketplaceController {
     }
   }
 
+  static async deleteComercio(req: Request, res: Response) {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isFinite(id)) return res.status(400).json({ message: 'ID inválido' });
+      const item: any = await ComercioStore.findByPk(id);
+      if (!item) return res.status(404).json({ message: 'Comercio no encontrado' });
+
+      item.set('activo', false);
+      await item.save();
+      await ProductoStore.update({ activo: false } as any, { where: { comercio_id: id } as any });
+
+      return res.status(200).json({ ok: true, comercio_id: id, activo: false });
+    } catch (error) {
+      logger.error('Error eliminando comercio marketplace', error);
+      return res.status(500).json({ message: 'Error eliminando comercio' });
+    }
+  }
+
+  static async listComerciosAdmin(req: Request, res: Response) {
+    try {
+      const includeInactivos = String((req.query as any)?.include_inactivos || '').trim() === '1';
+      const where: any = includeInactivos ? {} : { activo: true };
+      const items = await ComercioStore.findAll({ where, order: [['comercio_id', 'DESC']] });
+      const productos = await ProductoStore.findAll({ where: {} as any, attributes: ['comercio_id', 'activo'] as any });
+
+      const countByComercio = new Map<number, { total: number; activos: number; inactivos: number }>();
+      for (const p of productos as any[]) {
+        const comercioId = Number(p?.get ? p.get('comercio_id') : p?.comercio_id);
+        const activo = Boolean(p?.get ? p.get('activo') : p?.activo);
+        const curr = countByComercio.get(comercioId) || { total: 0, activos: 0, inactivos: 0 };
+        curr.total += 1;
+        if (activo) curr.activos += 1;
+        else curr.inactivos += 1;
+        countByComercio.set(comercioId, curr);
+      }
+
+      const mapped = items.map((i: any) => {
+        const c: any = MarketplaceController.mapComercio(i);
+        const counter = countByComercio.get(Number(c.comercio_id)) || { total: 0, activos: 0, inactivos: 0 };
+        return { ...c, productos_total: counter.total, productos_activos: counter.activos, productos_inactivos: counter.inactivos };
+      });
+
+      return res.status(200).json(mapped);
+    } catch (error) {
+      logger.error('Error listando comercios admin marketplace', error);
+      return res.status(500).json({ message: 'Error listando comercios admin' });
+    }
+  }
+
   static async listProductos(req: Request, res: Response) {
     try {
       const comercio_id = Number(req.query.comercio_id);
@@ -279,6 +328,21 @@ class MarketplaceController {
     } catch (error) {
       logger.error('Error actualizando producto marketplace', error);
       return res.status(500).json({ message: 'Error actualizando producto' });
+    }
+  }
+
+  static async deleteProducto(req: Request, res: Response) {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isFinite(id)) return res.status(400).json({ message: 'ID inválido' });
+      const item: any = await ProductoStore.findByPk(id);
+      if (!item) return res.status(404).json({ message: 'Producto no encontrado' });
+      item.set('activo', false);
+      await item.save();
+      return res.status(200).json({ ok: true, producto_id: id, activo: false });
+    } catch (error) {
+      logger.error('Error eliminando producto marketplace', error);
+      return res.status(500).json({ message: 'Error eliminando producto' });
     }
   }
 
@@ -441,6 +505,72 @@ class MarketplaceController {
     } catch (error) {
       logger.error('Error listando emprendedores', error);
       return res.status(500).json({ message: 'Error listando emprendedores' });
+    }
+  }
+
+  static async listEmprendedoresAdmin(req: Request, res: Response) {
+    try {
+      const includeInactivos = String((req.query as any)?.include_inactivos || '').trim() === '1';
+      const where: any = includeInactivos ? { socio_id: 0 } : { socio_id: 0, activo: true };
+      const items = await ComercioStore.findAll({ where, order: [['comercio_id', 'DESC']] });
+      return res.status(200).json(items.map((i: any) => {
+        const mapped: any = MarketplaceController.mapComercio(i);
+        if (mapped?.emprendedor?.cuenta) mapped.emprendedor.cuenta = { email: mapped.emprendedor.cuenta.email };
+        return mapped;
+      }));
+    } catch (error) {
+      logger.error('Error listando emprendedores admin', error);
+      return res.status(500).json({ message: 'Error listando emprendedores admin' });
+    }
+  }
+
+  static async resetPasswordEmprendedorAdmin(req: Request, res: Response) {
+    try {
+      const comercioId = Number(req.params.comercioId);
+      const newPassword = String(req.body?.password || '').trim();
+      if (!Number.isFinite(comercioId) || newPassword.length < 6) {
+        return res.status(400).json({ message: 'comercioId válido y password (>=6) requeridos' });
+      }
+
+      const comercio: any = await ComercioStore.findByPk(comercioId);
+      if (!comercio) return res.status(404).json({ message: 'Emprendedor no encontrado' });
+      if (Number(comercio.get('socio_id')) !== 0) return res.status(400).json({ message: 'El comercio no es emprendedor' });
+
+      const meta = MarketplaceController.parseEmprendedorMeta(comercio.get('descripcion'));
+      if (!meta?.cuenta?.email) return res.status(400).json({ message: 'No se encontró cuenta emprendedora' });
+
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      const merged = {
+        ...meta,
+        cuenta: { ...meta.cuenta, passwordHash },
+      };
+      comercio.set('descripcion', MarketplaceController.encodeEmprendedorMeta(merged as any));
+      await comercio.save();
+
+      return res.status(200).json({ ok: true, comercio_id: comercioId, email: meta.cuenta.email });
+    } catch (error) {
+      logger.error('Error reseteando password emprendedor (admin)', error);
+      return res.status(500).json({ message: 'Error reseteando password emprendedor' });
+    }
+  }
+
+  static async deleteEmprendedorAdmin(req: Request, res: Response) {
+    try {
+      const comercioId = Number(req.params.comercioId);
+      if (!Number.isFinite(comercioId)) return res.status(400).json({ message: 'comercioId inválido' });
+
+      const comercio: any = await ComercioStore.findByPk(comercioId);
+      if (!comercio) return res.status(404).json({ message: 'Emprendedor no encontrado' });
+      if (Number(comercio.get('socio_id')) !== 0) return res.status(400).json({ message: 'El comercio no es emprendedor' });
+
+      comercio.set('activo', false);
+      await comercio.save();
+      await ProductoStore.update({ activo: false } as any, { where: { comercio_id: comercioId } as any });
+
+      return res.status(200).json({ ok: true, comercio_id: comercioId, activo: false });
+    } catch (error) {
+      logger.error('Error eliminando emprendedor (admin)', error);
+      return res.status(500).json({ message: 'Error eliminando emprendedor' });
     }
   }
 
