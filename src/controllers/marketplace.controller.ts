@@ -212,11 +212,10 @@ class MarketplaceController {
       const item: any = await ComercioStore.findByPk(id);
       if (!item) return res.status(404).json({ message: 'Comercio no encontrado' });
 
-      item.set('activo', false);
-      await item.save();
-      await ProductoStore.update({ activo: false } as any, { where: { comercio_id: id } as any });
+      const productosEliminados = await ProductoStore.destroy({ where: { comercio_id: id } as any });
+      await item.destroy();
 
-      return res.status(200).json({ ok: true, comercio_id: id, activo: false });
+      return res.status(200).json({ ok: true, comercio_id: id, deleted: true, productos_eliminados: productosEliminados });
     } catch (error) {
       logger.error('Error eliminando comercio marketplace', error);
       return res.status(500).json({ message: 'Error eliminando comercio' });
@@ -337,9 +336,8 @@ class MarketplaceController {
       if (!Number.isFinite(id)) return res.status(400).json({ message: 'ID inválido' });
       const item: any = await ProductoStore.findByPk(id);
       if (!item) return res.status(404).json({ message: 'Producto no encontrado' });
-      item.set('activo', false);
-      await item.save();
-      return res.status(200).json({ ok: true, producto_id: id, activo: false });
+      await item.destroy();
+      return res.status(200).json({ ok: true, producto_id: id, deleted: true });
     } catch (error) {
       logger.error('Error eliminando producto marketplace', error);
       return res.status(500).json({ message: 'Error eliminando producto' });
@@ -563,11 +561,10 @@ class MarketplaceController {
       if (!comercio) return res.status(404).json({ message: 'Emprendedor no encontrado' });
       if (Number(comercio.get('socio_id')) !== 0) return res.status(400).json({ message: 'El comercio no es emprendedor' });
 
-      comercio.set('activo', false);
-      await comercio.save();
-      await ProductoStore.update({ activo: false } as any, { where: { comercio_id: comercioId } as any });
+      const productosEliminados = await ProductoStore.destroy({ where: { comercio_id: comercioId } as any });
+      await comercio.destroy();
 
-      return res.status(200).json({ ok: true, comercio_id: comercioId, activo: false });
+      return res.status(200).json({ ok: true, comercio_id: comercioId, deleted: true, productos_eliminados: productosEliminados });
     } catch (error) {
       logger.error('Error eliminando emprendedor (admin)', error);
       return res.status(500).json({ message: 'Error eliminando emprendedor' });
