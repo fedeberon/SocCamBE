@@ -15,6 +15,9 @@ router.put('/productos/:id', MarketplaceController.updateProducto);
 
 router.get('/emprendedores', MarketplaceController.listEmprendedores);
 router.post('/emprendedores/registro', MarketplaceController.registerEmprendedor);
+router.post('/emprendedores/login', MarketplaceController.loginEmprendedor);
+router.get('/emprendedores/mi-cuenta', MarketplaceController.getMiEmprendimiento);
+router.put('/emprendedores/mi-cuenta', MarketplaceController.actualizarMiEmprendimiento);
 router.post('/emprendedores/ia-sugerir', MarketplaceController.sugerirProductoIa);
 router.post('/emprendedores/publicar-producto', MarketplaceController.publicarProductoEmprendedor);
 

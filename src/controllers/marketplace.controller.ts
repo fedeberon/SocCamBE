@@ -4,6 +4,8 @@ import ComercioStore from '../models/ComercioStore.models';
 import ProductoStore from '../models/ProductoStore.models';
 import ComercioPuntos from '../models/ComercioPuntos.models';
 import azureBlobService from '../service/azureBlob.service';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 const slugify = (value: string) =>
   String(value || '')
@@ -22,6 +24,8 @@ class MarketplaceController {
     whatsapp?: string;
     bio?: string;
     estado?: 'informal' | 'en_formalizacion' | 'formalizado';
+    cuenta?: { email: string; passwordHash: string };
+    acompanamiento?: { solicitado?: boolean; arca?: boolean; nota?: string; updatedAt?: string };
   }) {
     return JSON.stringify({
       tipo: 'emprendedor',
@@ -31,6 +35,8 @@ class MarketplaceController {
       whatsapp: String(meta.whatsapp || '').trim() || undefined,
       bio: String(meta.bio || '').trim() || undefined,
       estado: meta.estado || 'informal',
+      cuenta: meta.cuenta,
+      acompanamiento: meta.acompanamiento,
     });
   }
 
@@ -40,6 +46,22 @@ class MarketplaceController {
       const obj = JSON.parse(String(descripcion));
       if (obj?.tipo === 'emprendedor') return obj;
       return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private static getEmprendedorSecret() {
+    return process.env.EMPRENDEDOR_JWT_SECRET || process.env.JWT_SECRET || 'soccam-emprendedor-dev-secret';
+  }
+
+  private static signEmprendedorToken(payload: { comercio_id: number; email: string }) {
+    return jwt.sign(payload, MarketplaceController.getEmprendedorSecret(), { expiresIn: '7d' });
+  }
+
+  private static verifyEmprendedorToken(token: string): { comercio_id: number; email: string } | null {
+    try {
+      return jwt.verify(token, MarketplaceController.getEmprendedorSecret()) as any;
     } catch {
       return null;
     }
@@ -268,10 +290,23 @@ class MarketplaceController {
       const telefono = String(body.telefono || '').trim();
       const whatsapp = String(body.whatsapp || '').trim();
       const bio = String(body.bio || '').trim();
+      const email = String(body.email || '').trim().toLowerCase();
+      const password = String(body.password || '').trim();
 
-      if (!nombreMarca || !rubro || !telefono) {
-        return res.status(400).json({ message: 'nombre_marca, rubro y telefono son requeridos' });
+      if (!nombreMarca || !rubro || !telefono || !email || password.length < 6) {
+        return res.status(400).json({ message: 'nombre_marca, rubro, telefono, email y password (>=6) son requeridos' });
       }
+
+      const actuales = await ComercioStore.findAll({ where: { socio_id: 0 } as any });
+      const emailTomado = (actuales as any[]).some((c) => {
+        const meta = MarketplaceController.parseEmprendedorMeta(c?.get ? c.get('descripcion') : c?.descripcion);
+        return String(meta?.cuenta?.email || '').toLowerCase() === email;
+      });
+      if (emailTomado) {
+        return res.status(409).json({ message: 'Ya existe una cuenta emprendedora con ese email' });
+      }
+
+      const passwordHash = await bcrypt.hash(password, 10);
 
       let slug = slugify(nombreMarca);
       if (!slug) slug = `emprendedor-${Date.now()}`;
@@ -289,21 +324,120 @@ class MarketplaceController {
           whatsapp,
           bio,
           estado: 'informal',
+          cuenta: { email, passwordHash },
+          acompanamiento: { solicitado: false, arca: false, updatedAt: new Date().toISOString() },
         }),
         activo: true,
       } as any);
 
-      return res.status(201).json(MarketplaceController.mapComercio(created));
+      const mapped: any = MarketplaceController.mapComercio(created);
+      if (mapped?.emprendedor?.cuenta) {
+        mapped.emprendedor.cuenta = { email: mapped.emprendedor.cuenta.email };
+      }
+      const token = MarketplaceController.signEmprendedorToken({ comercio_id: mapped.comercio_id, email });
+      return res.status(201).json({ comercio: mapped, token });
     } catch (error) {
       logger.error('Error registrando emprendedor', error);
       return res.status(500).json({ message: 'Error registrando emprendedor' });
     }
   }
 
+  static async loginEmprendedor(req: Request, res: Response) {
+    try {
+      const email = String(req.body?.email || '').trim().toLowerCase();
+      const password = String(req.body?.password || '').trim();
+      if (!email || !password) return res.status(400).json({ message: 'email y password son requeridos' });
+
+      const items = await ComercioStore.findAll({ where: { socio_id: 0, activo: true } as any });
+      for (const c of items as any[]) {
+        const mapped: any = MarketplaceController.mapComercio(c);
+        const hash = mapped?.emprendedor?.cuenta?.passwordHash;
+        const mail = String(mapped?.emprendedor?.cuenta?.email || '').toLowerCase();
+        if (mail === email && hash && (await bcrypt.compare(password, hash))) {
+          const token = MarketplaceController.signEmprendedorToken({ comercio_id: mapped.comercio_id, email });
+          if (mapped?.emprendedor?.cuenta) {
+            mapped.emprendedor.cuenta = { email: mapped.emprendedor.cuenta.email };
+          }
+          return res.status(200).json({ comercio: mapped, token });
+        }
+      }
+
+      return res.status(401).json({ message: 'Credenciales inválidas' });
+    } catch (error) {
+      logger.error('Error login emprendedor', error);
+      return res.status(500).json({ message: 'Error login emprendedor' });
+    }
+  }
+
+  static async getMiEmprendimiento(req: Request, res: Response) {
+    try {
+      const auth = String(req.headers.authorization || '');
+      const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+      const payload = token ? MarketplaceController.verifyEmprendedorToken(token) : null;
+      if (!payload?.comercio_id) return res.status(401).json({ message: 'Token inválido' });
+
+      const comercio = await ComercioStore.findByPk(Number(payload.comercio_id));
+      if (!comercio) return res.status(404).json({ message: 'Emprendimiento no encontrado' });
+
+      const mapped: any = MarketplaceController.mapComercio(comercio);
+      if (mapped?.emprendedor?.cuenta) mapped.emprendedor.cuenta = { email: mapped.emprendedor.cuenta.email };
+      const productos = await ProductoStore.findAll({ where: { comercio_id: Number(payload.comercio_id) } as any, order: [['producto_id', 'DESC']] });
+      return res.status(200).json({ comercio: mapped, productos: productos.map((p) => MarketplaceController.mapProducto(p)) });
+    } catch (error) {
+      logger.error('Error obteniendo mi emprendimiento', error);
+      return res.status(500).json({ message: 'Error obteniendo mi emprendimiento' });
+    }
+  }
+
+  static async actualizarMiEmprendimiento(req: Request, res: Response) {
+    try {
+      const auth = String(req.headers.authorization || '');
+      const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+      const payload = token ? MarketplaceController.verifyEmprendedorToken(token) : null;
+      if (!payload?.comercio_id) return res.status(401).json({ message: 'Token inválido' });
+
+      const comercio: any = await ComercioStore.findByPk(Number(payload.comercio_id));
+      if (!comercio) return res.status(404).json({ message: 'Emprendimiento no encontrado' });
+      const meta = MarketplaceController.parseEmprendedorMeta(comercio.get('descripcion')) || {};
+
+      const body: any = req.body || {};
+      const merged = {
+        ...meta,
+        nombreMarca: body.nombre_marca ?? body.nombreMarca ?? meta.nombreMarca,
+        rubro: body.rubro ?? meta.rubro,
+        telefono: body.telefono ?? meta.telefono,
+        whatsapp: body.whatsapp ?? meta.whatsapp,
+        bio: body.bio ?? meta.bio,
+        estado: body.estado ?? meta.estado ?? 'informal',
+        cuenta: meta.cuenta,
+        acompanamiento: {
+          ...(meta.acompanamiento || {}),
+          ...(body.acompanamiento || {}),
+          updatedAt: new Date().toISOString(),
+        },
+      };
+
+      comercio.set('nombre', String(merged.nombreMarca || comercio.get('nombre') || '').trim());
+      comercio.set('descripcion', MarketplaceController.encodeEmprendedorMeta(merged as any));
+      await comercio.save();
+
+      const mapped: any = MarketplaceController.mapComercio(comercio);
+      if (mapped?.emprendedor?.cuenta) mapped.emprendedor.cuenta = { email: mapped.emprendedor.cuenta.email };
+      return res.status(200).json(mapped);
+    } catch (error) {
+      logger.error('Error actualizando emprendimiento', error);
+      return res.status(500).json({ message: 'Error actualizando emprendimiento' });
+    }
+  }
+
   static async listEmprendedores(_req: Request, res: Response) {
     try {
       const items = await ComercioStore.findAll({ where: { socio_id: 0, activo: true } as any, order: [['comercio_id', 'DESC']] });
-      return res.status(200).json(items.map((i) => MarketplaceController.mapComercio(i)));
+      return res.status(200).json(items.map((i) => {
+        const mapped: any = MarketplaceController.mapComercio(i);
+        if (mapped?.emprendedor?.cuenta) mapped.emprendedor.cuenta = { email: mapped.emprendedor.cuenta.email };
+        return mapped;
+      }));
     } catch (error) {
       logger.error('Error listando emprendedores', error);
       return res.status(500).json({ message: 'Error listando emprendedores' });
