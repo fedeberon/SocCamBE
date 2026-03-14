@@ -260,7 +260,17 @@ class MarketplaceController {
       const where: any = includeInactivos ? {} : { activo: true };
       if (Number.isFinite(comercio_id)) where.comercio_id = comercio_id;
       const items = await ProductoStore.findAll({ where, order: [['producto_id', 'DESC']] });
-      return res.status(200).json(items.map((item) => MarketplaceController.mapProducto(item)));
+
+      if (includeInactivos) {
+        return res.status(200).json(items.map((item) => MarketplaceController.mapProducto(item)));
+      }
+
+      const comerciosIds = Array.from(new Set((items as any[]).map((p: any) => Number(p.get ? p.get('comercio_id') : p?.comercio_id)).filter(Number.isFinite)));
+      const comerciosActivos = await ComercioStore.findAll({ where: { comercio_id: comerciosIds, activo: true } as any, attributes: ['comercio_id'] as any });
+      const activosSet = new Set(comerciosActivos.map((c: any) => Number(c.get ? c.get('comercio_id') : c?.comercio_id)));
+
+      const filtrados = (items as any[]).filter((p: any) => activosSet.has(Number(p.get ? p.get('comercio_id') : p?.comercio_id)));
+      return res.status(200).json(filtrados.map((item) => MarketplaceController.mapProducto(item)));
     } catch (error) {
       logger.error('Error listando productos marketplace', error);
       return res.status(500).json({ message: 'Error listando productos' });
@@ -271,8 +281,16 @@ class MarketplaceController {
     try {
       const id = Number(req.params.id);
       if (!Number.isFinite(id)) return res.status(400).json({ message: 'ID inválido' });
-      const item = await ProductoStore.findByPk(id);
+      const item: any = await ProductoStore.findByPk(id);
       if (!item) return res.status(404).json({ message: 'Producto no encontrado' });
+      if (!Boolean(item.get ? item.get('activo') : item?.activo)) return res.status(404).json({ message: 'Producto no encontrado' });
+
+      const comercioId = Number(item.get ? item.get('comercio_id') : item?.comercio_id);
+      const comercio: any = await ComercioStore.findByPk(comercioId);
+      if (!comercio || !Boolean(comercio.get ? comercio.get('activo') : comercio?.activo)) {
+        return res.status(404).json({ message: 'Producto no encontrado' });
+      }
+
       return res.status(200).json(MarketplaceController.mapProducto(item));
     } catch (error) {
       logger.error('Error obteniendo producto marketplace', error);
@@ -389,15 +407,20 @@ class MarketplaceController {
           cuenta: { email, passwordHash },
           acompanamiento: { solicitado: false, arca: false, updatedAt: new Date().toISOString() },
         }),
-        activo: true,
+        // Alta emprendedora: queda pendiente de aprobación admin.
+        activo: false,
       } as any);
 
       const mapped: any = MarketplaceController.mapComercio(created);
       if (mapped?.emprendedor?.cuenta) {
         mapped.emprendedor.cuenta = { email: mapped.emprendedor.cuenta.email };
       }
-      const token = MarketplaceController.signEmprendedorToken({ comercio_id: mapped.comercio_id, email });
-      return res.status(201).json({ comercio: mapped, token });
+      return res.status(201).json({
+        comercio: mapped,
+        token: null,
+        pendiente_aprobacion: true,
+        message: 'Registro recibido. Tu cuenta queda pendiente de aprobación del administrador.',
+      });
     } catch (error) {
       logger.error('Error registrando emprendedor', error);
       return res.status(500).json({ message: 'Error registrando emprendedor' });
@@ -410,7 +433,7 @@ class MarketplaceController {
       const password = String(req.body?.password || '').trim();
       if (!email || !password) return res.status(400).json({ message: 'email y password son requeridos' });
 
-      const items = await ComercioStore.findAll({ where: { socio_id: 0, activo: true } as any });
+      const items = await ComercioStore.findAll({ where: { socio_id: 0 } as any });
       for (const c of items as any[]) {
         const mapped: any = MarketplaceController.mapComercio(c);
         const hash = mapped?.emprendedor?.cuenta?.passwordHash;
@@ -626,7 +649,7 @@ class MarketplaceController {
         return res.status(400).json({ message: 'comercio_id y nombre son requeridos' });
       }
 
-      const comercio = await ComercioStore.findByPk(comercio_id);
+      const comercio: any = await ComercioStore.findByPk(comercio_id);
       if (!comercio) return res.status(404).json({ message: 'Comercio no encontrado' });
 
       const created = await ProductoStore.create({
