@@ -42,6 +42,18 @@ SosMovimiento.init(
       type: DataTypes.STRING(100),
       allowNull: true,
     },
+    tipo_movimiento: {
+      type: DataTypes.STRING(30),
+      allowNull: true,
+    },
+    comprobante_numero: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    factura_referencia: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
     referencia: {
       type: DataTypes.STRING(500),
       allowNull: true,

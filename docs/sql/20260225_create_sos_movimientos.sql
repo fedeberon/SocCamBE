@@ -19,6 +19,9 @@ BEGIN
         -- Datos del cobro/movimiento
         fecha DATETIME2 NULL,
         factura NVARCHAR(100) NULL,
+        tipo_movimiento NVARCHAR(30) NULL,
+        comprobante_numero NVARCHAR(100) NULL,
+        factura_referencia NVARCHAR(100) NULL,
         referencia NVARCHAR(500) NULL,
         monto DECIMAL(18,2) NULL,
         periodo NVARCHAR(20) NULL,

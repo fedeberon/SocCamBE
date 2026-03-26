@@ -24,6 +24,8 @@ type MovimientoCuentaCorrienteLike = {
   clipro?: string;
   memo?: string | null;
   fcncnd?: string | null;
+  letra?: string | null;
+  sucursal?: number | null;
   numero?: number | null;
   montodebe?: number | null;
   montohaber?: number | null;
@@ -33,6 +35,37 @@ type MovimientoCuentaCorrienteLike = {
 class SosMovimientosService {
   private sanitizeCuit(value: string): string {
     return String(value || '').replace(/\D/g, '');
+  }
+
+  private inferTipoMovimientoFromCc(mov: MovimientoCuentaCorrienteLike): 'FACTURA' | 'RECIBO' | 'OTRO' {
+    const tipoRaw = String(mov?.fcncnd || '').toUpperCase();
+
+    if (/REC|RCB|COBRO/.test(tipoRaw)) return 'RECIBO';
+    if (/FAC|FC|FACTURA|DEBITO|ND/.test(tipoRaw)) return 'FACTURA';
+
+    const haber = Number(mov?.montohaber || 0);
+    const debe = Number(mov?.montodebe || 0);
+    if (haber > 0 && debe <= 0) return 'RECIBO';
+    if (debe > 0 && haber <= 0) return 'FACTURA';
+
+    return 'OTRO';
+  }
+
+  private buildComprobanteNumeroFromCc(mov: MovimientoCuentaCorrienteLike): string | null {
+    const parts = [mov?.fcncnd, mov?.letra].filter(Boolean).map((v) => String(v).trim());
+    const sucursal = Number(mov?.sucursal);
+    const numero = Number(mov?.numero);
+
+    if (Number.isFinite(sucursal) && Number.isFinite(numero)) {
+      parts.push(`${String(sucursal).padStart(4, '0')}-${String(numero).padStart(8, '0')}`);
+    } else if (Number.isFinite(numero)) {
+      parts.push(String(numero));
+    } else if (mov?.idcomprobante) {
+      parts.push(String(mov.idcomprobante));
+    }
+
+    const comprobante = parts.join(' ').trim();
+    return comprobante || null;
   }
 
   async upsertFromPagosSos(socioId: number, pagosSos: PagoSosLike[], periodo: string) {
@@ -57,6 +90,9 @@ class SosMovimientosService {
         cliente_email: cliente?.email || null,
         fecha: cobro?.fecha ? new Date(cobro.fecha) : null,
         factura: cobro?.factura || null,
+        tipo_movimiento: 'RECIBO',
+        comprobante_numero: cobro?.referencia || String(sosCobroId),
+        factura_referencia: cobro?.factura || null,
         referencia: cobro?.referencia || null,
         monto: cobro?.montototal ?? null,
         periodo: periodo || null,
@@ -95,6 +131,9 @@ class SosMovimientosService {
       const montohaber = mov?.montohaber ?? null;
       const monto = Number(montohaber || 0) > 0 ? montohaber : montodebe;
 
+      const tipoMovimiento = this.inferTipoMovimientoFromCc(mov);
+      const comprobanteNumero = this.buildComprobanteNumeroFromCc(mov);
+
       const payload = {
         socio_id: socioId,
         sos_cobro_id: sosCobroId,
@@ -104,6 +143,9 @@ class SosMovimientosService {
         cliente_email: null,
         fecha: mov?.fecha ? new Date(mov.fecha) : null,
         factura: mov?.fcncnd || null,
+        tipo_movimiento: tipoMovimiento,
+        comprobante_numero: comprobanteNumero,
+        factura_referencia: tipoMovimiento === 'RECIBO' ? String(mov?.memo || '').trim() || null : null,
         referencia: mov?.memo || null,
         monto: monto ?? null,
         montodebe: montodebe ?? null,

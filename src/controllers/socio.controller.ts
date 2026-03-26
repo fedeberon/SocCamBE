@@ -175,6 +175,9 @@ class SocioController {
           id: m.sos_cobro_id || m.sos_mov_id,
           fecha: m.fecha,
           factura: m.factura,
+          tipo_movimiento: m.tipo_movimiento,
+          comprobante_numero: m.comprobante_numero,
+          factura_referencia: m.factura_referencia,
           montototal: Number(m.monto || 0),
           referencia: m.referencia,
           cliente: {
