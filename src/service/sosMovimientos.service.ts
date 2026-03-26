@@ -125,14 +125,65 @@ class SosMovimientosService {
   ) {
     const cleanCuit = this.sanitizeCuit(cuit);
 
-    for (const mov of movimientos || []) {
+    const enriched = (movimientos || []).map((mov) => {
+      const tipoMovimiento = this.inferTipoMovimientoFromCc(mov);
+      const comprobanteNumero = this.buildComprobanteNumeroFromCc(mov);
+      const memo = String(mov?.memo || '').trim();
+      const montodebe = Number(mov?.montodebe || 0);
+      const montohaber = Number(mov?.montohaber || 0);
+      const fecha = mov?.fecha ? new Date(mov.fecha) : null;
+
+      return { mov, tipoMovimiento, comprobanteNumero, memo, montodebe, montohaber, fecha };
+    });
+
+    const facturas = enriched.filter(
+      (x) => x.tipoMovimiento === 'FACTURA' && x.comprobanteNumero && x.montodebe > 0,
+    );
+
+    const matchFacturaForRecibo = (recibo: (typeof enriched)[number]): string | null => {
+      const memo = recibo.memo;
+      const amount = recibo.montohaber;
+      const fechaRecibo = recibo.fecha ? recibo.fecha.getTime() : Number.MAX_SAFE_INTEGER;
+
+      const byMemo = memo
+        ? facturas.filter((f) => f.memo && f.memo.toLowerCase() === memo.toLowerCase())
+        : [];
+
+      if (byMemo.length === 1) return byMemo[0].comprobanteNumero || null;
+      if (byMemo.length > 1) {
+        byMemo.sort((a, b) => {
+          const da = Math.abs((a.fecha ? a.fecha.getTime() : fechaRecibo) - fechaRecibo);
+          const db = Math.abs((b.fecha ? b.fecha.getTime() : fechaRecibo) - fechaRecibo);
+          return da - db;
+        });
+        return byMemo[0].comprobanteNumero || null;
+      }
+
+      const byAmount = facturas.filter((f) => Math.abs(f.montodebe - amount) <= 1);
+      if (byAmount.length === 1) return byAmount[0].comprobanteNumero || null;
+      if (byAmount.length > 1) {
+        byAmount.sort((a, b) => {
+          const da = Math.abs((a.fecha ? a.fecha.getTime() : fechaRecibo) - fechaRecibo);
+          const db = Math.abs((b.fecha ? b.fecha.getTime() : fechaRecibo) - fechaRecibo);
+          return da - db;
+        });
+        return byAmount[0].comprobanteNumero || null;
+      }
+
+      return memo || null;
+    };
+
+    for (const row of enriched) {
+      const { mov, tipoMovimiento, comprobanteNumero, memo } = row;
       const sosCobroId = Number(mov?.idcomprobante || 0) || null;
       const montodebe = mov?.montodebe ?? null;
       const montohaber = mov?.montohaber ?? null;
       const monto = Number(montohaber || 0) > 0 ? montohaber : montodebe;
 
-      const tipoMovimiento = this.inferTipoMovimientoFromCc(mov);
-      const comprobanteNumero = this.buildComprobanteNumeroFromCc(mov);
+      const facturaReferencia =
+        tipoMovimiento === 'RECIBO'
+          ? matchFacturaForRecibo(row)
+          : null;
 
       const payload = {
         socio_id: socioId,
@@ -145,7 +196,7 @@ class SosMovimientosService {
         factura: mov?.fcncnd || null,
         tipo_movimiento: tipoMovimiento,
         comprobante_numero: comprobanteNumero,
-        factura_referencia: tipoMovimiento === 'RECIBO' ? String(mov?.memo || '').trim() || null : null,
+        factura_referencia: facturaReferencia,
         referencia: mov?.memo || null,
         monto: monto ?? null,
         montodebe: montodebe ?? null,
