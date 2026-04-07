@@ -10,16 +10,21 @@ router.put('/tamanos/:id', CajaSeguridadController.updateTamano);
 
 // Cajas
 router.get('/', CajaSeguridadController.getCajas);
-router.get('/:id', CajaSeguridadController.getCajaById);
 router.post('/', CajaSeguridadController.createCaja);
 router.put('/:id', CajaSeguridadController.updateCaja);
 router.delete('/:id', CajaSeguridadController.deleteCaja);
 
-// Asignaciones socio-caja
-router.get('/:cajaId/socios', CajaSeguridadController.getSociosByCaja);
+// Endpoints por socio/caja (específicos)
+router.get('/cofres/socio/:socioId', CajaSeguridadController.getCofresBySocioMirror);
 router.get('/socio/:socioId', CajaSeguridadController.getCajasBySocio);
+router.get('/:cajaId/socios', CajaSeguridadController.getSociosByCaja);
+
+// Asignaciones socio-caja
 router.post('/asignar', CajaSeguridadController.assignSocioACaja);
 router.delete('/asignar/:socioId/:cajaId', CajaSeguridadController.unassignSocioDeCaja);
 router.delete('/asignar', CajaSeguridadController.unassignSocioDeCaja);
+
+// Debe quedar al final para no tapar rutas específicas
+router.get('/:id', CajaSeguridadController.getCajaById);
 
 export default router;

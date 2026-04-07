@@ -4,4 +4,5 @@ export interface IMovimientoCuentaCorrienteCofreService {
   getMovimientosByClienteId(clienteId: number): Promise<any[]>;
   getMovimientosByFecha(fecha: Date): Promise<any[]>;
   getMovimientoWithPagos(clienteId: number): Promise<any>;
+  getResumenBySocioId(socioId: number, limit?: number): Promise<any>;
 }

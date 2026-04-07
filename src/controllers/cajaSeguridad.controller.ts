@@ -3,9 +3,11 @@ import logger from '../configs/logger';
 import CajaSeguridadService from '../service/cajaSeguridad.service';
 import { ICajaSeguridadService } from '../interfaces/IcajaSeguridad.service';
 import { ServiceError } from '../service/contratoCofres.service';
+import MovimientoCuentaCorrienteCofreService from '../service/movimientoCuentaCorrienteCofre.service';
 
 class CajaSeguridadController {
   private static cajaSeguridadService: ICajaSeguridadService = new CajaSeguridadService();
+  private static movimientoCofreService = new MovimientoCuentaCorrienteCofreService();
 
   static async getTamanos(req: Request, res: Response) {
     try {
@@ -212,6 +214,23 @@ class CajaSeguridadController {
       }
       logger.error('Error al desasignar socio de caja:', error);
       res.status(500).json({ message: 'Error al desasignar socio de caja', error });
+    }
+  }
+
+  static async getCofresBySocioMirror(req: Request, res: Response) {
+    try {
+      const socioId = Number(req.params.socioId);
+      const limit = req.query.limit ? Number(req.query.limit) : 50;
+
+      if (Number.isNaN(socioId)) {
+        return res.status(400).json({ message: 'socioId debe ser numérico' });
+      }
+
+      const data = await CajaSeguridadController.movimientoCofreService.getResumenBySocioId(socioId, limit);
+      return res.status(200).json(data);
+    } catch (error) {
+      logger.error('Error al obtener mirror de cofres por socio:', error);
+      return res.status(500).json({ message: 'Error al obtener mirror de cofres por socio', error });
     }
   }
 }

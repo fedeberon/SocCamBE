@@ -76,6 +76,23 @@ class MovimientoCuentaCorrienteCofreController {
       res.status(500).json({ message: 'Error al obtener los movimientos y pagos del cliente', error });
     }
   }
+
+  static async getResumenBySocioId(req: Request, res: Response) {
+    try {
+      const socioId = Number(req.params.socioId);
+      const limit = req.query.limit ? Number(req.query.limit) : 50;
+
+      if (Number.isNaN(socioId)) {
+        return res.status(400).json({ message: 'socioId debe ser numérico' });
+      }
+
+      const data = await MovimientoCuentaCorrienteCofreController.movimientoService.getResumenBySocioId(socioId, limit);
+      return res.status(200).json(data);
+    } catch (error) {
+      logger.error('Error al obtener resumen de cofres por socio:', error);
+      return res.status(500).json({ message: 'Error al obtener resumen de cofres por socio', error });
+    }
+  }
 }
 
 export default MovimientoCuentaCorrienteCofreController;
