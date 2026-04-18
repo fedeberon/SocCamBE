@@ -75,7 +75,7 @@ class CajaSeguridadService implements ICajaSeguridadService {
       numero:
         String(r.contratoCofres_cajaNumero || '').trim() ||
         (r.contratoCofres_cofreNumero != null ? String(r.contratoCofres_cofreNumero) : String(r.contratoCofres_id)),
-      estado: 'Cofres',
+      estado: 'Habilitado',
       ubicacion: 'Legacy',
       tamanoId: 0,
       origen: 'legacy',
