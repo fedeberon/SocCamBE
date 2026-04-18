@@ -6,6 +6,7 @@ import ComercioPuntos from '../models/ComercioPuntos.models';
 import azureBlobService from '../service/azureBlob.service';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import productIaService from '../service/productIa.service';
 
 const slugify = (value: string) =>
   String(value || '')
@@ -597,38 +598,16 @@ class MarketplaceController {
   static async sugerirProductoIa(req: Request, res: Response) {
     try {
       const body: any = req.body || {};
-      const rubro = String(body.rubro || '').trim() || 'general';
-      const nombreMarca = String(body.nombre_marca || body.nombreMarca || 'Emprendedor').trim();
-      const fotoNombre = String(body.foto_nombre || body.fotoNombre || 'producto').trim();
-      const baseName = fotoNombre.replace(/\.[a-z0-9]+$/i, '').replace(/[_-]+/g, ' ').trim();
+      const file = (req as any).file as Express.Multer.File | undefined;
 
-      const priceByRubro: Record<string, number> = {
-        indumentaria: 18000,
-        gastronomia: 9500,
-        tecnologia: 65000,
-        hogar: 23000,
-        belleza: 14000,
-        artesania: 12000,
-        servicios: 25000,
-      };
-
-      const key = slugify(rubro).replace(/-/g, '');
-      const precioBase = priceByRubro[key] || 15000;
-      const precioSugerido = Number((precioBase * (0.9 + Math.random() * 0.3)).toFixed(0));
-
-      const title = baseName
-        ? `${baseName.charAt(0).toUpperCase() + baseName.slice(1)} · ${nombreMarca}`
-        : `Producto de ${nombreMarca}`;
-
-      const descripcion = `Producto publicado por ${nombreMarca} (${rubro}). Ideal para venta local en Bolívar. Consultá disponibilidad y coordina compra directa por WhatsApp.`;
-
-      return res.status(200).json({
-        titulo: title.slice(0, 220),
-        descripcion: descripcion.slice(0, 1000),
-        precio_sugerido: precioSugerido,
-        categoria: rubro,
-        confianza: 0.78,
+      const result = await productIaService.suggestProductFromImage({
+        imageBuffer: file?.buffer,
+        fileName: file?.originalname || body.foto_nombre || body.fotoNombre,
+        nombreMarca: body.nombre_marca || body.nombreMarca || 'Emprendedor',
+        rubro: body.rubro || 'general',
       });
+
+      return res.status(200).json(result);
     } catch (error) {
       logger.error('Error sugiriendo producto con IA', error);
       return res.status(500).json({ message: 'Error sugiriendo producto con IA' });
