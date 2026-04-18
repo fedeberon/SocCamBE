@@ -1,4 +1,4 @@
-import { QueryTypes } from 'sequelize';
+import { Op, QueryTypes } from 'sequelize';
 import sequelize from '../configs/database';
 import MovimientoCuentaCorrienteCofre from '../models/movimientoCuentaCorrienteCofre.models';
 import { IMovimientoCuentaCorrienteCofreService } from '../interfaces/IMovimientoCuentaCorrienteCofre.service';
@@ -41,12 +41,43 @@ class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrient
   async getResumenBySocioId(socioId: number, limit = 50): Promise<any> {
     const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(Number(limit), 1), 200) : 50;
 
+    // Unificación AUTO + LEGACY:
+    // - AUTO: movimientos con clienteId = socioId
+    // - LEGACY: movimientos con clienteId = contratoCofres_id de ese socio
+    const contratos = await sequelize.query(
+      `
+      SELECT contratoCofres_id
+      FROM dbo.contratoCofres
+      WHERE contratoCofres_esSocioId = :socioId
+      `,
+      {
+        replacements: { socioId },
+        type: QueryTypes.SELECT,
+      }
+    ) as Array<{ contratoCofres_id: number }>;
+
+    const contratoIds = (contratos || [])
+      .map((c) => Number(c.contratoCofres_id))
+      .filter((id) => Number.isFinite(id));
+
+    const clienteIds = Array.from(new Set([Number(socioId), ...contratoIds]));
+
     const movimientos = await MovimientoCuentaCorrienteCofre.findAll({
       where: {
-        MovimientoCuentaCorrienteCofre_clienteId: socioId,
+        MovimientoCuentaCorrienteCofre_clienteId: { [Op.in]: clienteIds },
+        MovimientoCuentaCorrienteCofre_deleted: false,
       },
       order: [['MovimientoCuentaCorrienteCofre_fechaIngreso', 'DESC']],
       limit: safeLimit,
+    });
+
+    const movimientosConOrigen = movimientos.map((mov: any) => {
+      const json = typeof mov?.toJSON === 'function' ? mov.toJSON() : mov;
+      const clienteId = Number(json?.MovimientoCuentaCorrienteCofre_clienteId);
+      return {
+        ...json,
+        mirrorSource: clienteId === Number(socioId) ? 'auto' : 'legacy',
+      };
     });
 
     const resumenRows = await sequelize.query(
@@ -58,10 +89,10 @@ class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrient
         MAX(MovimientoCuentaCorrienteCofre_fechaIngreso) AS ultimo_movimiento
       FROM dbo.MovimientoCuentaCorrienteCofre
       WHERE ISNULL(MovimientoCuentaCorrienteCofre_deleted, 0) = 0
-        AND MovimientoCuentaCorrienteCofre_clienteId = :socioId
+        AND MovimientoCuentaCorrienteCofre_clienteId IN (:clienteIds)
       `,
       {
-        replacements: { socioId },
+        replacements: { clienteIds },
         type: QueryTypes.SELECT,
       }
     ) as any[];
@@ -78,11 +109,11 @@ class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrient
         ProductoCofre_fechaPago
       FROM dbo.ProductoCofre
       WHERE ISNULL(ProductoCofre_deleted, 0) = 0
-        AND ProductoCofre_clienteId = :socioId
+        AND ProductoCofre_clienteId IN (:clienteIds)
       ORDER BY ProductoCofre_id DESC
       `,
       {
-        replacements: { socioId },
+        replacements: { clienteIds },
         type: QueryTypes.SELECT,
       }
     );
@@ -122,8 +153,13 @@ class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrient
 
     return {
       socioId,
+      mirror: {
+        autoClienteId: Number(socioId),
+        legacyContratoIds: contratoIds,
+        clienteIdsConsultados: clienteIds,
+      },
       resumen,
-      movimientos,
+      movimientos: movimientosConOrigen,
       productosCofre,
       cajasAsignadas,
     };
