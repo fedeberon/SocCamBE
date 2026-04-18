@@ -217,6 +217,16 @@ class CajaSeguridadController {
     }
   }
 
+  static async getCofresVencidos(req: Request, res: Response) {
+    try {
+      const rows = await CajaSeguridadController.cajaSeguridadService.getCofresVencidos();
+      return res.status(200).json(rows);
+    } catch (error) {
+      logger.error('Error al obtener cofres vencidos:', error);
+      return res.status(500).json({ message: 'Error al obtener cofres vencidos', error });
+    }
+  }
+
   static async getCofresBySocioMirror(req: Request, res: Response) {
     try {
       const socioId = Number(req.params.socioId);

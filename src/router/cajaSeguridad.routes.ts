@@ -15,6 +15,7 @@ router.put('/:id', CajaSeguridadController.updateCaja);
 router.delete('/:id', CajaSeguridadController.deleteCaja);
 
 // Endpoints por socio/caja (específicos)
+router.get('/cofres/vencidos', CajaSeguridadController.getCofresVencidos);
 router.get('/cofres/socio/:socioId', CajaSeguridadController.getCofresBySocioMirror);
 router.get('/socio/:socioId', CajaSeguridadController.getCajasBySocio);
 router.get('/:cajaId/socios', CajaSeguridadController.getSociosByCaja);

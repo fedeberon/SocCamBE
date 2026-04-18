@@ -11,6 +11,7 @@ export interface ICajaSeguridadService {
 
   getSociosByCaja(cajaId: number): Promise<any[]>;
   getCajasBySocio(socioId: number): Promise<any[]>;
+  getCofresVencidos(): Promise<any[]>;
   assignSocioACaja(payload: { socioId: number; cajaId: number; esTitular?: boolean; fechaInicio?: string; fechaFin?: string | null; nota?: string }): Promise<any>;
   unassignSocioDeCaja(socioId: number, cajaId: number): Promise<{ socioCajaId: number; cajaId: number; socioId: number } | null>;
 }

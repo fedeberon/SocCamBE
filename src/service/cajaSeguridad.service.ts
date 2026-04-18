@@ -61,6 +61,10 @@ class CajaSeguridadService implements ICajaSeguridadService {
       FROM dbo.contratoCofres cc
       LEFT JOIN dbo.socio s ON s.socio_id = cc.contratoCofres_esSocioId
       WHERE ISNULL(cc.contratoCofres_deleted, 0) = 0
+        AND (
+          cc.contratoCofres_fechaVencimiento IS NULL
+          OR cc.contratoCofres_fechaVencimiento >= CAST(GETDATE() AS date)
+        )
       ORDER BY cc.contratoCofres_id DESC
       `,
       { type: QueryTypes.SELECT }
@@ -166,6 +170,45 @@ class CajaSeguridadService implements ICajaSeguridadService {
         { model: CajaSeguridad, as: 'caja', include: [{ model: CajaSeguridadTamano, as: 'tamano' }] },
       ],
     });
+  }
+
+  async getCofresVencidos(): Promise<any[]> {
+    return await sequelize.query(
+      `
+      WITH base AS (
+        SELECT
+          cc.contratoCofres_esSocioId AS socio_id,
+          cc.contratoCofres_nombre AS socio_nombre,
+          cc.contratoCofres_id AS contrato_id,
+          cc.contratoCofres_fechaVencimiento AS fecha_vencimiento,
+          CASE WHEN cc.contratoCofres_fechaVencimiento < CAST(GETDATE() AS date) THEN 1 ELSE 0 END AS vencido
+        FROM dbo.contratoCofres cc
+        WHERE ISNULL(cc.contratoCofres_deleted, 0) = 0
+          AND cc.contratoCofres_esSocioId > 0
+      ), agg AS (
+        SELECT
+          socio_id,
+          MAX(socio_nombre) AS socio_nombre,
+          COUNT(*) AS contratos_total,
+          SUM(vencido) AS contratos_vencidos
+        FROM base
+        GROUP BY socio_id
+        HAVING COUNT(*) > 1 AND SUM(vencido) > 0
+      )
+      SELECT
+        a.socio_id,
+        a.socio_nombre,
+        a.contratos_total,
+        a.contratos_vencidos,
+        b.contrato_id,
+        b.fecha_vencimiento,
+        b.vencido
+      FROM agg a
+      INNER JOIN base b ON b.socio_id = a.socio_id
+      ORDER BY a.contratos_vencidos DESC, a.contratos_total DESC, a.socio_id, b.fecha_vencimiento DESC
+      `,
+      { type: QueryTypes.SELECT }
+    ) as any[];
   }
 
   async assignSocioACaja(payload: { socioId: number; cajaId: number; esTitular?: boolean; fechaInicio?: string; fechaFin?: string | null; nota?: string }): Promise<any> {
