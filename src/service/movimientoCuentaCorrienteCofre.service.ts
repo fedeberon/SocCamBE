@@ -162,7 +162,7 @@ class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrient
           CASE WHEN cc.contratoCofres_cofreNumero IS NOT NULL THEN CAST(cc.contratoCofres_cofreNumero AS VARCHAR(32)) END,
           CAST(cc.contratoCofres_id AS VARCHAR(32))
         ) AS caja_numero,
-        COALESCE(c.estado, CAST('Legacy' AS VARCHAR(32))) AS caja_estado,
+        COALESCE(c.estado, CAST('Cofres' AS VARCHAR(32))) AS caja_estado,
         c.ubicacion AS caja_ubicacion,
         t.nombre AS tamano_nombre,
         CAST('legacy' AS VARCHAR(16)) AS origen,
