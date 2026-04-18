@@ -72,6 +72,60 @@ class ProductIaService {
     return baseByRubro[key] || 15000;
   }
 
+  private detectStyle(lines: string[], fallbackRubro: string): {
+    style: 'calzado' | 'indumentaria' | 'accesorio' | 'tecnologia' | 'hogar' | 'general';
+    audienceHint: string;
+    sellingAngle: string;
+  } {
+    const t = `${fallbackRubro || ''} ${lines.join(' ')}`.toLowerCase();
+
+    if (/zapat|calzado|botin|bota|sandalia|mocas|sneaker|running|suela|cordon/.test(t)) {
+      return {
+        style: 'calzado',
+        audienceHint: 'uso urbano y cotidiano',
+        sellingAngle: 'Comodidad, diseño y terminación para destacar en cada paso.',
+      };
+    }
+
+    if (/remera|camisa|campera|buzo|pantal|jean|vestido|indument|ropa|prenda|textil/.test(t)) {
+      return {
+        style: 'indumentaria',
+        audienceHint: 'looks diarios y ocasiones especiales',
+        sellingAngle: 'Prenda versátil con excelente calce y presencia.',
+      };
+    }
+
+    if (/cartera|mochila|cinturon|gorra|lentes|accesorio|bijou|pulsera/.test(t)) {
+      return {
+        style: 'accesorio',
+        audienceHint: 'complementar cualquier outfit',
+        sellingAngle: 'Detalle ideal para elevar el estilo con personalidad.',
+      };
+    }
+
+    if (/auricular|celular|notebook|teclado|mouse|usb|bluetooth|smart/.test(t)) {
+      return {
+        style: 'tecnologia',
+        audienceHint: 'uso diario, trabajo y estudio',
+        sellingAngle: 'Rendimiento confiable y funcionalidad práctica.',
+      };
+    }
+
+    if (/silla|mesa|hogar|cocina|deco|almohadon|vajilla|iluminacion/.test(t)) {
+      return {
+        style: 'hogar',
+        audienceHint: 'mejorar espacios y confort',
+        sellingAngle: 'Diseño funcional para sumar calidez y utilidad.',
+      };
+    }
+
+    return {
+      style: 'general',
+      audienceHint: 'uso diario',
+      sellingAngle: 'Producto con gran presencia para catálogo y vidriera digital.',
+    };
+  }
+
   private buildMarketingDescription(params: {
     nombreMarca: string;
     rubro: string;
@@ -79,18 +133,28 @@ class ProductIaService {
     lines: string[];
     estimatedPrice: number;
   }): string {
-    const bullets = params.lines
-      .filter((l) => l && l.trim().length > 3)
-      .slice(0, 5)
-      .map((l) => `• ${l.trim()}`)
-      .join('\n');
+    const style = this.detectStyle(params.lines, params.rubro);
 
-    const cierre = `Ideal para ${params.rubro || 'uso diario'}. Publicado por ${params.nombreMarca}.\nPrecio sugerido de referencia: $${Number(params.estimatedPrice || 0).toLocaleString('es-AR')}.`;
+    const ocrBullets = params.lines
+      .filter((l) => l && l.trim().length > 3 && !/^\$?\s*\d/.test(l.trim()))
+      .slice(0, 4)
+      .map((l) => `• ${l.trim()}`);
+
+    const bullets = [
+      `• Estilo detectado: ${style.style}`,
+      `• Enfoque comercial: ${style.sellingAngle}`,
+      `• Recomendado para: ${style.audienceHint}`,
+      ...ocrBullets,
+    ].slice(0, 6);
+
+    const cierre = `Publicado por ${params.nombreMarca}. Precio sugerido de referencia: $${Number(
+      params.estimatedPrice || 0
+    ).toLocaleString('es-AR')}. Consultá disponibilidad de talles/variantes y tiempos de entrega.`;
 
     return [
       `${params.title}.`,
-      'Producto con excelente presencia para vidriera digital y ventas por catálogo.',
-      bullets || '• Calidad y terminaciones cuidadas\n• Disponibilidad sujeta a stock\n• Consultar variantes y colores',
+      style.sellingAngle,
+      bullets.join('\n'),
       cierre,
     ]
       .filter(Boolean)
@@ -145,6 +209,7 @@ class ProductIaService {
     const ocrNameCandidate = lines.find((l) => l.length >= 4 && l.length <= 70 && !/\$|\d{4,}/.test(l));
     const titulo = (ocrNameCandidate || baseName || `Producto de ${nombreMarca}`).replace(/\s+/g, ' ').trim();
     const precio_sugerido = this.estimatePriceFromText(lines, rubro);
+    const styleDetected = this.detectStyle(lines, rubro);
     const descripcion = this.buildMarketingDescription({
       nombreMarca,
       rubro,
@@ -167,6 +232,7 @@ class ProductIaService {
       descripcion,
       precio_sugerido,
       categoria: rubro || 'general',
+      estilo_detectado: styleDetected.style,
       confianza: Number(confidence.toFixed(2)),
       ocr: {
         linesCount: lines.length,
