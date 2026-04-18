@@ -133,7 +133,13 @@ class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrient
         c.estado AS caja_estado,
         c.ubicacion AS caja_ubicacion,
         t.nombre AS tamano_nombre,
-        CAST('auto' AS VARCHAR(16)) AS origen
+        CAST('auto' AS VARCHAR(16)) AS origen,
+        CAST(NULL AS INT) AS contrato_id,
+        CAST(NULL AS INT) AS contrato_numero,
+        CAST(NULL AS VARCHAR(32)) AS contrato_estado,
+        CAST(NULL AS VARCHAR(32)) AS contrato_modalidad,
+        CAST(NULL AS VARCHAR(8)) AS cofre_letra,
+        CAST(NULL AS INT) AS cofre_numero
       FROM dbo.socio_caja_seguridad scs
       INNER JOIN dbo.caja_seguridad c ON c.caja_id = scs.caja_id
       LEFT JOIN dbo.caja_seguridad_tamano t ON t.tamano_id = c.tamano_id
@@ -159,7 +165,13 @@ class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrient
         COALESCE(c.estado, CAST('Legacy' AS VARCHAR(32))) AS caja_estado,
         c.ubicacion AS caja_ubicacion,
         t.nombre AS tamano_nombre,
-        CAST('legacy' AS VARCHAR(16)) AS origen
+        CAST('legacy' AS VARCHAR(16)) AS origen,
+        cc.contratoCofres_id AS contrato_id,
+        cc.contratoCofres_numero AS contrato_numero,
+        cc.contratoCofres_estado AS contrato_estado,
+        CAST(cc.contratoCofres_modalidad AS VARCHAR(32)) AS contrato_modalidad,
+        CAST(cc.contratoCofres_cofreLetra AS VARCHAR(8)) AS cofre_letra,
+        cc.contratoCofres_cofreNumero AS cofre_numero
       FROM dbo.contratoCofres cc
       LEFT JOIN dbo.caja_seguridad c ON c.caja_id = cc.contratoCofres_cajaId
       LEFT JOIN dbo.caja_seguridad_tamano t ON t.tamano_id = c.tamano_id
