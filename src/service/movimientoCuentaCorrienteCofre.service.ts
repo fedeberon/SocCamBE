@@ -120,6 +120,7 @@ class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrient
 
     const cajasAsignadas = await sequelize.query(
       `
+      -- AUTO (modelo nuevo)
       SELECT
         scs.socio_caja_id,
         scs.socio_id,
@@ -131,12 +132,41 @@ class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrient
         c.numero AS caja_numero,
         c.estado AS caja_estado,
         c.ubicacion AS caja_ubicacion,
-        t.nombre AS tamano_nombre
+        t.nombre AS tamano_nombre,
+        CAST('auto' AS VARCHAR(16)) AS origen
       FROM dbo.socio_caja_seguridad scs
       INNER JOIN dbo.caja_seguridad c ON c.caja_id = scs.caja_id
       LEFT JOIN dbo.caja_seguridad_tamano t ON t.tamano_id = c.tamano_id
       WHERE scs.socio_id = :socioId
-      ORDER BY scs.socio_caja_id DESC
+
+      UNION ALL
+
+      -- LEGACY (contratos históricos)
+      SELECT
+        cc.contratoCofres_id AS socio_caja_id,
+        cc.contratoCofres_esSocioId AS socio_id,
+        cc.contratoCofres_cajaId AS caja_id,
+        CAST(1 AS BIT) AS es_titular,
+        cc.contratoCofres_fechaContratacion AS fecha_inicio,
+        cc.contratoCofres_fechaVencimiento AS fecha_fin,
+        CAST(NULL AS VARCHAR(255)) AS nota,
+        COALESCE(
+          c.numero,
+          NULLIF(LTRIM(RTRIM(cc.contratoCofres_cajaNumero)), ''),
+          CASE WHEN cc.contratoCofres_cofreNumero IS NOT NULL THEN CAST(cc.contratoCofres_cofreNumero AS VARCHAR(32)) END,
+          CAST(cc.contratoCofres_id AS VARCHAR(32))
+        ) AS caja_numero,
+        COALESCE(c.estado, CAST('Legacy' AS VARCHAR(32))) AS caja_estado,
+        c.ubicacion AS caja_ubicacion,
+        t.nombre AS tamano_nombre,
+        CAST('legacy' AS VARCHAR(16)) AS origen
+      FROM dbo.contratoCofres cc
+      LEFT JOIN dbo.caja_seguridad c ON c.caja_id = cc.contratoCofres_cajaId
+      LEFT JOIN dbo.caja_seguridad_tamano t ON t.tamano_id = c.tamano_id
+      WHERE cc.contratoCofres_esSocioId = :socioId
+        AND ISNULL(cc.contratoCofres_deleted, 0) = 0
+
+      ORDER BY socio_caja_id DESC
       `,
       {
         replacements: { socioId },
