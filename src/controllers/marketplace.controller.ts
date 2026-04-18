@@ -596,10 +596,10 @@ class MarketplaceController {
   }
 
   static async sugerirProductoIa(req: Request, res: Response) {
-    try {
-      const body: any = req.body || {};
-      const file = (req as any).file as Express.Multer.File | undefined;
+    const body: any = req.body || {};
+    const file = (req as any).file as Express.Multer.File | undefined;
 
+    try {
       const result = await productIaService.suggestProductFromImage({
         imageBuffer: file?.buffer,
         fileName: file?.originalname || body.foto_nombre || body.fotoNombre,
@@ -609,8 +609,19 @@ class MarketplaceController {
 
       return res.status(200).json(result);
     } catch (error) {
-      logger.error('Error sugiriendo producto con IA', error);
-      return res.status(500).json({ message: 'Error sugiriendo producto con IA' });
+      logger.error('Error sugiriendo producto con IA, aplicando fallback', error);
+      try {
+        const fallback = await productIaService.suggestProductFromImage({
+          imageBuffer: undefined,
+          fileName: file?.originalname || body.foto_nombre || body.fotoNombre,
+          nombreMarca: body.nombre_marca || body.nombreMarca || 'Emprendedor',
+          rubro: body.rubro || 'general',
+        });
+        return res.status(200).json({ ...fallback, fallback: true });
+      } catch (fallbackError) {
+        logger.error('Fallback de sugerencia IA también falló', fallbackError);
+        return res.status(500).json({ message: 'Error sugiriendo producto con IA' });
+      }
     }
   }
 
