@@ -31,24 +31,74 @@ class CajaSeguridadService implements ICajaSeguridadService {
     const page = options?.page && options.page > 0 ? options.page : 1;
     const pageSize = options?.pageSize && options.pageSize > 0 ? options.pageSize : undefined;
 
-    const findOptions: any = {
+    // Cajas del modelo nuevo (AUTO)
+    const cajasAuto = await CajaSeguridad.findAll({
       where: { deleted: false },
       include: [
         { model: CajaSeguridadTamano, as: 'tamano' },
-        { 
+        {
           model: Socio,
           as: 'socios',
           through: { attributes: ['socio_caja_id', 'es_titular', 'fecha_inicio', 'fecha_fin', 'nota'] },
         },
       ],
-    };
+    });
 
-    if (pageSize) {
-      findOptions.limit = pageSize;
-      findOptions.offset = (page - 1) * pageSize;
-    }
+    // Cajas legacy desde contratos históricos (aunque no exista caja_id en el modelo nuevo)
+    const legacyRows = await sequelize.query(
+      `
+      SELECT
+        cc.contratoCofres_id,
+        cc.contratoCofres_esSocioId,
+        cc.contratoCofres_cajaNumero,
+        cc.contratoCofres_cofreNumero,
+        cc.contratoCofres_fechaContratacion,
+        cc.contratoCofres_fechaVencimiento,
+        cc.contratoCofres_estado,
+        s.socio_nombre,
+        s.socio_dni,
+        s.socio_mail
+      FROM dbo.contratoCofres cc
+      LEFT JOIN dbo.socio s ON s.socio_id = cc.contratoCofres_esSocioId
+      WHERE ISNULL(cc.contratoCofres_deleted, 0) = 0
+      ORDER BY cc.contratoCofres_id DESC
+      `,
+      { type: QueryTypes.SELECT }
+    ) as any[];
 
-    return await CajaSeguridad.findAll(findOptions);
+    const legacyCajas = legacyRows.map((r) => ({
+      id: -Number(r.contratoCofres_id),
+      numero:
+        String(r.contratoCofres_cajaNumero || '').trim() ||
+        (r.contratoCofres_cofreNumero != null ? String(r.contratoCofres_cofreNumero) : String(r.contratoCofres_id)),
+      estado: 'Cofres',
+      ubicacion: 'Legacy',
+      tamanoId: 0,
+      origen: 'legacy',
+      legacyContratoId: Number(r.contratoCofres_id),
+      socios: [
+        {
+          id: Number(r.contratoCofres_esSocioId),
+          socioId: Number(r.contratoCofres_esSocioId),
+          socioNombre: r.socio_nombre,
+          socioDni: r.socio_dni,
+          socioMail: r.socio_mail,
+          esTitular: true,
+          fechaInicio: r.contratoCofres_fechaContratacion,
+          fechaFin: r.contratoCofres_fechaVencimiento,
+          nota: `Contrato legacy #${r.contratoCofres_id}`,
+        },
+      ],
+      titularNombre: r.socio_nombre,
+      nota: `Contrato legacy #${r.contratoCofres_id}`,
+    }));
+
+    const combinadas = [...cajasAuto, ...legacyCajas];
+
+    if (!pageSize) return combinadas;
+
+    const start = (page - 1) * pageSize;
+    return combinadas.slice(start, start + pageSize);
   }
 
   async getCajaById(id: number): Promise<any | null> {
