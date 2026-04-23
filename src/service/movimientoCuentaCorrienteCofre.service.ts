@@ -138,8 +138,23 @@ class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrient
         CAST(NULL AS INT) AS contrato_numero,
         CAST(NULL AS VARCHAR(32)) AS contrato_estado,
         CAST(NULL AS VARCHAR(32)) AS contrato_modalidad,
-        CAST(NULL AS VARCHAR(8)) AS cofre_letra,
-        CAST(NULL AS INT) AS cofre_numero
+        CAST(
+          CASE
+            WHEN c.numero IS NULL OR LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64)))) = '' THEN 'A'
+            WHEN PATINDEX('[A-Za-z]%', LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64))))) = 1 THEN LEFT(LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64)))), 1)
+            ELSE 'A'
+          END
+          AS VARCHAR(8)
+        ) AS cofre_letra,
+        TRY_CAST(
+          CASE
+            WHEN c.numero IS NULL THEN NULL
+            WHEN PATINDEX('[A-Za-z]%', LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64))))) = 1
+              THEN SUBSTRING(LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64)))), 2, 63)
+            ELSE LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64))))
+          END
+          AS INT
+        ) AS cofre_numero
       FROM dbo.socio_caja_seguridad scs
       INNER JOIN dbo.caja_seguridad c ON c.caja_id = scs.caja_id
       LEFT JOIN dbo.caja_seguridad_tamano t ON t.tamano_id = c.tamano_id
