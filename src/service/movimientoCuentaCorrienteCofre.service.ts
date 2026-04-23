@@ -140,9 +140,13 @@ class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrient
         CAST(NULL AS VARCHAR(32)) AS contrato_modalidad,
         CAST(
           CASE
-            WHEN c.numero IS NULL OR LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64)))) = '' THEN 'A'
-            WHEN PATINDEX('[A-Za-z]%', LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64))))) = 1 THEN LEFT(LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64)))), 1)
-            ELSE 'A'
+            WHEN c.ubicacion IS NOT NULL
+              AND PATINDEX('[A-Za-z]%', LTRIM(RTRIM(CAST(c.ubicacion AS VARCHAR(64))))) = 1
+              THEN LEFT(LTRIM(RTRIM(CAST(c.ubicacion AS VARCHAR(64)))), 1)
+            WHEN c.numero IS NOT NULL
+              AND PATINDEX('[A-Za-z]%', LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64))))) = 1
+              THEN LEFT(LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64)))), 1)
+            ELSE NULL
           END
           AS VARCHAR(8)
         ) AS cofre_letra,
