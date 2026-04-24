@@ -189,7 +189,24 @@ class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrient
         cc.contratoCofres_numero AS contrato_numero,
         cc.contratoCofres_estado AS contrato_estado,
         CAST(cc.contratoCofres_modalidad AS VARCHAR(32)) AS contrato_modalidad,
-        CAST(cc.contratoCofres_cofreLetra AS VARCHAR(8)) AS cofre_letra,
+        CAST(
+          CASE CAST(cc.contratoCofres_cofreLetra AS VARCHAR(8))
+            WHEN '0' THEN 'A'
+            WHEN '1' THEN 'B'
+            WHEN '2' THEN 'C'
+            WHEN '3' THEN 'D'
+            WHEN '4' THEN 'E'
+            WHEN '5' THEN 'F'
+            WHEN '6' THEN 'G'
+            WHEN '7' THEN 'H'
+            WHEN '8' THEN 'I'
+            WHEN '9' THEN 'J'
+            WHEN '24' THEN 'X'
+            WHEN '26' THEN 'Z'
+            ELSE CAST(cc.contratoCofres_cofreLetra AS VARCHAR(8))
+          END
+          AS VARCHAR(8)
+        ) AS cofre_letra,
         cc.contratoCofres_cofreNumero AS cofre_numero
       FROM dbo.contratoCofres cc
       LEFT JOIN dbo.caja_seguridad c ON c.caja_id = cc.contratoCofres_cajaId
