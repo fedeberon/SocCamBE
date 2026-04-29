@@ -453,8 +453,10 @@ class SosContadorService {
     const defaultDesde = `${today.getFullYear() - 1}-01-01`;
     const defaultHasta = `${today.getFullYear()}-12-31`;
 
-    const cpValues: Array<'C' | 'P'> = options.cp ? [options.cp] : ['C', 'P'];
-    const tipoValues: Array<'T' | 'D' | 'H'> = options.tipo ? [options.tipo] : ['T', 'D', 'H'];
+    // Para saldos de socio final usamos una única vista consistente (Cliente + Todo)
+    // para evitar duplicados al combinar CP/tipo.
+    const cpValues: Array<'C' | 'P'> = options.cp ? [options.cp] : ['C'];
+    const tipoValues: Array<'T' | 'D' | 'H'> = options.tipo ? [options.tipo] : ['T'];
 
     const dedupe = new Set<string>();
     const movements: SosCuentaCorrienteItem[] = [];
