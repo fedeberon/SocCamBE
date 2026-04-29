@@ -37,6 +37,33 @@ class SosMovimientosService {
     return String(value || '').replace(/\D/g, '');
   }
 
+  private toFiniteNumber(value: any): number | null {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  private resolveFacturaAsociadaIdFromCc(mov: MovimientoCuentaCorrienteLike): number | null {
+    const candidates = [
+      (mov as any)?.idcomprobante_asociado,
+      (mov as any)?.idcomprobanteasociado,
+      (mov as any)?.idcomprobante_asoc,
+      (mov as any)?.idasociado,
+      (mov as any)?.id_asociado,
+      (mov as any)?.idfactura,
+      (mov as any)?.idfactura_asociada,
+      (mov as any)?.id_factura_asociada,
+      (mov as any)?.idcomprobante_origen,
+      (mov as any)?.id_origen,
+    ];
+
+    for (const candidate of candidates) {
+      const id = this.toFiniteNumber(candidate);
+      if (id && id > 0) return id;
+    }
+
+    return null;
+  }
+
   private inferTipoMovimientoFromCc(mov: MovimientoCuentaCorrienteLike): 'FACTURA' | 'RECIBO' | 'OTRO' {
     const tipoRaw = String(mov?.fcncnd || '').toUpperCase();
 
@@ -136,53 +163,24 @@ class SosMovimientosService {
       return { mov, tipoMovimiento, comprobanteNumero, memo, montodebe, montohaber, fecha };
     });
 
-    const facturas = enriched.filter(
-      (x) => x.tipoMovimiento === 'FACTURA' && x.comprobanteNumero && x.montodebe > 0,
-    );
-
-    const matchFacturaForRecibo = (recibo: (typeof enriched)[number]): string | null => {
-      const memo = recibo.memo;
-      const amount = recibo.montohaber;
-      const fechaRecibo = recibo.fecha ? recibo.fecha.getTime() : Number.MAX_SAFE_INTEGER;
-
-      const byMemo = memo
-        ? facturas.filter((f) => f.memo && f.memo.toLowerCase() === memo.toLowerCase())
-        : [];
-
-      if (byMemo.length === 1) return byMemo[0].comprobanteNumero || null;
-      if (byMemo.length > 1) {
-        byMemo.sort((a, b) => {
-          const da = Math.abs((a.fecha ? a.fecha.getTime() : fechaRecibo) - fechaRecibo);
-          const db = Math.abs((b.fecha ? b.fecha.getTime() : fechaRecibo) - fechaRecibo);
-          return da - db;
-        });
-        return byMemo[0].comprobanteNumero || null;
-      }
-
-      const byAmount = facturas.filter((f) => Math.abs(f.montodebe - amount) <= 1);
-      if (byAmount.length === 1) return byAmount[0].comprobanteNumero || null;
-      if (byAmount.length > 1) {
-        byAmount.sort((a, b) => {
-          const da = Math.abs((a.fecha ? a.fecha.getTime() : fechaRecibo) - fechaRecibo);
-          const db = Math.abs((b.fecha ? b.fecha.getTime() : fechaRecibo) - fechaRecibo);
-          return da - db;
-        });
-        return byAmount[0].comprobanteNumero || null;
-      }
-
-      return memo || null;
-    };
+    const bySosComprobanteId = new Map<number, { comprobanteNumero: string | null }>();
+    for (const row of enriched) {
+      const id = this.toFiniteNumber((row.mov as any)?.idcomprobante);
+      if (!id || id <= 0) continue;
+      bySosComprobanteId.set(id, { comprobanteNumero: row.comprobanteNumero || null });
+    }
 
     for (const row of enriched) {
-      const { mov, tipoMovimiento, comprobanteNumero, memo } = row;
+      const { mov, tipoMovimiento, comprobanteNumero } = row;
       const sosCobroId = Number(mov?.idcomprobante || 0) || null;
       const montodebe = mov?.montodebe ?? null;
       const montohaber = mov?.montohaber ?? null;
       const monto = Number(montohaber || 0) > 0 ? montohaber : montodebe;
 
+      const facturaAsociadaId = tipoMovimiento === 'RECIBO' ? this.resolveFacturaAsociadaIdFromCc(mov) : null;
       const facturaReferencia =
-        tipoMovimiento === 'RECIBO'
-          ? matchFacturaForRecibo(row)
+        tipoMovimiento === 'RECIBO' && facturaAsociadaId
+          ? bySosComprobanteId.get(facturaAsociadaId)?.comprobanteNumero || String(facturaAsociadaId)
           : null;
 
       const payload = {
