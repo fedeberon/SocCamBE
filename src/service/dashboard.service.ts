@@ -2,8 +2,9 @@ import { Op, fn, col, literal, Sequelize, QueryTypes } from 'sequelize';
 import CajaSeguridad from '../models/CajaSeguridad.models';
 import CajaSeguridadTamano from '../models/CajaSeguridadTamano.models';
 import SocioCajaSeguridad from '../models/SocioCajaSeguridad.models';
-import PagosSocios from '../models/pagosSocios.models';
+
 import sequelize from '../configs/database';
+import deudaService from './deuda.service';
 
 class DashboardService {
   async resumenInicioSocio(socioId: number) {
@@ -18,17 +19,8 @@ class DashboardService {
       };
     }
 
-    const [deudaRow, puntosRow, cuponesCountRow, misCuponesRows] = await Promise.all([
-      sequelize.query(
-        `
-          SELECT ISNULL(SUM(CAST(pagosSocios_monto AS DECIMAL(18,2))), 0) AS deudaTotal
-          FROM dbo.pagosSocios
-          WHERE pagosSocios_socio = :socioId
-            AND (pagosSocios_deleted = 0 OR pagosSocios_deleted IS NULL)
-            AND LOWER(CONVERT(NVARCHAR(50), pagosSocios_estado)) NOT IN ('pagado','pago','approved')
-        `,
-        { replacements: { socioId: sid }, type: QueryTypes.SELECT },
-      ),
+    const [deudaTotal, puntosRow, cuponesCountRow, misCuponesRows] = await Promise.all([
+      deudaService.getDeudaSociosById(sid),
       sequelize.query(
         `
           SELECT ISNULL(SUM(CAST(puntos AS INT)), 0) AS puntosTotal
@@ -69,7 +61,7 @@ class DashboardService {
 
     return {
       socioId: sid,
-      deudaTotal: Number((deudaRow[0] as any)?.deudaTotal || 0),
+      deudaTotal: Number(deudaTotal || 0),
       puntosTotal: Number((puntosRow[0] as any)?.puntosTotal || 0),
       cuponesAsignados: Number((cuponesCountRow[0] as any)?.total || 0),
       misCupones: Array.isArray(misCuponesRows) ? misCuponesRows : [],
@@ -157,138 +149,88 @@ class DashboardService {
   }
 
   async porcentajeDeuda({ anio, periodo }: { anio?: number; periodo?: number }) {
-    const where: any = {};
-    if (anio) where.pagosSocios_anio = anio;
-    if (periodo) where.pagosSocios_periodo = periodo;
-    where.pagosSocios_deleted = { [Op.or]: [false, null] };
-
-    const estadoNoPagado = Sequelize.where(
-      Sequelize.cast(col('pagosSocios_estado'), 'NVARCHAR'),
-      { [Op.notIn]: ['pagado', 'PAGADO', 'PAGO'] },
+    const row = await sequelize.query(
+      `
+        SELECT
+          ISNULL(SUM(CASE WHEN tipo_movimiento = 'FACTURA' THEN ISNULL(montodebe, ISNULL(monto, 0)) ELSE 0 END), 0) AS total_facturado,
+          ISNULL(SUM(CASE WHEN tipo_movimiento = 'RECIBO' THEN ISNULL(montohaber, ISNULL(monto, 0)) ELSE 0 END), 0) AS total_cobrado
+        FROM dbo.sos_movimientos
+        WHERE deleted = 0
+          AND (:anio IS NULL OR YEAR(fecha) = :anio)
+          AND (:periodo IS NULL OR MONTH(fecha) = :periodo)
+      `,
+      { replacements: { anio: anio ?? null, periodo: periodo ?? null }, type: QueryTypes.SELECT },
     );
 
-    const total = Number(await PagosSocios.sum('pagosSocios_monto', { where })) || 0;
+    const total = Number((row[0] as any)?.total_facturado || 0);
+    const cobrado = Number((row[0] as any)?.total_cobrado || 0);
+    const deuda = Math.max(0, Number((total - cobrado).toFixed(2)));
 
-    const deuda = Number(
-      await PagosSocios.sum('pagosSocios_monto', {
-        where: {
-          ...where,
-          [Op.and]: [estadoNoPagado],
-        },
-      }),
-    ) || 0;
-
-    return {
-      totalImporte: total,
-      deudaImporte: deuda,
-      deudaPorciento: total > 0 ? Number(((deuda / total) * 100).toFixed(2)) : 0,
-      filtros: { anio, periodo },
-    };
+    return { totalImporte: total, deudaImporte: deuda, deudaPorciento: total > 0 ? Number(((deuda / total) * 100).toFixed(2)) : 0, filtros: { anio, periodo } };
   }
 
   async deudaPorMes(anio: number) {
-    const estadoNoPagado = Sequelize.where(
-      Sequelize.cast(col('pagosSocios_estado'), 'NVARCHAR'),
-      { [Op.notIn]: ['pagado', 'PAGADO', 'PAGO'] },
+    const rows = await sequelize.query(
+      `
+        SELECT
+          YEAR(fecha) AS anio,
+          MONTH(fecha) AS periodo,
+          ISNULL(SUM(CASE WHEN tipo_movimiento = 'FACTURA' THEN ISNULL(montodebe, ISNULL(monto, 0)) ELSE 0 END), 0) AS total_facturado,
+          ISNULL(SUM(CASE WHEN tipo_movimiento = 'RECIBO' THEN ISNULL(montohaber, ISNULL(monto, 0)) ELSE 0 END), 0) AS total_cobrado
+        FROM dbo.sos_movimientos
+        WHERE deleted = 0
+          AND YEAR(fecha) = :anio
+        GROUP BY YEAR(fecha), MONTH(fecha)
+        ORDER BY MONTH(fecha) ASC
+      `,
+      { replacements: { anio }, type: QueryTypes.SELECT },
     );
 
-    const rows = await PagosSocios.findAll({
-      attributes: [
-        'pagosSocios_anio',
-        'pagosSocios_periodo',
-        [fn('SUM', col('pagosSocios_monto')), 'total'],
-        [
-          fn(
-            'SUM',
-            literal(
-              `CASE WHEN CAST(pagosSocios_estado AS NVARCHAR(50)) NOT IN ('pagado','PAGADO','PAGO') THEN pagosSocios_monto ELSE 0 END`,
-            ),
-          ),
-          'deuda',
-        ],
-      ],
-      where: {
-        pagosSocios_anio: anio,
-        pagosSocios_deleted: { [Op.or]: [false, null] },
-      },
-      group: ['pagosSocios_anio', 'pagosSocios_periodo'],
-      order: [[col('pagosSocios_periodo'), 'ASC']],
-      raw: true,
-    });
-
-    return rows.map((r: any) => {
-      const total = Number(r.total) || 0;
-      const deuda = Number(r.deuda) || 0;
-      return {
-        anio: r.pagosSocios_anio,
-        periodo: r.pagosSocios_periodo,
-        totalImporte: total,
-        deudaImporte: deuda,
-        deudaPorciento: total > 0 ? Number(((deuda / total) * 100).toFixed(2)) : 0,
-      };
+    return (rows as any[]).map((r: any) => {
+      const total = Number(r.total_facturado || 0);
+      const cobrado = Number(r.total_cobrado || 0);
+      const deuda = Math.max(0, Number((total - cobrado).toFixed(2)));
+      return { anio: Number(r.anio), periodo: Number(r.periodo), totalImporte: total, deudaImporte: deuda, deudaPorciento: total > 0 ? Number(((deuda / total) * 100).toFixed(2)) : 0 };
     });
   }
 
   async pagoVsImpagoPorMes(anio: number) {
-    const rows = await PagosSocios.findAll({
-      attributes: [
-        'pagosSocios_periodo',
-        [
-          fn(
-            'SUM',
-            literal(
-              `CASE WHEN LOWER(CAST(pagosSocios_estado AS NVARCHAR(50))) IN ('pagado','pago','approved') THEN pagosSocios_monto ELSE 0 END`,
-            ),
-          ),
-          'pagado',
-        ],
-        [
-          fn(
-            'SUM',
-            literal(
-              `CASE WHEN LOWER(CAST(pagosSocios_estado AS NVARCHAR(50))) NOT IN ('pagado','pago','approved') THEN pagosSocios_monto ELSE 0 END`,
-            ),
-          ),
-          'impago',
-        ],
-      ],
-      where: {
-        pagosSocios_anio: anio,
-        pagosSocios_deleted: { [Op.or]: [false, null] },
-      },
-      group: ['pagosSocios_periodo'],
-      order: [[col('pagosSocios_periodo'), 'ASC']],
-      raw: true,
-    });
+    const rows = await sequelize.query(
+      `
+        SELECT
+          MONTH(fecha) AS periodo,
+          ISNULL(SUM(CASE WHEN tipo_movimiento = 'FACTURA' THEN ISNULL(montodebe, ISNULL(monto, 0)) ELSE 0 END), 0) AS total_facturado,
+          ISNULL(SUM(CASE WHEN tipo_movimiento = 'RECIBO' THEN ISNULL(montohaber, ISNULL(monto, 0)) ELSE 0 END), 0) AS total_cobrado
+        FROM dbo.sos_movimientos
+        WHERE deleted = 0
+          AND YEAR(fecha) = :anio
+        GROUP BY MONTH(fecha)
+        ORDER BY MONTH(fecha) ASC
+      `,
+      { replacements: { anio }, type: QueryTypes.SELECT },
+    );
 
-    return rows.map((r: any) => {
-      const pagado = Number(r.pagado) || 0;
-      const impago = Number(r.impago) || 0;
+    return (rows as any[]).map((r: any) => {
+      const facturado = Number(r.total_facturado || 0);
+      const cobrado = Number(r.total_cobrado || 0);
+      const pagado = Math.min(facturado, cobrado);
+      const impago = Math.max(0, facturado - cobrado);
       const total = pagado + impago;
-      return {
-        periodo: r.pagosSocios_periodo,
-        pagado,
-        impago,
-        pagadoPorciento: total > 0 ? Number(((pagado / total) * 100).toFixed(2)) : 0,
-        impagoPorciento: total > 0 ? Number(((impago / total) * 100).toFixed(2)) : 0,
-      };
+      return { periodo: Number(r.periodo), pagado, impago, pagadoPorciento: total > 0 ? Number(((pagado / total) * 100).toFixed(2)) : 0, impagoPorciento: total > 0 ? Number(((impago / total) * 100).toFixed(2)) : 0 };
     });
   }
 
   async totalRecaudado() {
     const row = await sequelize.query(
       `
-        SELECT 
-          SUM(pagosSocios_monto) AS total
-        FROM dbo.pagosSocios
-        WHERE (pagosSocios_deleted = 0 OR pagosSocios_deleted IS NULL)
-          AND LOWER(CONVERT(NVARCHAR(50), pagosSocios_estado)) IN ('pagado','pago','approved')
+        SELECT ISNULL(SUM(CASE WHEN tipo_movimiento = 'RECIBO' THEN ISNULL(montohaber, ISNULL(monto, 0)) ELSE 0 END), 0) AS total
+        FROM dbo.sos_movimientos
+        WHERE deleted = 0
       `,
       { type: QueryTypes.SELECT },
     );
 
     const total = Number((row[0] as any)?.total || 0);
-
     return { total };
   }
 }
