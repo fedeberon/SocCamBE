@@ -43,7 +43,10 @@ export const getAllPagosSocios = async (req: Request, res: Response) => {
 export const getDeudaBySocio = async (req: Request, res : Response) => {
   try {
     const { socioId } = req.params;
-    const deuda_socio = await deudaService.getDeudaSociosById(Number(socioId));
+    const socio = await Socio.findByPk(Number(socioId));
+    const socioData = socio ? (socio.get({ plain: true }) as any) : null;
+    const socioCuit = String(socioData?.socio_cuit || '').replace(/\D/g, '');
+    const deuda_socio = await deudaService.getDeudaSociosById(Number(socioId), socioCuit || undefined);
 
     res.json({ deuda_socio, deuda_cofres: 0, deuda_total: deuda_socio });
   } catch (error) {
