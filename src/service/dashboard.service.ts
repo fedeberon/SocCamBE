@@ -2,6 +2,7 @@ import { Op, fn, col, literal, Sequelize, QueryTypes } from 'sequelize';
 import CajaSeguridad from '../models/CajaSeguridad.models';
 import CajaSeguridadTamano from '../models/CajaSeguridadTamano.models';
 import SocioCajaSeguridad from '../models/SocioCajaSeguridad.models';
+import Socio from '../models/socio.models';
 
 import sequelize from '../configs/database';
 import deudaService from './deuda.service';
@@ -19,8 +20,14 @@ class DashboardService {
       };
     }
 
+    const socio = await Socio.findByPk(sid, {
+      attributes: ['socio_cuit'],
+      raw: true,
+    } as any);
+    const socioCuit = String((socio as any)?.socio_cuit || '').replace(/\D/g, '');
+
     const [deudaTotal, puntosRow, cuponesCountRow, misCuponesRows] = await Promise.all([
-      deudaService.getDeudaSociosById(sid),
+      deudaService.getDeudaSociosById(sid, socioCuit || undefined),
       sequelize.query(
         `
           SELECT ISNULL(SUM(CAST(puntos AS INT)), 0) AS puntosTotal

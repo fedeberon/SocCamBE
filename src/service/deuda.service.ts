@@ -2,16 +2,6 @@ import SosMovimiento from '../models/sosMovimiento.models';
 import logger from '../configs/logger';
 
 class DeudaService {
-  private getMontosaldoFromRaw(rawJson: any): number | null {
-    try {
-      const parsed = typeof rawJson === 'string' ? JSON.parse(rawJson) : rawJson;
-      const saldo = Number(parsed?.montosaldo);
-      return Number.isFinite(saldo) ? saldo : null;
-    } catch {
-      return null;
-    }
-  }
-
   async getDeudaSociosById(id: number, cuit?: string): Promise<number> {
     try {
       const where: any = {
@@ -25,22 +15,17 @@ class DeudaService {
 
       const rows = await SosMovimiento.findAll({
         where,
-        attributes: ['montodebe', 'montohaber', 'raw_json'],
+        attributes: ['montodebe', 'montohaber'],
         raw: true,
       } as any);
 
       const total = rows.reduce((acc: number, r: any) => {
-        const saldo = this.getMontosaldoFromRaw(r?.raw_json);
-        if (saldo !== null) {
-          return acc + Math.max(0, saldo);
-        }
-
         const debe = Number(r?.montodebe || 0);
         const haber = Number(r?.montohaber || 0);
-        return acc + Math.max(0, debe - haber);
+        return acc + debe - haber;
       }, 0);
 
-      return Number(total.toFixed(2));
+      return Math.max(0, Number(total.toFixed(2)));
     } catch (error: any) {
       const message = String(error?.message || '');
       const isMissingLegacyColumns =
