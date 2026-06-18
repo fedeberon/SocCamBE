@@ -1,8 +1,9 @@
 import Socio from '../models/socio.models';
 import PagosSocios from '../models/pagosSocios.models';
+import SosMovimiento from '../models/sosMovimiento.models';
 import { ISocioService } from '../interfaces/Isocio.service';
 import MovimientoCuentaCorrienteCofre from '../models/movimientoCuentaCorrienteCofre.models';
-import { Op } from 'sequelize'; // Importar operador para consultas avanzadas
+import { Op, literal } from 'sequelize';
 
 class SocioService implements ISocioService {
   async getAllSocios(): Promise<Socio[]> {
@@ -31,18 +32,32 @@ class SocioService implements ISocioService {
         return null;
     }
 
-    const pagos = await PagosSocios.findAll({
-        where: {
-            pagosSocios_socio: id
-        },
-        order: [['pagosSocios_fechaVencimiento', 'DESC']] // Reemplaza 'id' por el campo de orden que necesites
+    const pagosLocales = await PagosSocios.findAll({
+        where: { pagosSocios_socio: id },
+        order: [['pagosSocios_fechaVencimiento', 'DESC']]
     });
 
+    const socioData = socio.get({ plain: true }) as any;
+    const socioCuit = String(socioData?.socio_cuit || '').replace(/\D/g, '');
+
+    let movimientosSos: any[] = [];
+    if (socioCuit) {
+      movimientosSos = await SosMovimiento.findAll({
+        where: {
+          socio_id: id,
+          cuit_cuil: socioCuit,
+          deleted: false,
+        },
+        order: [['fecha', 'DESC'], ['sos_mov_id', 'DESC']],
+      });
+    }
+
     return {
-        ...socio.get({ plain: true }),
-        pagos: pagos
+        ...socioData,
+        pagos: pagosLocales,
+        pagos_sos: movimientosSos,
     };
-}
+  }
 
 
   async getSocioMovimientosCofre(id: number): Promise<{
@@ -78,7 +93,7 @@ class SocioService implements ISocioService {
   async updateSocio(id: number, socioData: any): Promise<[number, Socio]> {
     const [affectedRows] = await Socio.update(socioData, {
       where: { socio_id: id },
-      returning: false, // 👈 esto evita el uso de OUTPUT
+      returning: false,
     });
 
     const socio = await Socio.findByPk(id);
@@ -96,21 +111,47 @@ class SocioService implements ISocioService {
   }
   
   async searchSociosByName(search: string): Promise<Socio[]> {
-    return await Socio.findAll({
-        where: {
-            [Op.or]: [
-                { socio_nombre: { [Op.like]: `%${search}%` } },
-                {
-                    [Op.and]: [
-                        { socio_nombre: search.split(' ')[0] || '' }, 
-                        { socio_apellido: search.split(' ')[1] || '' }, 
-                    ],
-                },
-            ],
+    const parts = search.trim().split(/\s+/);
+    const isNumeric = /^\d+$/.test(search.trim());
+    const conditions: any[] = [];
+
+    if (isNumeric) {
+      conditions.push(
+        { socio_id: Number(search.trim()) },
+        { socio_numero: Number(search.trim()) },
+        { socio_dni: { [Op.like]: `%${search.trim()}%` } },
+        { socio_cuit: { [Op.like]: `%${search.trim()}%` } },
+      );
+    }
+
+    if (parts.length === 1) {
+      conditions.push(
+        { socio_nombre: { [Op.like]: `%${search}%` } },
+        { socio_apellido: { [Op.like]: `%${search}%` } },
+      );
+    } else {
+      conditions.push(
+        {
+          [Op.and]: [
+            { socio_nombre: { [Op.like]: `%${parts[0]}%` } },
+            { socio_apellido: { [Op.like]: `%${parts.slice(1).join(' ')}%` } },
+          ],
         },
-        order: [['socio_nombre', 'ASC']],
+        {
+          [Op.and]: [
+            { socio_nombre: { [Op.like]: `%${parts.slice(0, -1).join(' ')}%` } },
+            { socio_apellido: { [Op.like]: `%${parts[parts.length - 1]}%` } },
+          ],
+        },
+      );
+    }
+
+    return await Socio.findAll({
+      where: { [Op.or]: conditions },
+      order: [['socio_nombre', 'ASC']],
+      limit: 50,
     });
-}
+  }
 }
 
 

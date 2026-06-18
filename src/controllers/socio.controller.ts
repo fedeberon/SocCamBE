@@ -15,6 +15,7 @@ import PagosSociosAdapter from '../adapters/PagosSociosAdapter';
 import sosSyncQueueService from '../service/sosSyncQueue.service';
 import SosMovimiento from '../models/sosMovimiento.models';
 import SocioPuntos from '../models/SocioPuntos.models';
+import PagosSocios from '../models/pagosSocios.models';
 
 class SocioController {
   private static socioService: ISocioService = new SocioService(); 
@@ -61,9 +62,15 @@ class SocioController {
           }
         }
 
+        const cuit = String((socioData as any)?.socio_cuit || '').replace(/\D/g, '');
+        const socioPagos = await PagosSocios.findAll({
+          where: { pagosSocios_socio: Number(id), pagosSocios_deleted: false },
+          order: [['pagosSocios_fechaVencimiento', 'DESC']],
+        });
+
+        let syncStatus = 'no_sync_needed';
         const shouldSync = String((req.query as any)?.sync ?? 'true').toLowerCase() !== 'false';
         if (shouldSync) {
-          const cuit = String((socioData as any)?.socio_cuit || '').replace(/\D/g, '');
           const socioId = Number((socioData as any)?.socio_id || id);
           if (socioId && cuit.length === 11) {
             const fechaDesde = process.env.SOS_SYNC_DEFAULT_FROM || '2024-01-01';
@@ -77,6 +84,9 @@ class SocioController {
             }).catch((e) => {
               logger.warn(`[socio.getSocioById] no se pudo encolar sync socioId=${socioId}: ${e?.message || e}`);
             });
+            syncStatus = 'sync_queued';
+          } else {
+            syncStatus = cuit ? 'cuit_invalid' : 'cuit_missing';
           }
         }
 
@@ -84,6 +94,8 @@ class SocioController {
           ...socioData,
           socio_firma: logoUrl,
           logoUrl,
+          pagos_locales: socioPagos,
+          sos_sync_status: syncStatus,
         });
       } else {
         res.status(404).json({ message: 'Socio no encontrado' });

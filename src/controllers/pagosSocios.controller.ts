@@ -3,6 +3,7 @@ import logger from '../configs/logger';
 import deudaService from '../service/deuda.service';
 import sosContadorService from '../service/sosContador.service';
 import Socio from '../models/socio.models';
+import PagosSocios from '../models/pagosSocios.models';
 import PagosSociosAdapter from '../adapters/PagosSociosAdapter';
 import SosMovimiento from '../models/sosMovimiento.models';
 
@@ -48,7 +49,12 @@ export const getDeudaBySocio = async (req: Request, res : Response) => {
     const socioCuit = String(socioData?.socio_cuit || '').replace(/\D/g, '');
     const deuda_socio = await deudaService.getDeudaSociosById(Number(socioId), socioCuit || undefined);
 
-    res.json({ deuda_socio, deuda_cofres: 0, deuda_total: deuda_socio });
+    const pagosLocales = await PagosSocios.findAll({
+      where: { pagosSocios_socio: Number(socioId), pagosSocios_deleted: false },
+      order: [['pagosSocios_fechaVencimiento', 'DESC']],
+    });
+
+    res.json({ deuda_socio, deuda_cofres: 0, deuda_total: deuda_socio, pagos_locales: pagosLocales });
   } catch (error) {
     logger.error('Error al obtener la deuda del socio', error)
     res.status(500).json({ message: 'Error al obtener la deuda del socio', error });
@@ -88,54 +94,60 @@ export const getPagosSociosBySocio = async (req: Request, res: Response) => {
 
     const socioData = socio.get({ plain: true }) as any;
     const socioCuit = String(socioData.socio_cuit || '').replace(/\D/g, '');
-    if (!socioCuit) {
-      return res.status(404).json({ message: 'El socio no tiene CUIT configurado' });
-    }
 
-    const movimientos = await SosMovimiento.findAll({
-      where: {
-        socio_id: Number(socioId),
-        cuit_cuil: socioCuit,
-        deleted: false,
-      },
-      order: [['fecha', 'DESC'], ['sos_mov_id', 'DESC']],
+    const pagosLocales = await PagosSocios.findAll({
+      where: { pagosSocios_socio: Number(socioId) },
+      order: [['pagosSocios_fechaVencimiento', 'DESC']],
     });
 
-    if (!movimientos.length) {
-      return res.status(404).json({ message: 'No se encontraron pagos del socio en tabla local sincronizada' });
-    }
-
-    const cobros = movimientos.map((m: any) => {
-      const raw = (() => {
-        try {
-          return m?.raw_json ? JSON.parse(m.raw_json) : null;
-        } catch {
-          return null;
-        }
-      })();
-
-      return {
-        id: m.sos_cobro_id || m.sos_mov_id,
-        fecha: m.fecha,
-        factura: m.factura,
-        tipo_movimiento: m.tipo_movimiento,
-        comprobante_numero: m.comprobante_numero,
-        factura_referencia: m.factura_referencia,
-        montototal: Number(m.monto || 0),
-        referencia: m.referencia,
-        cliente: {
-          id: m.sos_cliente_id,
-          cuit: m.cuit_cuil,
-          clipro: m.cliente_nombre,
-          email: m.cliente_email,
+    let cobrosSos: any[] = [];
+    if (socioCuit) {
+      const movimientos = await SosMovimiento.findAll({
+        where: {
+          socio_id: Number(socioId),
+          cuit_cuil: socioCuit,
+          deleted: false,
         },
-        ...(raw || {}),
-      };
+        order: [['fecha', 'DESC'], ['sos_mov_id', 'DESC']],
+      });
+
+      cobrosSos = movimientos.map((m: any) => {
+        const raw = (() => {
+          try {
+            return m?.raw_json ? JSON.parse(m.raw_json) : null;
+          } catch {
+            return null;
+          }
+        })();
+
+        return {
+          id: m.sos_cobro_id || m.sos_mov_id,
+          fecha: m.fecha,
+          factura: m.factura,
+          tipo_movimiento: m.tipo_movimiento,
+          comprobante_numero: m.comprobante_numero,
+          factura_referencia: m.factura_referencia,
+          montototal: Number(m.monto || 0),
+          referencia: m.referencia,
+          cliente: {
+            id: m.sos_cliente_id,
+            cuit: m.cuit_cuil,
+            clipro: m.cliente_nombre,
+            email: m.cliente_email,
+          },
+          ...(raw || {}),
+        };
+      });
+    }
+
+    const pagosSos = PagosSociosAdapter.fromSosCobros(cobrosSos as any[], Number(socioId), periodo);
+
+    return res.json({
+      socioId: Number(socioId),
+      pagos_locales: pagosLocales,
+      pagos_sos: pagosSos,
+      movimientos_sos: cobrosSos,
     });
-
-    const pagos = PagosSociosAdapter.fromSosCobros(cobros as any[], Number(socioId), periodo);
-
-    return res.json(pagos);
   } catch (error) {
     logger.error('Error al obtener pagos de socios', error)
     return res.status(500).json({ message: 'Error al obtener los pagos del socio', error });

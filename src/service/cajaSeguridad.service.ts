@@ -164,12 +164,50 @@ class CajaSeguridadService implements ICajaSeguridadService {
   }
 
   async getCajasBySocio(socioId: number): Promise<any[]> {
-    return await SocioCajaSeguridad.findAll({
+    const cajasNuevas = await SocioCajaSeguridad.findAll({
       where: { socio_id: socioId },
       include: [
         { model: CajaSeguridad, as: 'caja', include: [{ model: CajaSeguridadTamano, as: 'tamano' }] },
       ],
     });
+
+    const legacyRows = await sequelize.query(
+      `
+      SELECT
+        cc.contratoCofres_id,
+        cc.contratoCofres_esSocioId,
+        cc.contratoCofres_cajaNumero,
+        cc.contratoCofres_cofreNumero,
+        cc.contratoCofres_fechaContratacion,
+        cc.contratoCofres_fechaVencimiento,
+        cc.contratoCofres_estado
+      FROM dbo.contratoCofres cc
+      WHERE cc.contratoCofres_esSocioId = :socioId
+        AND ISNULL(cc.contratoCofres_deleted, 0) = 0
+      ORDER BY cc.contratoCofres_id DESC
+      `,
+      { replacements: { socioId }, type: QueryTypes.SELECT }
+    ) as any[];
+
+    const cajasLegacy = legacyRows.map((r) => ({
+      socio_caja_id: -Number(r.contratoCofres_id),
+      socio_id: Number(r.contratoCofres_esSocioId),
+      caja_id: -Number(r.contratoCofres_id),
+      es_titular: true,
+      fecha_inicio: r.contratoCofres_fechaContratacion,
+      fecha_fin: r.contratoCofres_fechaVencimiento,
+      nota: `Contrato legacy #${r.contratoCofres_id}`,
+      origen: 'legacy',
+      caja: {
+        caja_id: -Number(r.contratoCofres_id),
+        numero: String(r.contratoCofres_cajaNumero || r.contratoCofres_cofreNumero || r.contratoCofres_id),
+        estado: r.contratoCofres_estado || 'Habilitado',
+        ubicacion: 'Legacy',
+        tamano: null,
+      },
+    }));
+
+    return [...cajasNuevas, ...cajasLegacy];
   }
 
   async getCofresVencidos(): Promise<any[]> {

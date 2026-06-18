@@ -1,4 +1,5 @@
 import SosMovimiento from '../models/sosMovimiento.models';
+import PagosSocios from '../models/pagosSocios.models';
 import logger from '../configs/logger';
 
 class DeudaService {
@@ -25,7 +26,9 @@ class DeudaService {
         return acc + debe - haber;
       }, 0);
 
-      return Math.max(0, Number(total.toFixed(2)));
+      if (rows.length > 0) {
+        return Math.max(0, Number(total.toFixed(2)));
+      }
     } catch (error: any) {
       const message = String(error?.message || '');
       const isMissingLegacyColumns =
@@ -33,23 +36,40 @@ class DeudaService {
         (message.includes('montodebe') || message.includes('montohaber'));
 
       if (!isMissingLegacyColumns) {
-        throw error;
+        logger.warn('[deudaService] error consultando sos_movimientos, usando fallback', error);
+      } else {
+        logger.warn('[deudaService] columnas montodebe/montohaber no existen; usando fallback con monto');
+        try {
+          const rows = await SosMovimiento.findAll({
+            where: { socio_id: id, deleted: false },
+            attributes: ['monto'],
+            raw: true,
+          } as any);
+          if (rows.length > 0) {
+            const total = rows.reduce((acc: number, r: any) => acc + Number(r?.monto || 0), 0);
+            return Number(total.toFixed(2));
+          }
+        } catch (_) {}
       }
+    }
 
-      logger.warn('[deudaService] columnas montodebe/montohaber no existen; usando fallback con monto');
+    const pagos = await PagosSocios.findAll({
+      where: { pagosSocios_socio: id, pagosSocios_deleted: false },
+      attributes: ['pagosSocios_monto', 'pagosSocios_estado'],
+      raw: true,
+    } as any);
 
-      const rows = await SosMovimiento.findAll({
-        where: {
-          socio_id: id,
-          deleted: false,
-        },
-        attributes: ['monto'],
-        raw: true,
-      } as any);
-
-      const total = rows.reduce((acc: number, r: any) => acc + Number(r?.monto || 0), 0);
+    if (pagos.length > 0) {
+      const total = pagos.reduce((acc: number, r: any) => {
+        if (String(r.pagosSocios_estado || '').toLowerCase() !== 'pagado') {
+          return acc + Number(r.pagosSocios_monto || 0);
+        }
+        return acc;
+      }, 0);
       return Number(total.toFixed(2));
     }
+
+    return 0;
   }
 }
 

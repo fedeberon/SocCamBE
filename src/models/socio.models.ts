@@ -83,7 +83,7 @@
   socio_fechaNacimiento: DataTypes.DATEONLY, // es "date" en la DB
   socio_cuit: DataTypes.STRING(11),
   socio_mail: DataTypes.STRING(150),
-  socio_firma: DataTypes.STRING(150),
+  socio_firma: DataTypes.TEXT,
   socio_tipoEmpresa: DataTypes.STRING(150),
   socio_domicilio: DataTypes.STRING(150),
   socio_telefono: DataTypes.STRING(150),
