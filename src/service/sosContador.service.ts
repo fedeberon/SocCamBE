@@ -465,16 +465,19 @@ class SosContadorService {
       for (const cpValue of cpValues) {
         for (const tipoValue of tipoValues) {
           try {
-            const response = await this.requestGetWithJsonBody<SosCuentaCorrienteResponse>(
+            const response = await this.request<SosCuentaCorrienteResponse>(
+              'POST',
               '/api-comunidad/cuentacorriente/listado',
-              token,
               {
-                CP: cpValue,
-                fechadesde: options.fechaDesde || defaultDesde,
-                fechahasta: options.fechaHasta || defaultHasta,
-                tipo: tipoValue,
-                idclipro: socio.id,
-                registros: 500,
+                token,
+                body: {
+                  CP: cpValue,
+                  fechadesde: options.fechaDesde || defaultDesde,
+                  fechahasta: options.fechaHasta || defaultHasta,
+                  tipo: tipoValue,
+                  idclipro: socio.id,
+                  registros: 500,
+                },
               },
             );
 
