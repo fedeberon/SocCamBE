@@ -211,7 +211,7 @@ class SocioController {
         order: [['fecha', 'DESC'], ['sos_mov_id', 'DESC']],
       });
 
-      const cobrosLocales = movimientosLocales.map((m: any) => {
+      let cobrosLocales = movimientosLocales.map((m: any) => {
         const raw = (() => {
           try {
             return m?.raw_json ? JSON.parse(m.raw_json) : null;
@@ -239,6 +239,35 @@ class SocioController {
         };
       });
 
+      // Fallback: si no hay movimientos SOS ni datos en sos_movimientos,
+      // usar los pagos locales como movimientos
+      if (cobrosLocales.length === 0 && includeSosMovimientos) {
+        const pagosLocales = (socioWithPagos as any)?.pagos || [];
+        cobrosLocales = pagosLocales
+          .filter((p: any) => !p.pagosSocios_deleted)
+          .map((p: any) => {
+            const pagado = Number(p.pagosSocios_estado) === 0;
+            const monto = Number(p.pagosSocios_monto || 0);
+            return {
+              idcomprobante: String(p.pagosSocios_id),
+              fecha: pagado && p.pagosSocios_fechaPago
+                ? p.pagosSocios_fechaPago
+                : p.pagosSocios_fechaVencimiento,
+              clipro: `${p.pagosSocios_socio} ${(socioWithPagos as any)?.socio_nombre || ''}`,
+              memo: p.pagosSocios_observaciones || `Cuota ${p.pagosSocios_periodo}/${p.pagosSocios_anio}`,
+              fcncnd: pagado ? 'R' : 'F',
+              letra: 'C',
+              sucursal: 0,
+              numero: Number(p.pagosSocios_id),
+              montodebe: pagado ? 0 : monto,
+              montohaber: pagado ? monto : 0,
+              montosaldo: pagado ? 0 : monto,
+              estadoasociacion: pagado ? 3 : 1,
+              idtipo_operacion: pagado ? 1 : 2,
+            };
+          });
+      }
+
       const pagosSos = PagosSociosAdapter.fromSosCobros(cobrosLocales as any[], Number(id), periodo);
       const lastSyncAt = movimientosLocales.length
         ? (movimientosLocales[0] as any)?.updated_at || (movimientosLocales[0] as any)?.fecha || null
@@ -250,7 +279,7 @@ class SocioController {
         movimientos_sos: includeSosMovimientos ? cobrosLocales : [],
         movimientos_sos_info: {
           count: cobrosLocales.length,
-          source: 'SOS_LOCAL_SYNC',
+          source: cobrosLocales.length && !movimientosLocales.length ? 'PAGOS_LOCALES' : 'SOS_LOCAL_SYNC',
           synced: true,
           last_sync_at: lastSyncAt,
           ...liveSyncInfo,
