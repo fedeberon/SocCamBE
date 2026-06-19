@@ -27,7 +27,7 @@ class DeudaService {
       }, 0);
 
       if (rows.length > 0) {
-        return Math.max(0, Number(total.toFixed(2)));
+        return Number(total.toFixed(2));
       }
     } catch (error: any) {
       const message = String(error?.message || '');
