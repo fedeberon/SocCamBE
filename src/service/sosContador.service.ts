@@ -347,7 +347,7 @@ class SosContadorService {
     const cliente = this.parseBoolean(options.cliente, true);
     const proveedor = this.parseBoolean(options.proveedor, true);
 
-    const response = await this.request<SosClienteListadoResponse>('GET', '/api-comunidad/cliente/listado', {
+    let response = await this.request<SosClienteListadoResponse>('GET', '/api-comunidad/cliente/listado', {
       token,
       query: {
         proveedor,
@@ -358,9 +358,33 @@ class SosContadorService {
       } as Record<string, string | number | boolean | undefined>,
     });
 
-    const found = (response.items || []).find(
+    let found = (response.items || []).find(
       (item) => this.sanitizeCuit(item.cuit) === normalizedSocioCuit,
     );
+
+    if (!found) {
+      // Fallback: txbuscar busca por nombre/razón social, no por CUIT.
+      // Iteramos páginas para encontrar al socio por CUIT exacto.
+      let totalPages = 1;
+      for (let page = 1; page <= totalPages; page++) {
+        response = await this.request<SosClienteListadoResponse>('GET', '/api-comunidad/cliente/listado', {
+          token,
+          query: {
+            proveedor,
+            cliente,
+            pagina: page,
+            registros: 20,
+          } as Record<string, string | number | boolean | undefined>,
+        });
+
+        found = (response.items || []).find(
+          (item) => this.sanitizeCuit(item.cuit) === normalizedSocioCuit,
+        );
+
+        if (found) break;
+        if (page === 1) totalPages = response.paginas || 1;
+      }
+    }
 
     return found || null;
   }
@@ -430,7 +454,7 @@ class SosContadorService {
 
     const token = await this.getTokenByRepresentedCuit();
 
-    const sociosResponse = await this.request<SosClienteListadoResponse>('GET', '/api-comunidad/cliente/listado', {
+    let sociosResponse = await this.request<SosClienteListadoResponse>('GET', '/api-comunidad/cliente/listado', {
       token,
       query: {
         proveedor: true,
@@ -441,9 +465,33 @@ class SosContadorService {
       } as Record<string, string | number | boolean | undefined>,
     });
 
-    const candidateSocios = (sociosResponse.items || []).filter(
+    let candidateSocios = (sociosResponse.items || []).filter(
       (item) => this.sanitizeCuit(item.cuit) === normalizedSocioCuit && Number(item.id) > 0,
     );
+
+    if (!candidateSocios.length) {
+      // Fallback: txbuscar busca por nombre/razón social, no por CUIT.
+      // Iteramos páginas para encontrar al socio por CUIT exacto.
+      let totalPages = 1;
+      for (let page = 1; page <= totalPages; page++) {
+        sociosResponse = await this.request<SosClienteListadoResponse>('GET', '/api-comunidad/cliente/listado', {
+          token,
+          query: {
+            proveedor: true,
+            cliente: true,
+            pagina: page,
+            registros: 50,
+          } as Record<string, string | number | boolean | undefined>,
+        });
+
+        candidateSocios = (sociosResponse.items || []).filter(
+          (item) => this.sanitizeCuit(item.cuit) === normalizedSocioCuit && Number(item.id) > 0,
+        );
+
+        if (candidateSocios.length) break;
+        if (page === 1) totalPages = sociosResponse.paginas || 1;
+      }
+    }
 
     if (!candidateSocios.length) {
       return [];
