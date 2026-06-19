@@ -157,21 +157,12 @@ class SocioController {
       }
 
       const socioCuit = String((socioWithPagos as any)?.socio_cuit || '').replace(/\D/g, '');
-      if (!socioCuit) {
-        return res.status(200).json({
-          ...socioWithPagos,
-          pagos_sos: [],
-          movimientos_sos: [],
-          pagos_sos_info: { message: 'El socio no tiene CUIT/CUIL configurado' },
-        });
-      }
-
       const periodo = String(query.periodo || 'mes');
       const fechaDesde = typeof query.fechaDesde === 'string' ? query.fechaDesde : undefined;
       const fechaHasta = typeof query.fechaHasta === 'string' ? query.fechaHasta : undefined;
       let liveSyncInfo: Record<string, any> = { refreshed: false };
 
-      if (includeSosMovimientos && refreshSos) {
+      if (includeSosMovimientos && refreshSos && socioCuit) {
         try {
           const movimientosLive = await sosContadorService.getMovimientosCuentaCorrienteBySocioCuit({
             socioCuit,
@@ -207,12 +198,16 @@ class SocioController {
         }
       }
 
+      const movimientosWhere: any = {
+        socio_id: Number(id),
+        deleted: false,
+      };
+      if (socioCuit) {
+        movimientosWhere.cuit_cuil = socioCuit;
+      }
+
       const movimientosLocales = await SosMovimiento.findAll({
-        where: {
-          socio_id: Number(id),
-          cuit_cuil: socioCuit,
-          deleted: false,
-        },
+        where: movimientosWhere,
         order: [['fecha', 'DESC'], ['sos_mov_id', 'DESC']],
       });
 
