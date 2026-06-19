@@ -13,6 +13,8 @@ import { ICajaSeguridadService } from '../interfaces/IcajaSeguridad.service';
 import azureBlobService from '../service/azureBlob.service';
 import PagosSociosAdapter from '../adapters/PagosSociosAdapter';
 import sosSyncQueueService from '../service/sosSyncQueue.service';
+import sosContadorService from '../service/sosContador.service';
+import sosMovimientosService from '../service/sosMovimientos.service';
 import SosMovimiento from '../models/sosMovimiento.models';
 import SocioPuntos from '../models/SocioPuntos.models';
 import PagosSocios from '../models/pagosSocios.models';
@@ -148,6 +150,7 @@ class SocioController {
       const query = (req.query || {}) as Record<string, any>;
       const includeSos = String(query.includeSos || 'false').toLowerCase() === 'true';
       const includeSosMovimientos = String(query.includeSosMovimientos || 'true').toLowerCase() === 'true';
+      const refreshSos = String(query.refreshSos || 'false').toLowerCase() === 'true';
 
       if (!includeSos) {
         return res.status(200).json(socioWithPagos);
@@ -164,6 +167,45 @@ class SocioController {
       }
 
       const periodo = String(query.periodo || 'mes');
+      const fechaDesde = typeof query.fechaDesde === 'string' ? query.fechaDesde : undefined;
+      const fechaHasta = typeof query.fechaHasta === 'string' ? query.fechaHasta : undefined;
+      let liveSyncInfo: Record<string, any> = { refreshed: false };
+
+      if (includeSosMovimientos && refreshSos) {
+        try {
+          const movimientosLive = await sosContadorService.getMovimientosCuentaCorrienteBySocioCuit({
+            socioCuit,
+            fechaDesde,
+            fechaHasta,
+            cp: query.cp === 'P' ? 'P' : 'C',
+            tipo: ['D', 'H', 'T'].includes(String(query.tipo || '').toUpperCase())
+              ? (String(query.tipo).toUpperCase() as 'D' | 'H' | 'T')
+              : 'T',
+          });
+
+          await sosMovimientosService.upsertFromCuentaCorriente(
+            Number(id),
+            socioCuit,
+            movimientosLive as any[],
+            periodo,
+          );
+
+          liveSyncInfo = {
+            refreshed: true,
+            live_count: movimientosLive.length,
+            fecha_desde: fechaDesde || null,
+            fecha_hasta: fechaHasta || null,
+          };
+        } catch (syncError: any) {
+          liveSyncInfo = {
+            refreshed: false,
+            refresh_error: syncError?.message || 'No se pudo refrescar SOS Contador',
+          };
+          logger.warn(
+            `[socio.getSocioWithPagos] no se pudo refrescar SOS socioId=${id}: ${liveSyncInfo.refresh_error}`,
+          );
+        }
+      }
 
       const movimientosLocales = await SosMovimiento.findAll({
         where: {
@@ -216,6 +258,7 @@ class SocioController {
           source: 'SOS_LOCAL_SYNC',
           synced: true,
           last_sync_at: lastSyncAt,
+          ...liveSyncInfo,
         },
       });
     } catch (error) {
