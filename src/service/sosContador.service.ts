@@ -364,16 +364,16 @@ class SosContadorService {
 
     if (!found) {
       // Fallback: txbuscar busca por nombre/razón social, no por CUIT.
-      // Iteramos páginas para encontrar al socio por CUIT exacto.
-      let totalPages = 1;
-      for (let page = 1; page <= totalPages; page++) {
+      // Iteramos páginas hasta encontrar el socio o que no haya más resultados.
+      const registrosPorPagina = 50;
+      for (let page = 1; ; page++) {
         response = await this.request<SosClienteListadoResponse>('GET', '/api-comunidad/cliente/listado', {
           token,
           query: {
             proveedor,
             cliente,
             pagina: page,
-            registros: 20,
+            registros: registrosPorPagina,
           } as Record<string, string | number | boolean | undefined>,
         });
 
@@ -382,7 +382,7 @@ class SosContadorService {
         );
 
         if (found) break;
-        if (page === 1) totalPages = response.paginas || 1;
+        if ((response.items || []).length < registrosPorPagina) break;
       }
     }
 
@@ -472,15 +472,15 @@ class SosContadorService {
     if (!candidateSocios.length) {
       // Fallback: txbuscar busca por nombre/razón social, no por CUIT.
       // Iteramos páginas para encontrar al socio por CUIT exacto.
-      let totalPages = 1;
-      for (let page = 1; page <= totalPages; page++) {
+      const registrosPorPagina = 50;
+      for (let page = 1; ; page++) {
         sociosResponse = await this.request<SosClienteListadoResponse>('GET', '/api-comunidad/cliente/listado', {
           token,
           query: {
             proveedor: true,
             cliente: true,
             pagina: page,
-            registros: 50,
+            registros: registrosPorPagina,
           } as Record<string, string | number | boolean | undefined>,
         });
 
@@ -489,7 +489,7 @@ class SosContadorService {
         );
 
         if (candidateSocios.length) break;
-        if (page === 1) totalPages = sociosResponse.paginas || 1;
+        if ((sociosResponse.items || []).length < registrosPorPagina) break;
       }
     }
 
