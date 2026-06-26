@@ -192,7 +192,8 @@ class SosContadorService {
       try {
         data = raw ? JSON.parse(raw) : null;
       } catch {
-        throw new Error(`SOS API respondió con HTML (status ${response.status}) en ${method} ${path}: ${raw.slice(0, 120)}`);
+        const bodyPreview = raw.length > 500 ? raw.slice(0, 500) + '...' : raw;
+        throw new Error(`SOS API respondió con HTML (status ${response.status}) en ${method} ${path}. Body: ${bodyPreview}`);
       }
 
       if (!response.ok || (data && typeof data === 'object' && 'error' in data)) {
