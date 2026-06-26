@@ -101,7 +101,6 @@ type GetMovimientosCuentaCorrienteBySocioCuitOptions = {
   fechaHasta?: string;
   cp?: 'C' | 'P';
   tipo?: 'T' | 'D' | 'H';
-  debugCtx?: Record<string, any>;
 };
 
 class SosContadorService {
@@ -472,20 +471,9 @@ class SosContadorService {
       } as Record<string, string | number | boolean | undefined>,
     });
 
-    const debug = options.debugCtx || {};
-    if (options.debugCtx) {
-      options.debugCtx.txbuscar_items = (sociosResponse?.items || []).length;
-      options.debugCtx.paginas = sociosResponse?.paginas;
-    }
-
     let candidateSocios = (sociosResponse.items || []).filter(
       (item) => this.sanitizeCuit(item.cuit) === normalizedSocioCuit && Number(item.id) > 0,
     );
-
-    if (options.debugCtx) {
-      options.debugCtx.candidate_after_txbuscar = candidateSocios.length;
-      options.debugCtx.candidate_ids = candidateSocios.map(s => s.id);
-    }
 
     if (!candidateSocios.length) {
       const registrosPorPagina = 50;
@@ -504,11 +492,6 @@ class SosContadorService {
           (item) => this.sanitizeCuit(item.cuit) === normalizedSocioCuit && Number(item.id) > 0,
         );
 
-        if (options.debugCtx) {
-          if (!options.debugCtx.fallback_pages) options.debugCtx.fallback_pages = [];
-          options.debugCtx.fallback_pages.push({ page, items: (sociosResponse?.items || []).length, found: candidateSocios.length });
-        }
-
         if (candidateSocios.length) break;
         if ((sociosResponse.items || []).length < registrosPorPagina) break;
       }
@@ -518,17 +501,10 @@ class SosContadorService {
       return [];
     }
 
-    if (options.debugCtx) {
-      options.debugCtx.socio_found_id = candidateSocios[0].id;
-      options.debugCtx.socio_found_clipro = candidateSocios[0].clipro;
-    }
-
     const today = new Date();
     const defaultDesde = `${today.getFullYear() - 1}-01-01`;
     const defaultHasta = `${today.getFullYear()}-12-31`;
 
-    // Para saldos de socio final usamos una única vista consistente (Cliente + Todo)
-    // para evitar duplicados al combinar CP/tipo.
     const cpValues: Array<'C' | 'P'> = options.cp ? [options.cp] : ['C'];
     const tipoValues: Array<'T' | 'D' | 'H'> = options.tipo ? [options.tipo] : ['T'];
 
@@ -547,15 +523,6 @@ class SosContadorService {
               idclipro: socio.id,
             };
 
-            if (options.debugCtx) {
-              if (!options.debugCtx.cc_calls) options.debugCtx.cc_calls = [];
-              options.debugCtx.cc_calls.push({ socioId: socio.id, CP: cpValue, tipo: tipoValue, fechadesde: body.fechadesde, fechahasta: body.fechahasta });
-            }
-
-            if (options.debugCtx) {
-              options.debugCtx.cc_request_body = body;
-            }
-
             const response = await this.requestGetWithJsonBody<SosCuentaCorrienteResponse>(
               '/api-comunidad/cuentacorriente/listado',
               token,
@@ -563,14 +530,7 @@ class SosContadorService {
             );
 
             if (response?.error) {
-              if (options.debugCtx) {
-                options.debugCtx.cc_last_error = response.error;
-              }
               continue;
-            }
-
-            if (options.debugCtx) {
-              options.debugCtx.cc_last_items = (response?.items || []).length;
             }
 
             for (const item of response?.items || []) {
@@ -581,11 +541,8 @@ class SosContadorService {
               dedupe.add(key);
               movements.push(item);
             }
-          } catch (err: any) {
-            if (options.debugCtx) {
-              if (!options.debugCtx.cc_errors) options.debugCtx.cc_errors = [];
-              options.debugCtx.cc_errors.push({ socioId: socio.id, CP: cpValue, tipo: tipoValue, url: `${this.baseUrl}/api-comunidad/cuentacorriente/listado`, error: err?.message || String(err) });
-            }
+          } catch {
+            // SOS tiene combinaciones CP/tipo que responden error; las omitimos para devolver todo lo disponible.
           }
         }
       }

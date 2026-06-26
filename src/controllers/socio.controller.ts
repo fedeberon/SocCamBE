@@ -164,7 +164,6 @@ class SocioController {
 
       if (includeSosMovimientos && refreshSos && socioCuit) {
         try {
-          const debugCtx: Record<string, any> = {};
           const movimientosLive = await sosContadorService.getMovimientosCuentaCorrienteBySocioCuit({
             socioCuit,
             fechaDesde,
@@ -173,7 +172,6 @@ class SocioController {
             tipo: ['D', 'H', 'T'].includes(String(query.tipo || '').toUpperCase())
               ? (String(query.tipo).toUpperCase() as 'D' | 'H' | 'T')
               : 'T',
-            debugCtx,
           });
 
           await sosMovimientosService.upsertFromCuentaCorriente(
@@ -188,13 +186,11 @@ class SocioController {
             live_count: movimientosLive.length,
             fecha_desde: fechaDesde || null,
             fecha_hasta: fechaHasta || null,
-            debug: debugCtx,
           };
         } catch (syncError: any) {
           liveSyncInfo = {
             refreshed: false,
             refresh_error: syncError?.message || 'No se pudo refrescar SOS Contador',
-            debug: { error: syncError?.message },
           };
           logger.warn(
             `[socio.getSocioWithPagos] no se pudo refrescar SOS socioId=${id}: ${liveSyncInfo.refresh_error}`,
