@@ -552,13 +552,14 @@ class SosContadorService {
               options.debugCtx.cc_calls.push({ socioId: socio.id, CP: cpValue, tipo: tipoValue, fechadesde: body.fechadesde, fechahasta: body.fechahasta });
             }
 
-            const response = await this.request<SosCuentaCorrienteResponse>(
-              'POST',
+            if (options.debugCtx) {
+              options.debugCtx.cc_request_body = body;
+            }
+
+            const response = await this.requestGetWithJsonBody<SosCuentaCorrienteResponse>(
               '/api-comunidad/cuentacorriente/listado',
-              {
-                token,
-                body,
-              },
+              token,
+              body,
             );
 
             if (response?.error) {
