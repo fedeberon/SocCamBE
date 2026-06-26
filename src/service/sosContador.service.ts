@@ -1,5 +1,6 @@
 import http from 'http';
 import https from 'https';
+import logger from '../configs/logger';
 
 type SosLoginCuit = {
   id: number;
@@ -454,6 +455,8 @@ class SosContadorService {
 
     const token = await this.getTokenByRepresentedCuit();
 
+    logger.info(`[getMovimientosCC] Buscando socio CUIT=${normalizedSocioCuit} con txbuscar`);
+
     let sociosResponse = await this.request<SosClienteListadoResponse>('GET', '/api-comunidad/cliente/listado', {
       token,
       query: {
@@ -465,13 +468,16 @@ class SosContadorService {
       } as Record<string, string | number | boolean | undefined>,
     });
 
+    logger.info(`[getMovimientosCC] txbuscar items=${(sociosResponse?.items || []).length} paginas=${sociosResponse?.paginas}`);
+
     let candidateSocios = (sociosResponse.items || []).filter(
       (item) => this.sanitizeCuit(item.cuit) === normalizedSocioCuit && Number(item.id) > 0,
     );
 
+    logger.info(`[getMovimientosCC] candidateSocios tras txbuscar=${candidateSocios.length} ids=[${candidateSocios.map(s => s.id).join(',')}]`);
+
     if (!candidateSocios.length) {
-      // Fallback: txbuscar busca por nombre/razón social, no por CUIT.
-      // Iteramos páginas para encontrar al socio por CUIT exacto.
+      logger.info(`[getMovimientosCC] Fallback: paginando cliente/listado hasta encontrar CUIT=${normalizedSocioCuit}`);
       const registrosPorPagina = 50;
       for (let page = 1; ; page++) {
         sociosResponse = await this.request<SosClienteListadoResponse>('GET', '/api-comunidad/cliente/listado', {
@@ -488,14 +494,19 @@ class SosContadorService {
           (item) => this.sanitizeCuit(item.cuit) === normalizedSocioCuit && Number(item.id) > 0,
         );
 
+        logger.info(`[getMovimientosCC] fallback page=${page} items=${(sociosResponse?.items || []).length} found=${candidateSocios.length}`);
+
         if (candidateSocios.length) break;
         if ((sociosResponse.items || []).length < registrosPorPagina) break;
       }
     }
 
     if (!candidateSocios.length) {
+      logger.warn(`[getMovimientosCC] No se encontró socio con CUIT=${normalizedSocioCuit}`);
       return [];
     }
+
+    logger.info(`[getMovimientosCC] Socio encontrado: id=${candidateSocios[0].id} clipro=${candidateSocios[0].clipro}`);
 
     const today = new Date();
     const defaultDesde = `${today.getFullYear() - 1}-01-01`;
@@ -513,25 +524,31 @@ class SosContadorService {
       for (const cpValue of cpValues) {
         for (const tipoValue of tipoValues) {
           try {
+            const body = {
+              CP: cpValue,
+              fechadesde: options.fechaDesde || defaultDesde,
+              fechahasta: options.fechaHasta || defaultHasta,
+              tipo: tipoValue,
+              idclipro: socio.id,
+              registros: 500,
+            };
+            logger.info(`[getMovimientosCC] Llamando cuentacorriente/listado socioId=${socio.id} CP=${cpValue} tipo=${tipoValue} fechadesde=${body.fechadesde} fechahasta=${body.fechahasta}`);
+
             const response = await this.request<SosCuentaCorrienteResponse>(
               'POST',
               '/api-comunidad/cuentacorriente/listado',
               {
                 token,
-                body: {
-                  CP: cpValue,
-                  fechadesde: options.fechaDesde || defaultDesde,
-                  fechahasta: options.fechaHasta || defaultHasta,
-                  tipo: tipoValue,
-                  idclipro: socio.id,
-                  registros: 500,
-                },
+                body,
               },
             );
 
             if (response?.error) {
+              logger.warn(`[getMovimientosCC] cuentacorriente/listado error=${response.error}`);
               continue;
             }
+
+            logger.info(`[getMovimientosCC] cuentacorriente/listado items=${(response?.items || []).length}`);
 
             for (const item of response?.items || []) {
               const key = String(
