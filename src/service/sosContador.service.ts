@@ -188,7 +188,12 @@ class SosContadorService {
       });
 
       const raw = await response.text();
-      const data = raw ? JSON.parse(raw) : null;
+      let data: any = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        throw new Error(`SOS API respondió con HTML (status ${response.status}) en ${method} ${path}: ${raw.slice(0, 120)}`);
+      }
 
       if (!response.ok || (data && typeof data === 'object' && 'error' in data)) {
         const message = (data as any)?.error || `SOS API error ${response.status}`;
