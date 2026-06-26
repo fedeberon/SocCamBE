@@ -1,6 +1,5 @@
 import http from 'http';
 import https from 'https';
-import logger from '../configs/logger';
 
 type SosLoginCuit = {
   id: number;
@@ -102,6 +101,7 @@ type GetMovimientosCuentaCorrienteBySocioCuitOptions = {
   fechaHasta?: string;
   cp?: 'C' | 'P';
   tipo?: 'T' | 'D' | 'H';
+  debugCtx?: Record<string, any>;
 };
 
 class SosContadorService {
@@ -455,8 +455,6 @@ class SosContadorService {
 
     const token = await this.getTokenByRepresentedCuit();
 
-    logger.info(`[getMovimientosCC] Buscando socio CUIT=${normalizedSocioCuit} con txbuscar`);
-
     let sociosResponse = await this.request<SosClienteListadoResponse>('GET', '/api-comunidad/cliente/listado', {
       token,
       query: {
@@ -468,16 +466,22 @@ class SosContadorService {
       } as Record<string, string | number | boolean | undefined>,
     });
 
-    logger.info(`[getMovimientosCC] txbuscar items=${(sociosResponse?.items || []).length} paginas=${sociosResponse?.paginas}`);
+    const debug = options.debugCtx || {};
+    if (options.debugCtx) {
+      options.debugCtx.txbuscar_items = (sociosResponse?.items || []).length;
+      options.debugCtx.paginas = sociosResponse?.paginas;
+    }
 
     let candidateSocios = (sociosResponse.items || []).filter(
       (item) => this.sanitizeCuit(item.cuit) === normalizedSocioCuit && Number(item.id) > 0,
     );
 
-    logger.info(`[getMovimientosCC] candidateSocios tras txbuscar=${candidateSocios.length} ids=[${candidateSocios.map(s => s.id).join(',')}]`);
+    if (options.debugCtx) {
+      options.debugCtx.candidate_after_txbuscar = candidateSocios.length;
+      options.debugCtx.candidate_ids = candidateSocios.map(s => s.id);
+    }
 
     if (!candidateSocios.length) {
-      logger.info(`[getMovimientosCC] Fallback: paginando cliente/listado hasta encontrar CUIT=${normalizedSocioCuit}`);
       const registrosPorPagina = 50;
       for (let page = 1; ; page++) {
         sociosResponse = await this.request<SosClienteListadoResponse>('GET', '/api-comunidad/cliente/listado', {
@@ -494,7 +498,10 @@ class SosContadorService {
           (item) => this.sanitizeCuit(item.cuit) === normalizedSocioCuit && Number(item.id) > 0,
         );
 
-        logger.info(`[getMovimientosCC] fallback page=${page} items=${(sociosResponse?.items || []).length} found=${candidateSocios.length}`);
+        if (options.debugCtx) {
+          if (!options.debugCtx.fallback_pages) options.debugCtx.fallback_pages = [];
+          options.debugCtx.fallback_pages.push({ page, items: (sociosResponse?.items || []).length, found: candidateSocios.length });
+        }
 
         if (candidateSocios.length) break;
         if ((sociosResponse.items || []).length < registrosPorPagina) break;
@@ -502,11 +509,13 @@ class SosContadorService {
     }
 
     if (!candidateSocios.length) {
-      logger.warn(`[getMovimientosCC] No se encontró socio con CUIT=${normalizedSocioCuit}`);
       return [];
     }
 
-    logger.info(`[getMovimientosCC] Socio encontrado: id=${candidateSocios[0].id} clipro=${candidateSocios[0].clipro}`);
+    if (options.debugCtx) {
+      options.debugCtx.socio_found_id = candidateSocios[0].id;
+      options.debugCtx.socio_found_clipro = candidateSocios[0].clipro;
+    }
 
     const today = new Date();
     const defaultDesde = `${today.getFullYear() - 1}-01-01`;
@@ -532,7 +541,11 @@ class SosContadorService {
               idclipro: socio.id,
               registros: 500,
             };
-            logger.info(`[getMovimientosCC] Llamando cuentacorriente/listado socioId=${socio.id} CP=${cpValue} tipo=${tipoValue} fechadesde=${body.fechadesde} fechahasta=${body.fechahasta}`);
+
+            if (options.debugCtx) {
+              if (!options.debugCtx.cc_calls) options.debugCtx.cc_calls = [];
+              options.debugCtx.cc_calls.push({ socioId: socio.id, CP: cpValue, tipo: tipoValue, fechadesde: body.fechadesde, fechahasta: body.fechahasta });
+            }
 
             const response = await this.request<SosCuentaCorrienteResponse>(
               'POST',
@@ -544,11 +557,15 @@ class SosContadorService {
             );
 
             if (response?.error) {
-              logger.warn(`[getMovimientosCC] cuentacorriente/listado error=${response.error}`);
+              if (options.debugCtx) {
+                options.debugCtx.cc_last_error = response.error;
+              }
               continue;
             }
 
-            logger.info(`[getMovimientosCC] cuentacorriente/listado items=${(response?.items || []).length}`);
+            if (options.debugCtx) {
+              options.debugCtx.cc_last_items = (response?.items || []).length;
+            }
 
             for (const item of response?.items || []) {
               const key = String(
