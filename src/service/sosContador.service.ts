@@ -583,7 +583,7 @@ class SosContadorService {
           } catch (err: any) {
             if (options.debugCtx) {
               if (!options.debugCtx.cc_errors) options.debugCtx.cc_errors = [];
-              options.debugCtx.cc_errors.push({ socioId: socio.id, CP: cpValue, tipo: tipoValue, error: err?.message || String(err) });
+              options.debugCtx.cc_errors.push({ socioId: socio.id, CP: cpValue, tipo: tipoValue, url: `${this.baseUrl}/api-comunidad/cuentacorriente/listado`, error: err?.message || String(err) });
             }
           }
         }
