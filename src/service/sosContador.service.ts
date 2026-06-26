@@ -575,8 +575,11 @@ class SosContadorService {
               dedupe.add(key);
               movements.push(item);
             }
-          } catch {
-            // SOS tiene combinaciones CP/tipo que responden error; las omitimos para devolver todo lo disponible.
+          } catch (err: any) {
+            if (options.debugCtx) {
+              if (!options.debugCtx.cc_errors) options.debugCtx.cc_errors = [];
+              options.debugCtx.cc_errors.push({ socioId: socio.id, CP: cpValue, tipo: tipoValue, error: err?.message || String(err) });
+            }
           }
         }
       }
