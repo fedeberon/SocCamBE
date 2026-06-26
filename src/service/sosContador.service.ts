@@ -544,7 +544,6 @@ class SosContadorService {
               fechahasta: options.fechaHasta || defaultHasta,
               tipo: tipoValue,
               idclipro: socio.id,
-              registros: 500,
             };
 
             if (options.debugCtx) {
