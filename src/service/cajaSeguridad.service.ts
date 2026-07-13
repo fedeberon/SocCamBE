@@ -40,6 +40,7 @@ class CajaSeguridadService implements ICajaSeguridadService {
           model: Socio,
           as: 'socios',
           through: { attributes: ['socio_caja_id', 'es_titular', 'fecha_inicio', 'fecha_fin', 'nota'] },
+          attributes: ['socio_id', 'socio_nombre', 'socio_apellido', 'socio_dni', 'socio_mail', 'socio_deleted', 'socio_estado'],
         },
       ],
     });
@@ -57,7 +58,9 @@ class CajaSeguridadService implements ICajaSeguridadService {
         cc.contratoCofres_estado,
         s.socio_nombre,
         s.socio_dni,
-        s.socio_mail
+        s.socio_mail,
+        ISNULL(s.socio_deleted, 0) AS socio_deleted,
+        s.socio_estado
       FROM dbo.contratoCofres cc
       LEFT JOIN dbo.socio s ON s.socio_id = cc.contratoCofres_esSocioId
       WHERE ISNULL(cc.contratoCofres_deleted, 0) = 0
@@ -70,34 +73,60 @@ class CajaSeguridadService implements ICajaSeguridadService {
       { type: QueryTypes.SELECT }
     ) as any[];
 
-    const legacyCajas = legacyRows.map((r) => ({
-      id: -Number(r.contratoCofres_id),
-      numero:
-        String(r.contratoCofres_cajaNumero || '').trim() ||
-        (r.contratoCofres_cofreNumero != null ? String(r.contratoCofres_cofreNumero) : String(r.contratoCofres_id)),
-      estado: 'Habilitado',
-      ubicacion: 'Legacy',
-      tamanoId: 0,
-      origen: 'legacy',
-      legacyContratoId: Number(r.contratoCofres_id),
-      socios: [
-        {
-          id: Number(r.contratoCofres_esSocioId),
-          socioId: Number(r.contratoCofres_esSocioId),
-          socioNombre: r.socio_nombre,
-          socioDni: r.socio_dni,
-          socioMail: r.socio_mail,
-          esTitular: true,
-          fechaInicio: r.contratoCofres_fechaContratacion,
-          fechaFin: r.contratoCofres_fechaVencimiento,
-          nota: `Contrato legacy #${r.contratoCofres_id}`,
-        },
-      ],
-      titularNombre: r.socio_nombre,
-      nota: `Contrato legacy #${r.contratoCofres_id}`,
-    }));
+    const legacyCajas = legacyRows.map((r) => {
+      // Determinar condición del socio
+      let condicionSocio: 'activo' | 'baja' | 'sin_socio' = 'sin_socio';
+      if (r.socio_nombre) {
+        condicionSocio = r.socio_deleted ? 'baja' : 'activo';
+      }
 
-    const combinadas = [...cajasAuto, ...legacyCajas];
+      return {
+        id: -Number(r.contratoCofres_id),
+        numero:
+          String(r.contratoCofres_cajaNumero || '').trim() ||
+          (r.contratoCofres_cofreNumero != null ? String(r.contratoCofres_cofreNumero) : String(r.contratoCofres_id)),
+        estado: 'Habilitado',
+        ubicacion: 'Legacy',
+        tamanoId: 0,
+        origen: 'legacy',
+        legacyContratoId: Number(r.contratoCofres_id),
+        condicionSocio,
+        socios: [
+          {
+            id: Number(r.contratoCofres_esSocioId),
+            socioId: Number(r.contratoCofres_esSocioId),
+            socioNombre: r.socio_nombre,
+            socioDni: r.socio_dni,
+            socioMail: r.socio_mail,
+            esTitular: true,
+            fechaInicio: r.contratoCofres_fechaContratacion,
+            fechaFin: r.contratoCofres_fechaVencimiento,
+            nota: `Contrato legacy #${r.contratoCofres_id}`,
+          },
+        ],
+        titularNombre: r.socio_nombre,
+        nota: `Contrato legacy #${r.contratoCofres_id}`,
+      };
+    });
+
+    // Agregar condicionSocio a cajas AUTO
+    const cajasAutoConCondicion = cajasAuto.map((caja: any) => {
+      const socios = caja.socios || [];
+      let condicionSocio: 'activo' | 'baja' | 'sin_socio' = 'sin_socio';
+      
+      if (socios.length > 0) {
+        // Verificar si algún socio está activo
+        const algunoActivo = socios.some((s: any) => !s.socio_deleted);
+        condicionSocio = algunoActivo ? 'activo' : 'baja';
+      }
+
+      return {
+        ...caja.get({ plain: true }),
+        condicionSocio,
+      };
+    });
+
+    const combinadas = [...cajasAutoConCondicion, ...legacyCajas];
 
     if (!pageSize) return combinadas;
 
@@ -278,6 +307,12 @@ class CajaSeguridadService implements ICajaSeguridadService {
       nota: payload.nota,
     });
 
+    // Actualizar flag socio_tieneCajaSeguridad
+    await Socio.update(
+      { socio_tieneCajaSeguridad: true },
+      { where: { socio_id: payload.socioId } }
+    );
+
     try {
       const contrato = await this.contratoCofresService.createContratoCofre({
         socioId: payload.socioId,
@@ -322,6 +357,19 @@ class CajaSeguridadService implements ICajaSeguridadService {
       socioId: asignacion.socio_id,
     };
     await asignacion.destroy();
+
+    // Verificar si el socio quedó sin cajas activas
+    const cajasActivasRestantes = await SocioCajaSeguridad.count({
+      where: { socio_id: socioId, fecha_fin: { [Op.is]: null } },
+    });
+
+    if (cajasActivasRestantes === 0) {
+      await Socio.update(
+        { socio_tieneCajaSeguridad: false },
+        { where: { socio_id: socioId } }
+      );
+    }
+
     return data;
   }
 }
