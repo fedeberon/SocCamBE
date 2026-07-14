@@ -243,6 +243,16 @@ class CajaSeguridadController {
       return res.status(500).json({ message: 'Error al obtener mirror de cofres por socio', error });
     }
   }
+
+  static async syncTieneCajaSeguridad(req: Request, res: Response) {
+    try {
+      const result = await CajaSeguridadController.cajaSeguridadService.syncTieneCajaSeguridad();
+      res.status(200).json({ message: 'Sincronización completada', ...result });
+    } catch (error) {
+      logger.error('Error al sincronizar socio_tieneCajaSeguridad:', error);
+      res.status(500).json({ message: 'Error al sincronizar', error });
+    }
+  }
 }
 
 export default CajaSeguridadController;

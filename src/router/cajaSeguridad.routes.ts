@@ -25,6 +25,9 @@ router.post('/asignar', CajaSeguridadController.assignSocioACaja);
 router.delete('/asignar/:socioId/:cajaId', CajaSeguridadController.unassignSocioDeCaja);
 router.delete('/asignar', CajaSeguridadController.unassignSocioDeCaja);
 
+// Sincronización de flags
+router.post('/sync-tiene-caja', CajaSeguridadController.syncTieneCajaSeguridad);
+
 // Debe quedar al final para no tapar rutas específicas
 router.get('/:id', CajaSeguridadController.getCajaById);
 

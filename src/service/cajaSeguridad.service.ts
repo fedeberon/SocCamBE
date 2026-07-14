@@ -372,6 +372,41 @@ class CajaSeguridadService implements ICajaSeguridadService {
 
     return data;
   }
+
+  async syncTieneCajaSeguridad(): Promise<{ actualizados: number }> {
+    // Obtener todos los socio_id que tienen cajas activas (fecha_fin IS NULL)
+    const sociosConCaja = await SocioCajaSeguridad.findAll({
+      attributes: ['socio_id'],
+      where: { fecha_fin: { [Op.is]: null } },
+      group: ['socio_id'],
+    });
+
+    const idsConCaja = new Set(sociosConCaja.map((sc: any) => sc.socio_id));
+
+    // Poner true a los que tienen caja
+    let actualizados = 0;
+    for (const socioId of idsConCaja) {
+      const [count] = await Socio.update(
+        { socio_tieneCajaSeguridad: true },
+        { where: { socio_id: socioId, socio_tieneCajaSeguridad: false } }
+      );
+      actualizados += count;
+    }
+
+    // Poner false a los que NO tienen caja activa pero tienen el flag en true
+    const [desactivados] = await Socio.update(
+      { socio_tieneCajaSeguridad: false },
+      {
+        where: {
+          socio_id: { [Op.notIn]: Array.from(idsConCaja) },
+          socio_tieneCajaSeguridad: true,
+        },
+      }
+    );
+    actualizados += desactivados;
+
+    return { actualizados };
+  }
 }
 
 export default CajaSeguridadService;

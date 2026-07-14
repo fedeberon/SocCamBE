@@ -1,6 +1,7 @@
 import Socio from '../models/socio.models';
 import PagosSocios from '../models/pagosSocios.models';
 import SosMovimiento from '../models/sosMovimiento.models';
+import SocioCajaSeguridad from '../models/SocioCajaSeguridad.models';
 import { ISocioService } from '../interfaces/Isocio.service';
 import MovimientoCuentaCorrienteCofre from '../models/movimientoCuentaCorrienteCofre.models';
 import { Op, literal } from 'sequelize';
@@ -11,7 +12,20 @@ class SocioService implements ISocioService {
   }
 
   async getSocioById(id: number): Promise<Socio | null> {
-    return await Socio.findByPk(id);
+    const socio = await Socio.findByPk(id);
+    if (!socio) return socio;
+
+    // Verificar y sincronizar socio_tieneCajaSeguridad en tiempo real
+    const cajasActivas = await SocioCajaSeguridad.count({
+      where: { socio_id: id, fecha_fin: { [Op.is]: null } },
+    });
+    const tieneCaja = cajasActivas > 0;
+    
+    if (socio.get('socio_tieneCajaSeguridad') !== tieneCaja) {
+      await socio.update({ socio_tieneCajaSeguridad: tieneCaja });
+    }
+
+    return socio;
   }
 
   async getSociosByEmail(email: string): Promise<Socio[]> {
