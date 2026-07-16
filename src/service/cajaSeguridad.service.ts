@@ -64,10 +64,6 @@ class CajaSeguridadService implements ICajaSeguridadService {
       FROM dbo.contratoCofres cc
       LEFT JOIN dbo.socio s ON s.socio_id = cc.contratoCofres_esSocioId
       WHERE ISNULL(cc.contratoCofres_deleted, 0) = 0
-        AND (
-          cc.contratoCofres_fechaVencimiento IS NULL
-          OR cc.contratoCofres_fechaVencimiento >= CAST(GETDATE() AS date)
-        )
       ORDER BY cc.contratoCofres_id DESC
       `,
       { type: QueryTypes.SELECT }
