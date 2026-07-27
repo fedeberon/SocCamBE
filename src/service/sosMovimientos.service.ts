@@ -96,6 +96,8 @@ class SosMovimientosService {
   }
 
   async upsertFromPagosSos(socioId: number, pagosSos: PagoSosLike[], periodo: string) {
+    const payloads: any[] = [];
+
     for (const pago of pagosSos || []) {
       const cobro = pago?.sos_cobro;
       if (!cobro) continue;
@@ -108,7 +110,7 @@ class SosMovimientosService {
         continue;
       }
 
-      const payload = {
+      payloads.push({
         socio_id: socioId,
         sos_cobro_id: sosCobroId,
         sos_cliente_id: cliente?.id || null,
@@ -127,21 +129,19 @@ class SosMovimientosService {
         source: 'SOS_CONTADOR',
         deleted: false,
         updated_at: new Date(),
-      } as any;
-
-      const existing = await SosMovimiento.findOne({
-        where: {
-          socio_id: socioId,
-          sos_cobro_id: sosCobroId,
-        },
       });
-
-      if (existing) {
-        await existing.update(payload);
-      } else {
-        await SosMovimiento.create(payload);
-      }
     }
+
+    if (payloads.length === 0) return;
+
+    await SosMovimiento.bulkCreate(payloads, {
+      updateOnDuplicate: [
+        'sos_cliente_id', 'cuit_cuil', 'cliente_nombre', 'cliente_email',
+        'fecha', 'factura', 'tipo_movimiento', 'comprobante_numero',
+        'factura_referencia', 'referencia', 'monto', 'periodo',
+        'raw_json', 'source', 'deleted', 'updated_at',
+      ],
+    });
   }
 
   async upsertFromCuentaCorriente(
@@ -169,6 +169,9 @@ class SosMovimientosService {
       if (!id || id <= 0) continue;
       bySosComprobanteId.set(id, { comprobanteNumero: row.comprobanteNumero || null });
     }
+
+    const upsertPayloads: any[] = [];
+    const insertPayloads: any[] = [];
 
     for (const row of enriched) {
       const { mov, tipoMovimiento, comprobanteNumero } = row;
@@ -204,24 +207,28 @@ class SosMovimientosService {
         source: 'SOS_CONTADOR_CC',
         deleted: false,
         updated_at: new Date(),
-      } as any;
+      };
 
       if (sosCobroId) {
-        const existing = await SosMovimiento.findOne({
-          where: {
-            socio_id: socioId,
-            sos_cobro_id: sosCobroId,
-          },
-        });
-
-        if (existing) {
-          await existing.update(payload);
-        } else {
-          await SosMovimiento.create(payload);
-        }
+        upsertPayloads.push(payload);
       } else {
-        await SosMovimiento.create(payload);
+        insertPayloads.push(payload);
       }
+    }
+
+    if (upsertPayloads.length > 0) {
+      await SosMovimiento.bulkCreate(upsertPayloads, {
+        updateOnDuplicate: [
+          'sos_cliente_id', 'cuit_cuil', 'cliente_nombre', 'cliente_email',
+          'fecha', 'factura', 'tipo_movimiento', 'comprobante_numero',
+          'factura_referencia', 'referencia', 'monto', 'montodebe',
+          'montohaber', 'periodo', 'raw_json', 'source', 'deleted', 'updated_at',
+        ],
+      });
+    }
+
+    if (insertPayloads.length > 0) {
+      await SosMovimiento.bulkCreate(insertPayloads);
     }
   }
 }
