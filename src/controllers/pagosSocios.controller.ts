@@ -30,7 +30,6 @@ export const getAllPagosSocios = async (req: Request, res: Response) => {
     const limit = Math.min(Number(req.query.limit || 200), 1000);
     const movimientos = await SosMovimiento.findAll({
       where: { deleted: false },
-      attributes: { exclude: ['raw_json'] },
       order: [['fecha', 'DESC'], ['sos_mov_id', 'DESC']],
       limit,
     });
@@ -109,7 +108,6 @@ export const getPagosSociosBySocio = async (req: Request, res: Response) => {
           cuit_cuil: socioCuit,
           deleted: false,
         },
-        attributes: { exclude: ['raw_json'] },
         order: [['fecha', 'DESC'], ['sos_mov_id', 'DESC']],
       });
 

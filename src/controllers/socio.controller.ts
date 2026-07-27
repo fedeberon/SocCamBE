@@ -208,7 +208,6 @@ class SocioController {
 
       const movimientosLocales = await SosMovimiento.findAll({
         where: movimientosWhere,
-        attributes: { exclude: ['raw_json'] },
         order: [['fecha', 'DESC'], ['sos_mov_id', 'DESC']],
       });
 
