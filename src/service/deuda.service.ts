@@ -5,29 +5,17 @@ import logger from '../configs/logger';
 class DeudaService {
   async getDeudaSociosById(id: number, cuit?: string): Promise<number> {
     try {
-      const where: any = {
-        socio_id: id,
-        deleted: false,
-      };
       const cleanCuit = String(cuit || '').replace(/\D/g, '');
-      if (cleanCuit) {
-        where.cuit_cuil = cleanCuit;
-      }
+      const cuitCondition = cleanCuit ? `AND cuit_cuil = '${cleanCuit}'` : '';
 
-      const rows = await SosMovimiento.findAll({
-        where,
-        attributes: ['montodebe', 'montohaber'],
-        raw: true,
-      } as any);
+      const result = await SosMovimiento.sequelize?.query(`
+        SELECT ISNULL(SUM(ISNULL(montodebe, 0)) - SUM(ISNULL(montohaber, 0)), 0) as total_deuda
+        FROM dbo.sos_movimientos
+        WHERE socio_id = ${id} AND deleted = 0 ${cuitCondition}
+      `, { type: 'SELECT' });
 
-      const total = rows.reduce((acc: number, r: any) => {
-        const debe = Number(r?.montodebe || 0);
-        const haber = Number(r?.montohaber || 0);
-        return acc + debe - haber;
-      }, 0);
-
-      if (rows.length > 0) {
-        return Number(total.toFixed(2));
+      if (result && result.length > 0) {
+        return Number(Number((result[0] as any)?.total_deuda || 0).toFixed(2));
       }
     } catch (error: any) {
       const message = String(error?.message || '');
@@ -40,14 +28,14 @@ class DeudaService {
       } else {
         logger.warn('[deudaService] columnas montodebe/montohaber no existen; usando fallback con monto');
         try {
-          const rows = await SosMovimiento.findAll({
-            where: { socio_id: id, deleted: false },
-            attributes: ['monto'],
-            raw: true,
-          } as any);
-          if (rows.length > 0) {
-            const total = rows.reduce((acc: number, r: any) => acc + Number(r?.monto || 0), 0);
-            return Number(total.toFixed(2));
+          const fallbackResult = await SosMovimiento.sequelize?.query(`
+            SELECT ISNULL(SUM(ISNULL(monto, 0)), 0) as total_deuda
+            FROM dbo.sos_movimientos
+            WHERE socio_id = ${id} AND deleted = 0
+          `, { type: 'SELECT' });
+
+          if (fallbackResult && fallbackResult.length > 0) {
+            return Number(Number((fallbackResult[0] as any)?.total_deuda || 0).toFixed(2));
           }
         } catch (_) {}
       }
