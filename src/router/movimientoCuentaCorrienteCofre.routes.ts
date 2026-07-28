@@ -9,6 +9,7 @@ movimientoRoutes.get('/cliente/:clienteId', checkJwt, MovimientoCuentaCorrienteC
 movimientoRoutes.get('/fecha/:fecha', checkJwt, MovimientoCuentaCorrienteCofreController.getMovimientosByFecha);
 movimientoRoutes.get('/con-pagos/:clienteId', checkJwt, MovimientoCuentaCorrienteCofreController.getMovimientoWithPagos);
 movimientoRoutes.get('/cofres/socio/:socioId', checkJwt, MovimientoCuentaCorrienteCofreController.getResumenBySocioId);
+movimientoRoutes.post('/factura-pdf', checkJwt, MovimientoCuentaCorrienteCofreController.generarFacturaPdf);
 movimientoRoutes.get('/:id', checkJwt, MovimientoCuentaCorrienteCofreController.getMovimientoById);
 
 export default movimientoRoutes;

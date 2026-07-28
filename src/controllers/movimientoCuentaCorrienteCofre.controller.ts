@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import logger from '../configs/logger';
 import MovimientoCuentaCorrienteCofreService from '../service/movimientoCuentaCorrienteCofre.service';
 import { IMovimientoCuentaCorrienteCofreService } from '../interfaces/IMovimientoCuentaCorrienteCofre.service';
+import { buildFacturaPdf } from '../utils/facturaPdf';
 
 class MovimientoCuentaCorrienteCofreController {
   private static movimientoService: IMovimientoCuentaCorrienteCofreService = new MovimientoCuentaCorrienteCofreService();
@@ -91,6 +92,35 @@ class MovimientoCuentaCorrienteCofreController {
     } catch (error) {
       logger.error('Error al obtener resumen de cofres por socio:', error);
       return res.status(500).json({ message: 'Error al obtener resumen de cofres por socio', error });
+    }
+  }
+
+  static async generarFacturaPdf(req: Request, res: Response) {
+    try {
+      const { fecha, documento, comprobante, detalle, tipo, movimiento, importe, saldo, estado, socioNombre, socioId } = req.body;
+
+      const pdf = buildFacturaPdf({
+        fecha,
+        documento,
+        comprobante,
+        detalle,
+        tipo,
+        movimiento,
+        importe: Number(importe || 0),
+        saldo: Number(saldo || 0),
+        estado,
+        socioNombre,
+        socioId: socioId ? Number(socioId) : undefined,
+      });
+
+      const compSafe = (comprobante || 'movimiento').replace(/[^a-zA-Z0-9-_]/g, '_');
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="movimiento-${compSafe}.pdf"`);
+      return res.status(200).send(pdf);
+    } catch (error) {
+      logger.error('Error al generar PDF de factura:', error);
+      return res.status(500).json({ message: 'Error al generar el PDF' });
     }
   }
 }
