@@ -46,6 +46,7 @@
     "mysql": "^2.18.1",
     "mysql2": "^3.11.0",
     "nodemailer": "^6.10.1",
+    "pdf-lib": "^1.17.1",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "python": "^0.0.4",

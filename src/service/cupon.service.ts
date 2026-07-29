@@ -155,7 +155,7 @@ class CuponService implements ICuponService {
       return { deleted: true };
     }
 
-    const expiracion = new Date(cupon.get('fechaExpiracion') as string);
+    const expiracion = new Date(cupon.get('fechaExpiracion') as unknown as string);
     if (expiracion < new Date()) {
       return { expired: true };
     }
