@@ -99,7 +99,7 @@ class MovimientoCuentaCorrienteCofreController {
     try {
       const { fecha, documento, comprobante, detalle, tipo, movimiento, importe, saldo, estado, socioNombre, socioId } = req.body;
 
-      const pdf = await buildFacturaPdf({
+      const pdf = buildFacturaPdf({
         fecha,
         documento,
         comprobante,
