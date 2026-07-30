@@ -221,43 +221,6 @@ class CuponController {
       return res.status(500).json({ message: 'Error al canjear puntos por descuento' });
     }
   }
-
-  static async usarCupon(req: Request, res: Response) {
-    try {
-      const { socioId, cuponId } = req.body;
-
-      if (!socioId || !cuponId) {
-        return res.status(400).json({ message: 'socioId y cuponId son requeridos' });
-      }
-
-      const result = await CuponController.cuponService.usarCupon(Number(socioId), Number(cuponId));
-
-      if (result?.alreadyUsed) {
-        return res.status(400).json({ message: 'Este cupón ya fue utilizado' });
-      }
-      if (result?.deleted) {
-        return res.status(400).json({ message: 'Este cupón fue eliminado' });
-      }
-      if (result?.expired) {
-        return res.status(400).json({ message: 'Este cupón está vencido' });
-      }
-
-      res.status(200).json({ message: 'Cupón utilizado correctamente', uso: result.uso });
-    } catch (error) {
-      logger.error('Error al usar cupón:', error);
-      res.status(500).json({ message: 'Error al usar el cupón' });
-    }
-  }
-
-  static async getCuponesUsados(req: Request, res: Response) {
-    try {
-      const usos = await CuponController.cuponService.getCuponesUsados();
-      res.status(200).json(usos);
-    } catch (error) {
-      logger.error('Error al obtener cupones usados:', error);
-      res.status(500).json({ message: 'Error al obtener cupones usados' });
-    }
-  }
 }
 
 export default CuponController;

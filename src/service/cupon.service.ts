@@ -1,6 +1,5 @@
 import AsignarCupon from '../models/AsignarCupon.models';
 import Cupon from '../models/Cupon.models';
-import CuponUso from '../models/CuponUso.models';
 import { ICuponService } from '../interfaces/Icupon.service';
 import Socio from '../models/socio.models';
 
@@ -134,54 +133,6 @@ class CuponService implements ICuponService {
 
     await asignacion.destroy();
     return asignacion;
-  }
-
-  async usarCupon(socioId: number, cuponId: number): Promise<any> {
-    const numSocioId = Number(socioId);
-    const numCuponId = Number(cuponId);
-
-    const socio = await Socio.findOne({ where: { socio_id: numSocioId } });
-    const cupon = await Cupon.findByPk(numCuponId);
-
-    if (!socio || !cupon) {
-      throw new Error('Socio o cupón no encontrado');
-    }
-
-    if (cupon.get('utilizado') === true) {
-      return { alreadyUsed: true };
-    }
-
-    if (cupon.get('deleted') === true) {
-      return { deleted: true };
-    }
-
-    const expiracion = new Date(cupon.get('fechaExpiracion') as unknown as string);
-    if (expiracion < new Date()) {
-      return { expired: true };
-    }
-
-    cupon.markAsUsed();
-    await cupon.save();
-
-    const socioData = socio as any;
-    const uso = await CuponUso.create({
-      socio_id: numSocioId,
-      socio_email: socioData.socio_mail || '',
-      socio_nombre: `${socioData.socio_nombre || ''} ${socioData.socio_apellido || ''}`.trim(),
-      cupon_id: numCuponId,
-      cupon_codigo: cupon.get('codigo'),
-      cupon_comercio: cupon.get('comercio'),
-      cupon_descuento: cupon.get('descuento'),
-      fecha_uso: new Date(),
-    });
-
-    return { used: true, uso };
-  }
-
-  async getCuponesUsados(): Promise<any[]> {
-    return await CuponUso.findAll({
-      order: [['fecha_uso', 'DESC']],
-    });
   }
 }
 

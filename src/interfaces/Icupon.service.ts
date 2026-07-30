@@ -7,6 +7,4 @@ export interface ICuponService {
   deleteCupon(id: number): Promise<any>;
   assignCupon(socioId: number, cuponId: number): Promise<any>;
   unassignCupon(socioId: number, cuponId: number): Promise<any>;
-  usarCupon(socioId: number, cuponId: number): Promise<any>;
-  getCuponesUsados(): Promise<any[]>;
 }
