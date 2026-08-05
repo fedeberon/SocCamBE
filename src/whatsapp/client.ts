@@ -151,23 +151,29 @@ export const sendMessage = async (phone: string, message: string) => {
 
 export const getChats = async () => {
   const c = getClient();
-  const chats = await c.getChats();
-  return chats
-    .sort((a: any, b: any) => {
-      const tsA = a.lastMessage?.timestamp || 0;
-      const tsB = b.lastMessage?.timestamp || 0;
-      return tsB - tsA;
-    })
-    .slice(0, 100)
-    .map((chat: any) => ({
-      id: chat.id._serialized,
-      name: chat.name || chat.id._serialized,
-      lastMessage: chat.lastMessage?.body || '',
-      timestamp: chat.lastMessage?.timestamp
-        ? new Date(chat.lastMessage.timestamp * 1000)
-        : null,
-      unreadCount: chat.unreadCount,
-    }));
+  try {
+    const chats = await c.getChats();
+    console.log(`[WhatsApp] getChats: ${chats.length} chats obtenidos`);
+    return chats
+      .sort((a: any, b: any) => {
+        const tsA = a.lastMessage?.timestamp || 0;
+        const tsB = b.lastMessage?.timestamp || 0;
+        return tsB - tsA;
+      })
+      .slice(0, 100)
+      .map((chat: any) => ({
+        id: chat.id._serialized,
+        name: chat.name || chat.id._serialized,
+        lastMessage: chat.lastMessage?.body || '',
+        timestamp: chat.lastMessage?.timestamp
+          ? new Date(chat.lastMessage.timestamp * 1000)
+          : null,
+        unreadCount: chat.unreadCount,
+      }));
+  } catch (err) {
+    console.error('[WhatsApp] Error en getChats:', err);
+    return [];
+  }
 };
 
 export const getMessages = async (chatId: string, limit = 50) => {
