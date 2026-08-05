@@ -14,6 +14,7 @@ const initClient = (): Client => {
     authStrategy: new LocalAuth({ dataPath: './whatsapp-session' }),
     puppeteer: {
       headless: true,
+      executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
       args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     },
   });
