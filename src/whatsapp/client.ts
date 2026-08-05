@@ -47,17 +47,42 @@ export const getChatsFromStore = async () => {
   const c = getClient();
   try {
     const storeData = await c.pupPage.evaluate(() => {
-      const keys = Object.keys(window).filter(
-        (k) => k.toLowerCase().includes('store') || k.toLowerCase().includes('whatsapp') || k.toLowerCase().includes('wweb')
-      );
       const w = window as any;
+      const wwebjs = w.WWebJS;
+      const wwebjsKeys = wwebjs ? Object.keys(wwebjs) : [];
+
+      let chatInfo: any = null;
+      if (wwebjs?.chat?.getChats) {
+        try {
+          const chats = wwebjs.chat.getChats();
+          chatInfo = {
+            count: chats.length,
+            first: chats.slice(0, 3).map((c: any) => ({
+              id: c.id?._serialized || c.id,
+              name: c.name,
+              type: c.type,
+            })),
+          };
+        } catch (e: any) {
+          chatInfo = { error: e.message };
+        }
+      }
+
+      let storeFromModule: any = null;
+      try {
+        const modules = w.webpackChunkwhatsapp_web_client || [];
+        storeFromModule = { moduleCount: modules.length };
+      } catch (e: any) {
+        storeFromModule = { error: e.message };
+      }
+
       return {
-        windowKeys: keys,
-        hasStore: !!w.Store,
-        hasWWebJS: !!w.WWebJS,
-        storeKeys: w.Store ? Object.keys(w.Store).slice(0, 20) : [],
-        chatModelCount: w.Store?.Chat?.getModelsArray?.()?.length ?? 'N/A',
-        waVersion: w.Store?.Socket?.waVersion || w.Store?.Conn?.waVersion || 'unknown',
+        wwebjsKeys,
+        chatInfo,
+        storeFromModule,
+        wwebjsType: typeof wwebjs,
+        wwebjsChatType: typeof wwebjs?.chat,
+        wwebjsChatKeys: wwebjs?.chat ? Object.keys(wwebjs.chat) : [],
       };
     });
     console.log('[WhatsApp] Store debug:', JSON.stringify(storeData));
