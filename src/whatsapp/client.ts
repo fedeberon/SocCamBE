@@ -1,22 +1,46 @@
-import { Client, LocalAuth, Message } from 'whatsapp-web.js';
 import qrcode from 'qrcode';
 import sequelize from '../configs/database';
 
-let client: Client | null = null;
+let Client: any;
+let LocalAuth: any;
+let Message: any;
+
+try {
+  const wwebjs = require('whatsapp-web.js');
+  Client = wwebjs.Client;
+  LocalAuth = wwebjs.LocalAuth;
+  Message = wwebjs.Message;
+} catch (err) {
+  console.warn('[WhatsApp] whatsapp-web.js no disponible -', (err as Error).message);
+}
+
+let client: any = null;
 let qrCode: string | null = null;
 let connectionStatus: string = 'disconnected';
 let qrDataUrl: string | null = null;
+let waAvailable = !!Client;
 
-const initClient = (): Client => {
+export const isAvailable = () => waAvailable;
+
+const initClient = (): any => {
   if (client) return client;
+  if (!Client) throw new Error('whatsapp-web.js no disponible');
+
+  const isDocker = !!process.env.DOCKER;
+  const puppeteerConfig: any = {
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+  };
+
+  if (isDocker) {
+    puppeteerConfig.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium';
+  } else {
+    puppeteerConfig.executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+  }
 
   client = new Client({
     authStrategy: new LocalAuth({ dataPath: './whatsapp-session' }),
-    puppeteer: {
-      headless: true,
-      executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-    },
+    puppeteer: puppeteerConfig,
   });
 
   client.on('qr', async (qr) => {
@@ -94,9 +118,9 @@ const initClient = (): Client => {
   return client;
 };
 
-export const getClient = (): Client => {
+export const getClient = () => {
   if (!client) initClient();
-  return client!;
+  return client;
 };
 
 export const getQR = () => qrDataUrl;
