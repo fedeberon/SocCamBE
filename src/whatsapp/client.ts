@@ -47,19 +47,17 @@ export const getChatsFromStore = async () => {
   const c = getClient();
   try {
     const storeData = await c.pupPage.evaluate(() => {
-      const store = (window as any).Store;
-      if (!store) return { error: 'Store not found' };
-      const chats = store.Chat?.getModelsArray?.() || [];
+      const keys = Object.keys(window).filter(
+        (k) => k.toLowerCase().includes('store') || k.toLowerCase().includes('whatsapp') || k.toLowerCase().includes('wweb')
+      );
+      const w = window as any;
       return {
-        storeExists: true,
-        chatCount: chats.length,
-        firstChats: chats.slice(0, 5).map((chat: any) => ({
-          id: chat.id,
-          name: chat.name,
-          type: chat.type,
-          unreadCount: chat.unreadCount,
-          lastReceivedKey: chat.lastReceivedKey ? true : false,
-        })),
+        windowKeys: keys,
+        hasStore: !!w.Store,
+        hasWWebJS: !!w.WWebJS,
+        storeKeys: w.Store ? Object.keys(w.Store).slice(0, 20) : [],
+        chatModelCount: w.Store?.Chat?.getModelsArray?.()?.length ?? 'N/A',
+        waVersion: w.Store?.Socket?.waVersion || w.Store?.Conn?.waVersion || 'unknown',
       };
     });
     console.log('[WhatsApp] Store debug:', JSON.stringify(storeData));
