@@ -49,41 +49,23 @@ export const getChatsFromStore = async () => {
     const storeData = await c.pupPage.evaluate(() => {
       const w = window as any;
       const wwebjs = w.WWebJS;
-      const wwebjsKeys = wwebjs ? Object.keys(wwebjs) : [];
 
-      let chatInfo: any = null;
-      if (wwebjs?.chat?.getChats) {
-        try {
-          const chats = wwebjs.chat.getChats();
-          chatInfo = {
-            count: chats.length,
-            first: chats.slice(0, 3).map((c: any) => ({
-              id: c.id?._serialized || c.id,
-              name: c.name,
-              type: c.type,
-            })),
-          };
-        } catch (e: any) {
-          chatInfo = { error: e.message };
-        }
-      }
+      if (!wwebjs?.getChats) return { error: 'WWebJS.getChats not found' };
 
-      let storeFromModule: any = null;
       try {
-        const modules = w.webpackChunkwhatsapp_web_client || [];
-        storeFromModule = { moduleCount: modules.length };
+        const chats = wwebjs.getChats();
+        return {
+          source: 'WWebJS.getChats',
+          count: chats.length,
+          first: chats.slice(0, 5).map((c: any) => ({
+            id: c.id?._serialized || c.id,
+            name: c.name,
+            type: c.type,
+          })),
+        };
       } catch (e: any) {
-        storeFromModule = { error: e.message };
+        return { error: e.message };
       }
-
-      return {
-        wwebjsKeys,
-        chatInfo,
-        storeFromModule,
-        wwebjsType: typeof wwebjs,
-        wwebjsChatType: typeof wwebjs?.chat,
-        wwebjsChatKeys: wwebjs?.chat ? Object.keys(wwebjs.chat) : [],
-      };
     });
     console.log('[WhatsApp] Store debug:', JSON.stringify(storeData));
     return storeData;
@@ -232,14 +214,18 @@ export const getChats = async () => {
   const c = getClient();
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      console.log(`[WhatsApp] getChats intento ${attempt + 1}, client exists: ${!!c}, status: ${connectionStatus}`);
-      const chats = await c.getChats();
-      console.log(`[WhatsApp] getChats raw count: ${chats.length}`);
-      if (chats.length > 0) {
-        console.log(`[WhatsApp] Primer chat: ${JSON.stringify({ id: chats[0].id, name: chats[0].name })}`);
-      }
-      if (chats.length > 0) {
-        return chats
+      console.log(`[WhatsApp] getChats intento ${attempt + 1}, status: ${connectionStatus}`);
+
+      const chatsFromStore = await c.pupPage.evaluate(() => {
+        const w = window as any;
+        const wwebjs = w.WWebJS;
+        if (!wwebjs?.getChats) return null;
+        return wwebjs.getChats();
+      });
+
+      if (chatsFromStore && chatsFromStore.length > 0) {
+        console.log(`[WhatsApp] getChats via WWebJS: ${chatsFromStore.length} chats`);
+        return chatsFromStore
           .sort((a: any, b: any) => {
             const tsA = a.lastMessage?.timestamp || 0;
             const tsB = b.lastMessage?.timestamp || 0;
@@ -247,21 +233,22 @@ export const getChats = async () => {
           })
           .slice(0, 100)
           .map((chat: any) => ({
-            id: chat.id._serialized,
-            name: chat.name || chat.id._serialized,
+            id: chat.id?._serialized || chat.id,
+            name: chat.name || chat.id?._serialized || chat.id,
             lastMessage: chat.lastMessage?.body || '',
             timestamp: chat.lastMessage?.timestamp
               ? new Date(chat.lastMessage.timestamp * 1000)
               : null,
-            unreadCount: chat.unreadCount,
+            unreadCount: chat.unreadCount || 0,
           }));
       }
+
+      console.log(`[WhatsApp] getChats: ${chatsFromStore?.length || 0} chats, esperando 5s...`);
       if (attempt < 2) {
-        console.log('[WhatsApp] Chats vacíos, esperando 5s...');
         await new Promise((r) => setTimeout(r, 5000));
       }
     } catch (err: any) {
-      console.error(`[WhatsApp] Error getChats intento ${attempt + 1}:`, err.message || err);
+      console.error(`[WhatsApp] Error getChats intento ${attempt + 1}:`, err.message);
       if (attempt < 2) {
         await new Promise((r) => setTimeout(r, 5000));
       }
