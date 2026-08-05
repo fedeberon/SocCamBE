@@ -129,15 +129,22 @@ export const sendMessage = async (phone: string, message: string) => {
 export const getChats = async () => {
   const c = getClient();
   const chats = await c.getChats();
-  return chats.map((chat) => ({
-    id: chat.id._serialized,
-    name: chat.name || chat.id._serialized,
-    lastMessage: chat.lastMessage?.body || '',
-    timestamp: chat.lastMessage?.timestamp
-      ? new Date(chat.lastMessage.timestamp * 1000)
-      : null,
-    unreadCount: chat.unreadCount,
-  }));
+  return chats
+    .sort((a, b) => {
+      const tsA = a.lastMessage?.timestamp || 0;
+      const tsB = b.lastMessage?.timestamp || 0;
+      return tsB - tsA;
+    })
+    .slice(0, 100)
+    .map((chat) => ({
+      id: chat.id._serialized,
+      name: chat.name || chat.id._serialized,
+      lastMessage: chat.lastMessage?.body || '',
+      timestamp: chat.lastMessage?.timestamp
+        ? new Date(chat.lastMessage.timestamp * 1000)
+        : null,
+      unreadCount: chat.unreadCount,
+    }));
 };
 
 export const getMessages = async (chatId: string, limit = 50) => {
@@ -167,10 +174,12 @@ export const disconnect = async () => {
 export const searchChats = async (query: string) => {
   const chats = await getChats();
   const q = query.toLowerCase();
-  return chats.filter(
-    (c) =>
-      c.name.toLowerCase().includes(q) ||
-      c.id.toLowerCase().includes(q) ||
-      c.lastMessage.toLowerCase().includes(q),
-  );
+  return chats
+    .filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.id.toLowerCase().includes(q) ||
+        c.lastMessage.toLowerCase().includes(q),
+    )
+    .slice(0, 50);
 };
