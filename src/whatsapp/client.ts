@@ -159,8 +159,12 @@ export const getChats = async () => {
   const c = getClient();
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
+      console.log(`[WhatsApp] getChats intento ${attempt + 1}, client exists: ${!!c}, status: ${connectionStatus}`);
       const chats = await c.getChats();
-      console.log(`[WhatsApp] getChats intento ${attempt + 1}: ${chats.length} chats`);
+      console.log(`[WhatsApp] getChats raw count: ${chats.length}`);
+      if (chats.length > 0) {
+        console.log(`[WhatsApp] Primer chat: ${JSON.stringify({ id: chats[0].id, name: chats[0].name })}`);
+      }
       if (chats.length > 0) {
         return chats
           .sort((a: any, b: any) => {
@@ -180,13 +184,13 @@ export const getChats = async () => {
           }));
       }
       if (attempt < 2) {
-        console.log('[WhatsApp] Chats vacíos, esperando 3s...');
-        await new Promise((r) => setTimeout(r, 3000));
+        console.log('[WhatsApp] Chats vacíos, esperando 5s...');
+        await new Promise((r) => setTimeout(r, 5000));
       }
-    } catch (err) {
-      console.error(`[WhatsApp] Error getChats intento ${attempt + 1}:`, err);
+    } catch (err: any) {
+      console.error(`[WhatsApp] Error getChats intento ${attempt + 1}:`, err.message || err);
       if (attempt < 2) {
-        await new Promise((r) => setTimeout(r, 3000));
+        await new Promise((r) => setTimeout(r, 5000));
       }
     }
   }
