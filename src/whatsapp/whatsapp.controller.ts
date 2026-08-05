@@ -72,10 +72,12 @@ class WhatsAppController {
     try {
       const { chatId } = req.params;
       const limit = req.query.limit ? Number(req.query.limit) : 50;
+      console.log(`[WhatsApp] getMessages: chatId="${chatId}" limit=${limit}`);
       const messages = await waClient.getMessages(chatId, limit);
       return res.status(200).json(messages);
-    } catch (error) {
-      return res.status(500).json({ message: 'Error obteniendo mensajes', error });
+    } catch (error: any) {
+      console.error('[WhatsApp] getMessages error:', error.message);
+      return res.status(500).json({ message: 'Error obteniendo mensajes', error: error.message });
     }
   }
 
