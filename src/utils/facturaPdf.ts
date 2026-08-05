@@ -1,62 +1,20 @@
-type PdfLine = { y: number; text: string; size?: number; bold?: boolean };
-
-const escapePdfText = (text: string): string =>
-  text
-    .replace(/\\/g, '\\\\')
-    .replace(/\(/g, '\\(')
-    .replace(/\)/g, '\\)');
-
-const buildPdf = (lines: PdfLine[], title: string): Buffer => {
-  const headerLines: PdfLine[] = [
-    { y: 800, text: 'Cámara Comercial e Industrial de Bolívar', size: 14, bold: true },
-    { y: 778, text: title, size: 16, bold: true },
-    { y: 758, text: '─'.repeat(60), size: 10 },
-  ];
-
-  const allLines = [...headerLines, ...lines];
-
-  const content = [
-    'BT',
-    ...allLines.map((line) => {
-      const size = line.size || 11;
-      const font = line.bold ? '/F2' : '/F1';
-      return `${font} ${size} Tf 1 0 0 1 50 ${line.y} Tm (${escapePdfText(line.text)}) Tj`;
-    }),
-    'ET',
-  ].join('\n');
-
-  const objects = [
-    '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
-    '2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj',
-    '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >> endobj',
-    '4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj',
-    '5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >> endobj',
-    `6 0 obj << /Length ${Buffer.byteLength(content, 'utf8')} >> stream\n${content}\nendstream endobj`,
-  ];
-
-  let output = '%PDF-1.4\n';
-  const offsets: number[] = [0];
-
-  for (const obj of objects) {
-    offsets.push(Buffer.byteLength(output, 'utf8'));
-    output += `${obj}\n`;
-  }
-
-  const xrefOffset = Buffer.byteLength(output, 'utf8');
-  output += `xref\n0 ${objects.length + 1}\n`;
-  output += '0000000000 65535 f \n';
-  for (let i = 1; i <= objects.length; i += 1) {
-    output += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
-  }
-  output += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-
-  return Buffer.from(output, 'utf8');
-};
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const money = (value: number) =>
   `$${Number(value || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export const buildFacturaPdf = (data: {
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
+export const buildFacturaPdf = async (data: {
   fecha?: string;
   documento?: string;
   comprobante?: string;
@@ -68,40 +26,201 @@ export const buildFacturaPdf = (data: {
   estado?: string;
   socioNombre?: string;
   socioId?: number;
-}): Buffer => {
-  const fechaFormateada = data.fecha
-    ? new Date(data.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })
-    : '—';
+}): Promise<Buffer> => {
+  const pdfDoc = await PDFDocument.create();
 
-  const lines: PdfLine[] = [
-    { y: 730, text: `Fecha: ${fechaFormateada}`, size: 12 },
-    { y: 710, text: '─'.repeat(60), size: 8 },
-    { y: 690, text: 'DATOS DEL COMPROBANTE', size: 12, bold: true },
-    { y: 670, text: `Tipo: ${data.documento || '—'}`, size: 11 },
-    { y: 650, text: `Comprobante: ${data.comprobante || '—'}`, size: 11 },
-    { y: 630, text: `Detalle: ${data.detalle || '—'}`, size: 11 },
-    { y: 610, text: `Tipo de movimiento: ${data.tipo || '—'}`, size: 11 },
-    { y: 590, text: `Estado: ${data.movimiento || '—'}`, size: 11 },
-    { y: 560, text: '─'.repeat(60), size: 8 },
-    { y: 540, text: 'IMPORTES', size: 12, bold: true },
-    { y: 520, text: `Importe: ${money(data.importe || 0)}`, size: 12 },
-    { y: 500, text: `Saldo: ${money(data.saldo || 0)}`, size: 12 },
-    { y: 470, text: '─'.repeat(60), size: 8 },
-    { y: 450, text: `Estado: ${data.estado || '—'}`, size: 11, bold: true },
-  ];
+  const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const helveticaOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
 
-  if (data.socioNombre) {
-    lines.push({ y: 420, text: `Socio: ${data.socioNombre}`, size: 11 });
+  const page = pdfDoc.addPage([595, 842]);
+  const { width } = page.getSize();
+
+  const primaryColor = rgb(0.15, 0.30, 0.55);
+  const accentColor = rgb(0.85, 0.45, 0.15);
+  const lightGray = rgb(0.93, 0.93, 0.93);
+  const darkText = rgb(0.15, 0.15, 0.15);
+  const mediumGray = rgb(0.50, 0.50, 0.50);
+
+  let logoWidth = 0;
+  let logoHeight = 0;
+
+  try {
+    const logoPath = path.join(__dirname, '..', 'assets', 'LogoCamara.png');
+    const logoBytes = fs.readFileSync(logoPath);
+    const logoImage = await pdfDoc.embedPng(logoBytes);
+    const logoDims = logoImage.scale(0.28);
+    logoWidth = logoDims.width;
+    logoHeight = logoDims.height;
+    const logoX = (width - logoWidth) / 2;
+    page.drawImage(logoImage, {
+      x: logoX,
+      y: 700,
+      width: logoWidth,
+      height: logoHeight,
+    });
+  } catch (_) {
+    // logo not available, skip
   }
-  if (data.socioId) {
-    lines.push({ y: 400, text: `ID Socio: ${data.socioId}`, size: 11 });
+
+  const titleY = logoHeight > 0 ? 700 - logoHeight * 0.4 : 670;
+
+  page.drawText('Cámara Comercial e Industrial de Bolívar', {
+    x: (width - helveticaBold.widthOfTextAtSize('Cámara Comercial e Industrial de Bolívar', 16)) / 2,
+    y: titleY,
+    size: 16,
+    font: helveticaBold,
+    color: primaryColor,
+  });
+
+  page.drawText('Comprobante de Movimiento', {
+    x: (width - helveticaBold.widthOfTextAtSize('Comprobante de Movimiento', 13)) / 2,
+    y: titleY - 20,
+    size: 13,
+    font: helveticaBold,
+    color: accentColor,
+  });
+
+  const lineY = titleY - 30;
+  page.drawLine({
+    start: { x: 50, y: lineY },
+    end: { x: width - 50, y: lineY },
+    thickness: 1.5,
+    color: primaryColor,
+  });
+
+  let y = lineY - 14;
+
+  const sectionTitle = (text: string, yPos: number) => {
+    page.drawRectangle({
+      x: 50,
+      y: yPos - 4,
+      width: width - 100,
+      height: 20,
+      color: lightGray,
+    });
+    page.drawText(text, {
+      x: 58,
+      y: yPos,
+      size: 11,
+      font: helveticaBold,
+      color: primaryColor,
+    });
+    return yPos - 24;
+  };
+
+  const fieldRow = (label: string, value: string, yPos: number, isBold = false) => {
+    page.drawText(label, {
+      x: 60,
+      y: yPos,
+      size: 10,
+      font: helvetica,
+      color: mediumGray,
+    });
+    page.drawText(value, {
+      x: 200,
+      y: yPos,
+      size: 10,
+      font: isBold ? helveticaBold : helvetica,
+      color: darkText,
+    });
+    return yPos - 16;
+  };
+
+  const divider = (yPos: number) => {
+    page.drawLine({
+      start: { x: 50, y: yPos + 4 },
+      end: { x: width - 50, y: yPos + 4 },
+      thickness: 0.5,
+      color: rgb(0.85, 0.85, 0.85),
+    });
+    return yPos - 6;
+  };
+
+  y = sectionTitle('INFORMACIÓN GENERAL', y);
+  y = fieldRow('Fecha:', formatDate(data.fecha), y);
+  y = fieldRow('Estado:', data.estado || '—', y, true);
+  y = divider(y);
+
+  y = sectionTitle('DATOS DEL COMPROBANTE', y);
+  y = fieldRow('Tipo:', data.documento || '—', y);
+  y = fieldRow('Comprobante:', data.comprobante || '—', y);
+  y = fieldRow('Detalle:', data.detalle || '—', y);
+  y = fieldRow('Tipo de movimiento:', data.tipo || '—', y);
+  y = fieldRow('Estado:', data.movimiento || '—', y);
+  y = divider(y);
+
+  y = sectionTitle('IMPORTES', y);
+
+  page.drawText('Importe:', {
+    x: 60,
+    y: y,
+    size: 12,
+    font: helvetica,
+    color: mediumGray,
+  });
+  page.drawText(money(data.importe || 0), {
+    x: 200,
+    y: y,
+    size: 14,
+    font: helveticaBold,
+    color: accentColor,
+  });
+  y -= 24;
+
+  page.drawText('Saldo:', {
+    x: 60,
+    y: y,
+    size: 12,
+    font: helvetica,
+    color: mediumGray,
+  });
+  page.drawText(money(data.saldo || 0), {
+    x: 200,
+    y: y,
+    size: 14,
+    font: helveticaBold,
+    color: darkText,
+  });
+  y -= 24;
+  y = divider(y);
+
+  if (data.socioNombre || data.socioId) {
+    y = sectionTitle('SOCIO', y);
+    if (data.socioNombre) {
+      y = fieldRow('Nombre:', data.socioNombre, y);
+    }
+    if (data.socioId) {
+      y = fieldRow('ID Socio:', String(data.socioId), y);
+    }
+    y = divider(y);
   }
 
-  lines.push(
-    { y: 350, text: '─'.repeat(60), size: 8 },
-    { y: 330, text: 'Documento generado automáticamente por SocCam', size: 9 },
-    { y: 310, text: `Fecha de emisión: ${new Date().toLocaleString('es-AR')}`, size: 9 },
-  );
+  y -= 20;
 
-  return buildPdf(lines, 'Comprobante de Movimiento');
+  page.drawLine({
+    start: { x: 50, y: y + 10 },
+    end: { x: width - 50, y: y + 10 },
+    thickness: 1,
+    color: primaryColor,
+  });
+
+  page.drawText('Documento generado automáticamente por SocCam', {
+    x: (width - helveticaOblique.widthOfTextAtSize('Documento generado automáticamente por SocCam', 8)) / 2,
+    y: y - 8,
+    size: 8,
+    font: helveticaOblique,
+    color: mediumGray,
+  });
+
+  page.drawText(`Fecha de emisión: ${new Date().toLocaleString('es-AR')}`, {
+    x: (width - helveticaOblique.widthOfTextAtSize(`Fecha de emisión: ${new Date().toLocaleString('es-AR')}`, 8)) / 2,
+    y: y - 22,
+    size: 8,
+    font: helveticaOblique,
+    color: mediumGray,
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  return Buffer.from(pdfBytes);
 };
