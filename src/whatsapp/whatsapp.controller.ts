@@ -93,6 +93,16 @@ class WhatsAppController {
     }
   }
 
+  static async getDebugInfo(req: Request, res: Response) {
+    if (!waClient.isAvailable()) return WhatsAppController.unavailable(req, res);
+    try {
+      const debugInfo = waClient.getDebugInfo();
+      return res.status(200).json(debugInfo);
+    } catch (error) {
+      return res.status(500).json({ message: 'Error obteniendo debug', error });
+    }
+  }
+
   static async disconnect(req: Request, res: Response) {
     if (!waClient.isAvailable()) return WhatsAppController.unavailable(req, res);
     try {

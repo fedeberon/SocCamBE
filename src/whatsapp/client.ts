@@ -20,6 +20,29 @@ let waAvailable = !!Client;
 
 export const isAvailable = () => waAvailable;
 
+export const getDebugInfo = () => {
+  const info: any = {
+    available: waAvailable,
+    status: connectionStatus,
+    clientExists: !!client,
+    hasQR: !!qrCode,
+    hasQRDataUrl: !!qrDataUrl,
+  };
+
+  if (client) {
+    try {
+      info.info = client.info;
+      info.waVersion = client.info?.wa_version;
+      info.pushname = client.info?.pushname;
+      info.phone = client.info?.wid?.user;
+    } catch (err: any) {
+      info.infoError = err.message;
+    }
+  }
+
+  return info;
+};
+
 const initClient = (): any => {
   if (client) return client;
   if (!Client) throw new Error('whatsapp-web.js no disponible');
