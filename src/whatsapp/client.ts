@@ -1,0 +1,176 @@
+import { Client, LocalAuth, Message } from 'whatsapp-web.js';
+import qrcode from 'qrcode';
+import sequelize from '../configs/database';
+
+let client: Client | null = null;
+let qrCode: string | null = null;
+let connectionStatus: string = 'disconnected';
+let qrDataUrl: string | null = null;
+
+const initClient = (): Client => {
+  if (client) return client;
+
+  client = new Client({
+    authStrategy: new LocalAuth({ dataPath: './whatsapp-session' }),
+    puppeteer: {
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    },
+  });
+
+  client.on('qr', async (qr) => {
+    qrCode = qr;
+    connectionStatus = 'qr_pending';
+    qrDataUrl = await qrcode.toDataURL(qr);
+    console.log('[WhatsApp] QR generado');
+  });
+
+  client.on('ready', () => {
+    connectionStatus = 'connected';
+    qrCode = null;
+    qrDataUrl = null;
+    console.log('[WhatsApp] Cliente conectado');
+  });
+
+  client.on('authenticated', () => {
+    connectionStatus = 'authenticated';
+    console.log('[WhatsApp] Autenticado');
+  });
+
+  client.on('auth_failure', () => {
+    connectionStatus = 'auth_failure';
+    console.error('[WhatsApp] Fallo de autenticación');
+  });
+
+  client.on('disconnected', () => {
+    connectionStatus = 'disconnected';
+    qrCode = null;
+    qrDataUrl = null;
+    console.log('[WhatsApp] Desconectado');
+  });
+
+  client.on('message', async (msg: Message) => {
+    try {
+      const chat = await msg.getChat();
+      const contact = await msg.getContact();
+      const phone = chat.id._serialized;
+      const name = contact.pushname || contact.name || phone;
+      const body = msg.body;
+      const timestamp = new Date(msg.timestamp * 1000);
+
+      await sequelize.query(`
+        IF OBJECT_ID('dbo.whatsapp_messages', 'U') IS NULL
+        CREATE TABLE dbo.whatsapp_messages (
+          id INT IDENTITY(1,1) PRIMARY KEY,
+          chat_id NVARCHAR(255) NOT NULL,
+          chat_name NVARCHAR(255) NULL,
+          phone_number NVARCHAR(50) NULL,
+          message NVARCHAR(MAX) NULL,
+          from_me BIT NOT NULL DEFAULT 0,
+          message_timestamp DATETIME2 NOT NULL,
+          created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+        )
+      `);
+
+      await sequelize.query(`
+        INSERT INTO dbo.whatsapp_messages (chat_id, chat_name, phone_number, message, from_me, message_timestamp)
+        VALUES (:chat_id, :chat_name, :phone_number, :message, 0, :timestamp)
+      `, {
+        replacements: {
+          chat_id: phone,
+          chat_name: name,
+          phone_number: phone,
+          message: body,
+          timestamp,
+        },
+      });
+    } catch (err) {
+      console.error('[WhatsApp] Error guardando mensaje recibido:', err);
+    }
+  });
+
+  client.initialize();
+  return client;
+};
+
+export const getClient = (): Client => {
+  if (!client) initClient();
+  return client!;
+};
+
+export const getQR = () => qrDataUrl;
+export const getStatus = () => connectionStatus;
+
+export const sendMessage = async (phone: string, message: string) => {
+  const c = getClient();
+  const chatId = phone.includes('@c.us') ? phone : `${phone.replace(/[^0-9]/g, '')}@c.us`;
+  const sent = await c.sendMessage(chatId, message);
+
+  try {
+    await sequelize.query(`
+      INSERT INTO dbo.whatsapp_messages (chat_id, chat_name, phone_number, message, from_me, message_timestamp)
+      VALUES (:chat_id, :chat_name, :phone_number, :message, 1, :timestamp)
+    `, {
+      replacements: {
+        chat_id: chatId,
+        chat_name: null,
+        phone_number: phone,
+        message,
+        timestamp: new Date(),
+      },
+    });
+  } catch (err) {
+    console.error('[WhatsApp] Error guardando mensaje enviado:', err);
+  }
+
+  return sent;
+};
+
+export const getChats = async () => {
+  const c = getClient();
+  const chats = await c.getChats();
+  return chats.map((chat) => ({
+    id: chat.id._serialized,
+    name: chat.name || chat.id._serialized,
+    lastMessage: chat.lastMessage?.body || '',
+    timestamp: chat.lastMessage?.timestamp
+      ? new Date(chat.lastMessage.timestamp * 1000)
+      : null,
+    unreadCount: chat.unreadCount,
+  }));
+};
+
+export const getMessages = async (chatId: string, limit = 50) => {
+  try {
+    const [rows] = await sequelize.query(`
+      SELECT TOP (${limit}) * FROM dbo.whatsapp_messages
+      WHERE chat_id = :chatId
+      ORDER BY message_timestamp DESC
+    `, { replacements: { chatId } });
+    return rows;
+  } catch (err) {
+    console.error('[WhatsApp] Error obteniendo mensajes:', err);
+    return [];
+  }
+};
+
+export const disconnect = async () => {
+  if (client) {
+    await client.logout();
+    client = null;
+    connectionStatus = 'disconnected';
+    qrCode = null;
+    qrDataUrl = null;
+  }
+};
+
+export const searchChats = async (query: string) => {
+  const chats = await getChats();
+  const q = query.toLowerCase();
+  return chats.filter(
+    (c) =>
+      c.name.toLowerCase().includes(q) ||
+      c.id.toLowerCase().includes(q) ||
+      c.lastMessage.toLowerCase().includes(q),
+  );
+};

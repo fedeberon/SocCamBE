@@ -25,6 +25,7 @@ import filesRoutes from './router/files.routes';
 import puntosRoutes from './router/puntos.routes';
 import marketplaceRoutes from './router/marketplace.routes';
 import invoiceOcrRoutes from './router/invoiceOcr.routes';
+import whatsappRoutes from './whatsapp/whatsapp.routes';
 
 
 const app = express();
@@ -53,6 +54,7 @@ app.use('/files', filesRoutes);
 app.use('/puntos', puntosRoutes);
 app.use('/market', marketplaceRoutes);
 app.use('/invoice-ocr', invoiceOcrRoutes);
+app.use('/whatsapp', whatsappRoutes);
 // Webhook directo (para usar en MP_NOTIFICATION_URL)
 app.post('/webhook/mercadopago', MercadoPagoController.webhook);
 // Retorno success/failure desde back_urls de MP
