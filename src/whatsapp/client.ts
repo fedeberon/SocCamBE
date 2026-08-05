@@ -36,16 +36,22 @@ const initClient = (): any => {
     puppeteerConfig.executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
   }
 
+  console.log('[WhatsApp] Inicializando cliente...');
   client = new Client({
     authStrategy: new LocalAuth({ dataPath: './whatsapp-session' }),
     puppeteer: puppeteerConfig,
   });
 
   client.on('qr', async (qr: string) => {
+    console.log('[WhatsApp] QR raw recibido, generando imagen...');
     qrCode = qr;
     connectionStatus = 'qr_pending';
-    qrDataUrl = await qrcode.toDataURL(qr);
-    console.log('[WhatsApp] QR generado');
+    try {
+      qrDataUrl = await qrcode.toDataURL(qr);
+      console.log('[WhatsApp] QR imagen generada OK');
+    } catch (err) {
+      console.error('[WhatsApp] Error generando QR imagen:', err);
+    }
   });
 
   client.on('ready', () => {
@@ -60,16 +66,16 @@ const initClient = (): any => {
     console.log('[WhatsApp] Autenticado');
   });
 
-  client.on('auth_failure', () => {
+  client.on('auth_failure', (msg: any) => {
     connectionStatus = 'auth_failure';
-    console.error('[WhatsApp] Fallo de autenticación');
+    console.error('[WhatsApp] Fallo de autenticación:', msg);
   });
 
-  client.on('disconnected', () => {
+  client.on('disconnected', (reason: any) => {
     connectionStatus = 'disconnected';
     qrCode = null;
     qrDataUrl = null;
-    console.log('[WhatsApp] Desconectado');
+    console.log('[WhatsApp] Desconectado:', reason);
   });
 
   client.on('message', async (msg: any) => {
@@ -192,11 +198,17 @@ export const getMessages = async (chatId: string, limit = 50) => {
 
 export const disconnect = async () => {
   if (client) {
-    await client.logout();
+    try {
+      await client.logout();
+    } catch (_) {}
+    try {
+      await client.destroy();
+    } catch (_) {}
     client = null;
     connectionStatus = 'disconnected';
     qrCode = null;
     qrDataUrl = null;
+    console.log('[WhatsApp] Desconectado y destruido');
   }
 };
 

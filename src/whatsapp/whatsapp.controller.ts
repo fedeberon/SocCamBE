@@ -33,6 +33,7 @@ class WhatsAppController {
   static async connect(req: Request, res: Response) {
     if (!waClient.isAvailable()) return WhatsAppController.unavailable(req, res);
     try {
+      await waClient.disconnect();
       waClient.getClient();
       return res.status(200).json({ message: 'Cliente inicializado' });
     } catch (error) {
