@@ -53,11 +53,36 @@ export const getChatsFromStore = async () => {
       if (!wwebjs?.getChats) return { error: 'WWebJS.getChats not found' };
 
       try {
-        const chats = wwebjs.getChats();
+        const result = wwebjs.getChats();
+        const isArray = Array.isArray(result);
+        const isMap = result instanceof Map;
+        const isSet = result instanceof Set;
+        const constructorName = result?.constructor?.name || 'unknown';
+        const type = typeof result;
+
+        let count = 0;
+        let items: any[] = [];
+
+        if (isArray) {
+          count = result.length;
+          items = result.slice(0, 3);
+        } else if (isMap) {
+          count = result.size;
+          items = Array.from(result.values()).slice(0, 3);
+        } else if (isSet) {
+          count = result.size;
+          items = Array.from(result).slice(0, 3);
+        } else if (result?.length !== undefined) {
+          count = result.length;
+          items = Array.prototype.slice.call(result, 0, 3);
+        } else {
+          const keys = Object.keys(result || {}).slice(0, 10);
+          return { error: `Not iterable. type=${type} constructor=${constructorName} keys=[${keys}]` };
+        }
+
         return {
-          source: 'WWebJS.getChats',
-          count: chats.length,
-          first: chats.slice(0, 5).map((c: any) => ({
+          isArray, isMap, isSet, constructorName, count,
+          first: items.map((c: any) => ({
             id: c.id?._serialized || c.id,
             name: c.name,
             type: c.type,
@@ -220,7 +245,23 @@ export const getChats = async () => {
         const w = window as any;
         const wwebjs = w.WWebJS;
         if (!wwebjs?.getChats) return null;
-        return wwebjs.getChats();
+
+        const result = wwebjs.getChats();
+        let arr: any[] = [];
+
+        if (Array.isArray(result)) {
+          arr = result;
+        } else if (result instanceof Map) {
+          arr = Array.from(result.values());
+        } else if (result instanceof Set) {
+          arr = Array.from(result);
+        } else if (result?.length !== undefined) {
+          arr = Array.prototype.slice.call(result);
+        } else {
+          return [];
+        }
+
+        return arr;
       });
 
       if (chatsFromStore && chatsFromStore.length > 0) {
