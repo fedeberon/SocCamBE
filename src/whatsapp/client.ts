@@ -46,14 +46,14 @@ export const getDebugInfo = () => {
 export const getChatsFromStore = async () => {
   const c = getClient();
   try {
-    const storeData = await c.pupPage.evaluate(() => {
+    const storeData = await c.pupPage.evaluate(async () => {
       const w = window as any;
       const wwebjs = w.WWebJS;
 
       if (!wwebjs?.getChats) return { error: 'WWebJS.getChats not found' };
 
       try {
-        const result = wwebjs.getChats();
+        const result = await wwebjs.getChats();
         const isArray = Array.isArray(result);
         const isMap = result instanceof Map;
         const isSet = result instanceof Set;
@@ -241,12 +241,12 @@ export const getChats = async () => {
     try {
       console.log(`[WhatsApp] getChats intento ${attempt + 1}, status: ${connectionStatus}`);
 
-      const chatsFromStore = await c.pupPage.evaluate(() => {
+      const chatsFromStore = await c.pupPage.evaluate(async () => {
         const w = window as any;
         const wwebjs = w.WWebJS;
         if (!wwebjs?.getChats) return null;
 
-        const result = wwebjs.getChats();
+        const result = await wwebjs.getChats();
         let arr: any[] = [];
 
         if (Array.isArray(result)) {
