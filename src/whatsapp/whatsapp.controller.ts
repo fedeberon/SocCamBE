@@ -97,7 +97,8 @@ class WhatsAppController {
     if (!waClient.isAvailable()) return WhatsAppController.unavailable(req, res);
     try {
       const debugInfo = waClient.getDebugInfo();
-      return res.status(200).json(debugInfo);
+      const storeInfo = await waClient.getChatsFromStore();
+      return res.status(200).json({ ...debugInfo, store: storeInfo });
     } catch (error) {
       return res.status(500).json({ message: 'Error obteniendo debug', error });
     }

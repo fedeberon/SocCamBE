@@ -43,6 +43,33 @@ export const getDebugInfo = () => {
   return info;
 };
 
+export const getChatsFromStore = async () => {
+  const c = getClient();
+  try {
+    const storeData = await c.pupPage.evaluate(() => {
+      const store = (window as any).Store;
+      if (!store) return { error: 'Store not found' };
+      const chats = store.Chat?.getModelsArray?.() || [];
+      return {
+        storeExists: true,
+        chatCount: chats.length,
+        firstChats: chats.slice(0, 5).map((chat: any) => ({
+          id: chat.id,
+          name: chat.name,
+          type: chat.type,
+          unreadCount: chat.unreadCount,
+          lastReceivedKey: chat.lastReceivedKey ? true : false,
+        })),
+      };
+    });
+    console.log('[WhatsApp] Store debug:', JSON.stringify(storeData));
+    return storeData;
+  } catch (err: any) {
+    console.error('[WhatsApp] Store debug error:', err.message);
+    return { error: err.message };
+  }
+};
+
 const initClient = (): any => {
   if (client) return client;
   if (!Client) throw new Error('whatsapp-web.js no disponible');
