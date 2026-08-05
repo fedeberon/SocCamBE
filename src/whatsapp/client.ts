@@ -242,31 +242,44 @@ export const getChats = async () => {
       console.log(`[WhatsApp] getChats intento ${attempt + 1}, status: ${connectionStatus}`);
 
       const chatsFromStore = await c.pupPage.evaluate(async () => {
-        const w = window as any;
-        const wwebjs = w.WWebJS;
-        if (!wwebjs?.getChats) return null;
+        try {
+          const w = window as any;
+          const wwebjs = w.WWebJS;
+          if (!wwebjs?.getChats) return { error: 'WWebJS.getChats not found' };
 
-        const result = await wwebjs.getChats();
-        let arr: any[] = [];
+          const result = await wwebjs.getChats();
+          let arr: any[] = [];
 
-        if (Array.isArray(result)) {
-          arr = result;
-        } else if (result instanceof Map) {
-          arr = Array.from(result.values());
-        } else if (result instanceof Set) {
-          arr = Array.from(result);
-        } else if (result?.length !== undefined) {
-          arr = Array.prototype.slice.call(result);
-        } else {
-          return [];
+          if (Array.isArray(result)) {
+            arr = result;
+          } else if (result instanceof Map) {
+            arr = Array.from(result.values());
+          } else if (result instanceof Set) {
+            arr = Array.from(result);
+          } else if (result?.length !== undefined) {
+            arr = Array.prototype.slice.call(result);
+          } else {
+            return { error: `Unknown type: ${typeof result}` };
+          }
+
+          return { chats: arr };
+        } catch (e: any) {
+          return { error: e.message };
         }
-
-        return arr;
       });
 
-      if (chatsFromStore && chatsFromStore.length > 0) {
-        console.log(`[WhatsApp] getChats via WWebJS: ${chatsFromStore.length} chats`);
-        return chatsFromStore
+      if (chatsFromStore.error) {
+        console.log(`[WhatsApp] getChats error: ${chatsFromStore.error}`);
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 5000));
+        }
+        continue;
+      }
+
+      const arr = chatsFromStore.chats || [];
+      if (arr.length > 0) {
+        console.log(`[WhatsApp] getChats via WWebJS: ${arr.length} chats`);
+        return arr
           .sort((a: any, b: any) => {
             const tsA = a.lastMessage?.timestamp || 0;
             const tsB = b.lastMessage?.timestamp || 0;
@@ -284,7 +297,7 @@ export const getChats = async () => {
           }));
       }
 
-      console.log(`[WhatsApp] getChats: ${chatsFromStore?.length || 0} chats, esperando 5s...`);
+      console.log(`[WhatsApp] getChats: ${arr.length} chats, esperando 5s...`);
       if (attempt < 2) {
         await new Promise((r) => setTimeout(r, 5000));
       }
