@@ -157,29 +157,40 @@ export const sendMessage = async (phone: string, message: string) => {
 
 export const getChats = async () => {
   const c = getClient();
-  try {
-    const chats = await c.getChats();
-    console.log(`[WhatsApp] getChats: ${chats.length} chats obtenidos`);
-    return chats
-      .sort((a: any, b: any) => {
-        const tsA = a.lastMessage?.timestamp || 0;
-        const tsB = b.lastMessage?.timestamp || 0;
-        return tsB - tsA;
-      })
-      .slice(0, 100)
-      .map((chat: any) => ({
-        id: chat.id._serialized,
-        name: chat.name || chat.id._serialized,
-        lastMessage: chat.lastMessage?.body || '',
-        timestamp: chat.lastMessage?.timestamp
-          ? new Date(chat.lastMessage.timestamp * 1000)
-          : null,
-        unreadCount: chat.unreadCount,
-      }));
-  } catch (err) {
-    console.error('[WhatsApp] Error en getChats:', err);
-    return [];
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const chats = await c.getChats();
+      console.log(`[WhatsApp] getChats intento ${attempt + 1}: ${chats.length} chats`);
+      if (chats.length > 0) {
+        return chats
+          .sort((a: any, b: any) => {
+            const tsA = a.lastMessage?.timestamp || 0;
+            const tsB = b.lastMessage?.timestamp || 0;
+            return tsB - tsA;
+          })
+          .slice(0, 100)
+          .map((chat: any) => ({
+            id: chat.id._serialized,
+            name: chat.name || chat.id._serialized,
+            lastMessage: chat.lastMessage?.body || '',
+            timestamp: chat.lastMessage?.timestamp
+              ? new Date(chat.lastMessage.timestamp * 1000)
+              : null,
+            unreadCount: chat.unreadCount,
+          }));
+      }
+      if (attempt < 2) {
+        console.log('[WhatsApp] Chats vacíos, esperando 3s...');
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    } catch (err) {
+      console.error(`[WhatsApp] Error getChats intento ${attempt + 1}:`, err);
+      if (attempt < 2) {
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+    }
   }
+  return [];
 };
 
 export const getMessages = async (chatId: string, limit = 50) => {

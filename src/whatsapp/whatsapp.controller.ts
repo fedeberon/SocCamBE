@@ -35,8 +35,10 @@ class WhatsAppController {
     try {
       await waClient.disconnect();
       waClient.getClient();
-      return res.status(200).json({ message: 'Cliente inicializado' });
+      console.log('[WhatsApp] connect: cliente creado, status:', waClient.getStatus());
+      return res.status(200).json({ message: 'Cliente inicializado', status: waClient.getStatus() });
     } catch (error) {
+      console.error('[WhatsApp] connect error:', error);
       return res.status(500).json({ message: 'Error conectando', error });
     }
   }
