@@ -72,7 +72,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
     error: err.message || 'Internal Server Error',
   });
 });
-sequelize.sync().then(() => {
+sequelize.authenticate().then(() => {
   app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
   });
