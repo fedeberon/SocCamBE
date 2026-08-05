@@ -3,13 +3,11 @@ import sequelize from '../configs/database';
 
 let Client: any;
 let LocalAuth: any;
-let Message: any;
 
 try {
   const wwebjs = require('whatsapp-web.js');
   Client = wwebjs.Client;
   LocalAuth = wwebjs.LocalAuth;
-  Message = wwebjs.Message;
 } catch (err) {
   console.warn('[WhatsApp] whatsapp-web.js no disponible -', (err as Error).message);
 }
@@ -43,7 +41,7 @@ const initClient = (): any => {
     puppeteer: puppeteerConfig,
   });
 
-  client.on('qr', async (qr) => {
+  client.on('qr', async (qr: string) => {
     qrCode = qr;
     connectionStatus = 'qr_pending';
     qrDataUrl = await qrcode.toDataURL(qr);
@@ -74,7 +72,7 @@ const initClient = (): any => {
     console.log('[WhatsApp] Desconectado');
   });
 
-  client.on('message', async (msg: Message) => {
+  client.on('message', async (msg: any) => {
     try {
       const chat = await msg.getChat();
       const contact = await msg.getContact();
@@ -155,13 +153,13 @@ export const getChats = async () => {
   const c = getClient();
   const chats = await c.getChats();
   return chats
-    .sort((a, b) => {
+    .sort((a: any, b: any) => {
       const tsA = a.lastMessage?.timestamp || 0;
       const tsB = b.lastMessage?.timestamp || 0;
       return tsB - tsA;
     })
     .slice(0, 100)
-    .map((chat) => ({
+    .map((chat: any) => ({
       id: chat.id._serialized,
       name: chat.name || chat.id._serialized,
       lastMessage: chat.lastMessage?.body || '',
@@ -201,7 +199,7 @@ export const searchChats = async (query: string) => {
   const q = query.toLowerCase();
   return chats
     .filter(
-      (c) =>
+      (c: any) =>
         c.name.toLowerCase().includes(q) ||
         c.id.toLowerCase().includes(q) ||
         c.lastMessage.toLowerCase().includes(q),
