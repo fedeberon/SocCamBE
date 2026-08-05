@@ -312,12 +312,77 @@ export const getChats = async () => {
 };
 
 export const getMessages = async (chatId: string, limit = 50) => {
+  const c = getClient();
+
+  // Intentar via WWebJS Store
+  try {
+    const storeMsgs = await (c.pupPage.evaluate as any)(async (args: any) => {
+      try {
+        const w = window as any;
+        const wwebjs = w.WWebJS;
+        if (!wwebjs?.getChat) return null;
+        const chat = await wwebjs.getChat(args.chatId);
+        if (!chat?.messages) return null;
+        const msgs = chat.messages.getModelsArray?.() || chat.messages;
+        if (!Array.isArray(msgs)) return null;
+        return msgs.slice(-args.limit).map((m: any) => ({
+          id: m.id?.id || m.id,
+          chat_id: args.chatId,
+          message: m.body || '',
+          from_me: m.fromMe || false,
+          message_timestamp: m.timestamp ? new Date(m.timestamp * 1000).toISOString() : null,
+          chat_name: chat.name || '',
+          phone_number: args.chatId,
+        }));
+      } catch (e: any) {
+        return { storeError: e.message };
+      }
+    }, { chatId, limit } as any);
+
+    if (storeMsgs && !storeMsgs.storeError && Array.isArray(storeMsgs) && storeMsgs.length > 0) {
+      console.log(`[WhatsApp] getMessages via Store: ${storeMsgs.length} msgs`);
+      return storeMsgs;
+    }
+  } catch (_) {}
+
+  // Intentar via DOM
+  try {
+    const domMsgs = await (c.pupPage.evaluate as any)((args: any) => {
+      const msgElements = document.querySelectorAll('[data-testid="msg-container"]');
+      const results: any[] = [];
+      msgElements.forEach((el) => {
+        try {
+          const textEl = el.querySelector('[data-testid="message-text"]') || el.querySelector('.message-text');
+          const isOutgoing = el.classList.contains('message-out') || el.querySelector('[data-testid="msg-dblcheck"]') !== null;
+          const timeEl = el.querySelector('[data-testid="msg-time"]') || el.querySelector('.copyable-text')?.querySelector('span');
+          results.push({
+            id: results.length,
+            chat_id: args.chatId,
+            message: textEl?.textContent || '',
+            from_me: isOutgoing,
+            message_timestamp: timeEl?.textContent || null,
+            chat_name: '',
+            phone_number: args.chatId,
+          });
+        } catch (_) {}
+      });
+      return results.slice(-args.limit);
+    }, { chatId, limit } as any);
+
+    if (domMsgs.length > 0) {
+      console.log(`[WhatsApp] getMessages via DOM: ${domMsgs.length} msgs`);
+      return domMsgs;
+    }
+  } catch (_) {}
+
+  // Fallback a DB
   try {
     const [rows] = await sequelize.query(`
       SELECT TOP (${limit}) * FROM dbo.whatsapp_messages
       WHERE chat_id = :chatId
       ORDER BY message_timestamp DESC
     `, { replacements: { chatId } });
+    console.log(`[WhatsApp] getMessages via DB: ${(rows as any[]).length} msgs`);
     return rows;
   } catch (err) {
     console.error('[WhatsApp] Error obteniendo mensajes:', err);
