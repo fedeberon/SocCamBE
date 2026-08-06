@@ -45,6 +45,10 @@ coverage/
 .env.local
 .env.*.local
 
+# WhatsApp session / cache
+whatsapp-session/
+.wwebjs_cache/
+
 # Terraform
 .terraform/
 *.tfstate
