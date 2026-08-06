@@ -374,69 +374,90 @@ export const getChats = async () => {
 export const getMessages = async (chatId: string, limit = 50) => {
   const c = getClient();
 
-  // Estrategia 1: intentar navegar al chat en WhatsApp Web y scrapear DOM
+  // Estrategia 1: click nativo de Puppeteer en el chat de la sidebar
   try {
-    // Primero hacer click en el chat en la sidebar para abrirlo
-    const clicked = await c.pupPage.evaluate(async (targetId: string) => {
+    const chatIndex = await c.pupPage.evaluate((targetId: string) => {
       const containers = document.querySelectorAll('[data-testid="cell-frame-container"]');
-      for (const el of Array.from(containers)) {
-        // Buscar el chat por React fiber
+      for (let i = 0; i < containers.length; i++) {
+        const el = containers[i];
         const allKeys = Object.getOwnPropertyNames(el);
         const fiberKey = allKeys.find((k: string) => k.startsWith('__reactFiber$'));
         if (!fiberKey) continue;
         try {
           let node = (el as any)[fiberKey];
-          for (let i = 0; i < 50 && node; i++) {
+          for (let j = 0; j < 50 && node; j++) {
             const props = node.memoizedProps || {};
-            let chatId = '';
-            if (props.id && typeof props.id === 'string' && props.id.includes('@')) chatId = props.id;
-            if (props.chat?.id?._serialized) chatId = props.chat.id._serialized;
-            if (props._serialized && typeof props._serialized === 'string' && props._serialized.includes('@')) chatId = props._serialized;
-            if (chatId === targetId) {
-              (el as HTMLElement).click();
-              return true;
-            }
+            let cid = '';
+            if (props.id && typeof props.id === 'string' && props.id.includes('@')) cid = props.id;
+            if (props.chat?.id?._serialized) cid = props.chat.id._serialized;
+            if (props._serialized && typeof props._serialized === 'string' && props._serialized.includes('@')) cid = props._serialized;
+            if (cid === targetId) return i;
             node = node.return;
           }
         } catch (_) {}
       }
-      return false;
+      return -1;
     }, chatId);
 
-    if (clicked) {
-      // Esperar a que carguen los mensajes
-      await new Promise(r => setTimeout(r, 2000));
+    console.log(`[WhatsApp] getMessages: chatIndex=${chatIndex} for chatId=${chatId}`);
 
-      const domMsgs = await c.pupPage.evaluate((args: any) => {
-        const msgElements = document.querySelectorAll('[data-testid="msg-container"]');
-        const results: any[] = [];
-        msgElements.forEach((el) => {
-          try {
-            const textEl = el.querySelector('[data-testid="message-text"]') || el.querySelector('.message-text');
-            const isOutgoing = el.classList.contains('message-out') || el.querySelector('[data-testid="msg-dblcheck"]') !== null;
-            const timeEl = el.querySelector('[data-testid="msg-time"]') || el.querySelector('.copyable-text')?.querySelector('span');
-            const msgText = textEl?.textContent || (textEl as HTMLElement)?.innerText || '';
-            if (msgText) {
-              results.push({
-                id: results.length,
-                chat_id: args.chatId,
-                message: msgText,
-                from_me: isOutgoing,
-                message_timestamp: timeEl?.textContent || null,
-                chat_name: '',
-                phone_number: args.chatId,
-              });
-            }
-          } catch (_) {}
+    if (chatIndex >= 0) {
+      // Obtener bounding box del chat y hacer click con Puppeteer native
+      const box = await c.pupPage.evaluate((idx: number) => {
+        const el = document.querySelectorAll('[data-testid="cell-frame-container"]')[idx];
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+      }, chatIndex);
+
+      if (box) {
+        console.log(`[WhatsApp] clicking at (${box.x}, ${box.y})`);
+        await c.pupPage.mouse.click(box.x, box.y);
+        await new Promise(r => setTimeout(r, 3000));
+
+        const panelInfo = await c.pupPage.evaluate(() => {
+          return {
+            hasPanel: !!document.querySelector('[data-testid="conversation-panel-body"]'),
+            hasMain: !!document.querySelector('[id="main"]'),
+            msgCount: document.querySelectorAll('[data-testid="msg-container"]').length,
+            testIds: Array.from(document.querySelectorAll('[data-testid]'))
+              .map(e => e.getAttribute('data-testid'))
+              .filter(id => id?.includes('msg') || id?.includes('message') || id?.includes('conversation'))
+              .slice(0, 20),
+          };
         });
-        return results.slice(-args.limit);
-      }, { chatId, limit } as any);
+        console.log(`[WhatsApp] after click panel:`, JSON.stringify(panelInfo));
 
-      if (domMsgs.length > 0) {
-        console.log(`[WhatsApp] getMessages via DOM click: ${domMsgs.length} msgs`);
-        return domMsgs;
+        if (panelInfo.msgCount > 0) {
+          const domMsgs = await c.pupPage.evaluate((args: any) => {
+            const msgElements = document.querySelectorAll('[data-testid="msg-container"]');
+            const results: any[] = [];
+            msgElements.forEach((el) => {
+              try {
+                const textEl = el.querySelector('[data-testid="message-text"]') || el.querySelector('.message-text');
+                const isOutgoing = el.classList.contains('message-out') || el.querySelector('[data-testid="msg-dblcheck"]') !== null;
+                const timeEl = el.querySelector('[data-testid="msg-time"]') || el.querySelector('.copyable-text')?.querySelector('span');
+                const msgText = textEl?.textContent || (textEl as HTMLElement)?.innerText || '';
+                if (msgText) {
+                  results.push({
+                    id: results.length,
+                    chat_id: args.chatId,
+                    message: msgText,
+                    from_me: isOutgoing,
+                    message_timestamp: timeEl?.textContent || null,
+                    chat_name: '',
+                    phone_number: args.chatId,
+                  });
+                }
+              } catch (_) {}
+            });
+            return results.slice(-args.limit);
+          }, { chatId, limit } as any);
+
+          console.log(`[WhatsApp] getMessages via DOM click: ${domMsgs.length} msgs`);
+          if (domMsgs.length > 0) return domMsgs;
+        }
       }
-      console.log(`[WhatsApp] getMessages DOM click: 0 msgs (clicked=${clicked}, msgElements=${await c.pupPage.evaluate(() => document.querySelectorAll('[data-testid="msg-container"]').length)})`);
     }
   } catch (e: any) {
     console.log(`[WhatsApp] getMessages DOM click error: ${e.message}`);
