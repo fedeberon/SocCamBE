@@ -226,17 +226,86 @@ const resolveChatId = async (chatOrPhone: string): Promise<string> => {
 
 export const sendMessage = async (phone: string, message: string) => {
   const c = getClient();
-  const resolvedChatId = await resolveChatId(phone);
-  let sent: any;
+
+  const getMsgId = (sent: any) =>
+    sent?.id?.id || sent?.id?._serialized || (typeof sent?.id === 'string' ? sent.id : null);
+
+  let sentId: string | null = null;
+
+  // Estrategia 1: API oficial con el id tal cual (funciona para @c.us y grupos)
   try {
-    sent = await c.sendMessage(resolvedChatId, message);
+    const sent = await c.sendMessage(phone, message);
+    sentId = getMsgId(sent);
+    console.log(`[WhatsApp] send oficial (${phone}): ${sentId ? 'OK' : 'sin id'}`);
   } catch (err: any) {
+    console.log(`[WhatsApp] send oficial (${phone}) error: ${err.message}`);
+  }
+
+  // Estrategia 2: para @lid, reintentar con el @c.us resuelto
+  if (!sentId && phone.endsWith('@lid')) {
+    const resolvedChatId = await resolveChatId(phone);
     if (resolvedChatId !== phone) {
-      console.log(`[WhatsApp] send a ${resolvedChatId} falló (${err.message}), reintentando con ${phone}`);
-      sent = await c.sendMessage(phone, message);
-    } else {
-      throw err;
+      try {
+        const sent = await c.sendMessage(resolvedChatId, message);
+        sentId = getMsgId(sent);
+        console.log(`[WhatsApp] send oficial (${resolvedChatId}): ${sentId ? 'OK' : 'sin id'}`);
+      } catch (err: any) {
+        console.log(`[WhatsApp] send oficial (${resolvedChatId}) error: ${err.message}`);
+      }
     }
+  }
+
+  // Estrategia 3: envío vía Store directo (mismo mecanismo que carga los mensajes)
+  if (!sentId) {
+    try {
+      const result = await c.pupPage.evaluate(
+        async ({ chatId, content }: any) => {
+          const w = window as any;
+          const req = w.require;
+          if (!req) return { error: 'window.require not available' };
+          const collections = req('WAWebCollections');
+          const chatCollection = collections?.Chat;
+          if (!chatCollection?.getModelsArray) return { error: 'Chat collection not available' };
+
+          const widFactory = req('WAWebWidFactory');
+          const user = chatId.split('@')[0];
+          let chat: any = null;
+
+          const tryIds = [chatId];
+          if (chatId.endsWith('@lid')) tryIds.push(`${user}@c.us`);
+          if (chatId.endsWith('@c.us')) tryIds.push(`${user}@lid`);
+          for (const id of tryIds) {
+            try {
+              chat = chatCollection.get(widFactory.createWid(id));
+            } catch (_) {}
+            if (chat) break;
+          }
+          if (!chat) {
+            const models = chatCollection.getModelsArray();
+            chat = models.find((m: any) => (m.id?.user || String(m.id || '').split('@')[0]) === user) || null;
+          }
+          if (!chat) return { error: `chat ${chatId} no encontrado en el Store` };
+
+          const msg = await w.WWebJS.sendMessage(chat, content, {});
+          if (!msg) return { error: 'sendMessage devolvió null' };
+          const model = w.WWebJS.getMessageModel(msg);
+          return { id: model?.id?._serialized || model?.id || 'sent' };
+        },
+        { chatId: phone, content: message } as any,
+      );
+      if (result?.id && !result.error) {
+        sentId = result.id;
+        console.log(`[WhatsApp] send via Store directo (${phone}): OK`);
+      } else if (result?.error) {
+        console.log(`[WhatsApp] send Store directo: ${result.error}`);
+      }
+    } catch (err: any) {
+      console.log(`[WhatsApp] send Store directo error: ${err.message}`);
+    }
+  }
+
+  if (!sentId) {
+    throw new Error('No se pudo enviar el mensaje (todas las estrategias fallaron)');
   }
 
   try {
@@ -256,7 +325,7 @@ export const sendMessage = async (phone: string, message: string) => {
     console.error('[WhatsApp] Error guardando mensaje enviado:', err);
   }
 
-  return sent;
+  return { id: sentId };
 };
 
 export const getChats = async () => {
