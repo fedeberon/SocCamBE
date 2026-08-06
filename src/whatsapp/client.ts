@@ -311,57 +311,24 @@ export const getChats = async () => {
 
             // Estrategia 4: React internals - subir por el árbol de fibers
             if (!chatId) {
-              const keys = Object.keys(el);
-              for (const key of keys) {
-                if (key.startsWith('__reactFiber$') || key.startsWith('__reactProps$')) {
-                  try {
-                    let node = (el as any)[key];
-                    // Subir hasta 30 levels buscando el chatId
-                    for (let i = 0; i < 30 && node; i++) {
-                      const props = node.memoizedProps || node.pendingProps || {};
-                      // Buscar id serializado directo
-                      if (props.id && typeof props.id === 'string' && props.id.includes('@')) {
-                        chatId = props.id;
-                        break;
-                      }
-                      // Buscar chat.id
-                      if (props.chat?.id) {
-                        chatId = typeof props.chat.id === 'string' ? props.chat.id : props.chat.id._serialized || '';
-                        if (chatId) break;
-                      }
-                      // Buscar contact.id
-                      if (props.contact?.id) {
-                        chatId = typeof props.contact.id === 'string' ? props.contact.id : props.contact.id._serialized || '';
-                        if (chatId) break;
-                      }
-                      // Buscar data-id en state
-                      if (node.memoizedState?.memoizedState) {
-                        let state = node.memoizedState;
-                        for (let j = 0; j < 10 && state; j++) {
-                          const s = state.memoizedState;
-                          if (s && typeof s === 'object') {
-                            if (s.id && typeof s.id === 'string' && s.id.includes('@')) {
-                              chatId = s.id;
-                              break;
-                            }
-                            if (s.chat?.id) {
-                              chatId = s.chat.id._serialized || s.chat.id;
-                              break;
-                            }
-                            if (s._serialized && typeof s._serialized === 'string' && s._serialized.includes('@')) {
-                              chatId = s._serialized;
-                              break;
-                            }
-                          }
-                          state = state.next;
-                        }
-                        if (chatId) break;
-                      }
-                      node = node.return;
+              const allKeys = Object.getOwnPropertyNames(el);
+              const fiberKey = allKeys.find((k: string) => k.startsWith('__reactFiber$'));
+              if (fiberKey) {
+                try {
+                  let node = (el as any)[fiberKey];
+                  for (let i = 0; i < 50 && node; i++) {
+                    const props = node.memoizedProps || {};
+                    if (props.id && typeof props.id === 'string' && props.id.includes('@')) {
+                      chatId = props.id;
+                      break;
                     }
-                  } catch (_) {}
-                  if (chatId) break;
-                }
+                    if (props.chat?.id?._serialized) { chatId = props.chat.id._serialized; break; }
+                    if (props.chat?.id && typeof props.chat.id === 'string' && props.chat.id.includes('@')) { chatId = props.chat.id; break; }
+                    if (props.contact?.id?._serialized) { chatId = props.contact.id._serialized; break; }
+                    if (props._serialized && typeof props._serialized === 'string' && props._serialized.includes('@')) { chatId = props._serialized; break; }
+                    node = node.return;
+                  }
+                } catch (_) {}
               }
             }
 
@@ -521,53 +488,63 @@ export const debugSidebarDOM = async () => {
       const el = containers[i] as HTMLElement;
       const name = el.querySelector('[data-testid="cell-frame-title"] span')?.getAttribute('title') || '';
 
-      // Buscar chatId en React fibers
+      // Encontrar la key del React fiber de varias formas
+      const allKeys = Object.getOwnPropertyNames(el);
+      const fiberKey = allKeys.find(k => k.startsWith('__reactFiber$'));
+      const propsKey = allKeys.find(k => k.startsWith('__reactProps$'));
+
       let chatIdFound = '';
+      let fiberInfo: any = { allKeysCount: allKeys.length, fiberKey: !!fiberKey, propsKey: !!propsKey };
       let fiberDebug: any[] = [];
-      const keys = Object.keys(el);
-      for (const key of keys) {
-        if (key.startsWith('__reactFiber$')) {
-          try {
-            let node = (el as any)[key];
-            for (let j = 0; j < 30 && node; j++) {
-              const props = node.memoizedProps || {};
-              const stateStr = JSON.stringify(node.memoizedState, (k, v) => {
-                if (k === 'next' || k === 'baseQueue' || k === 'queue') return undefined;
-                return v;
-              }).substring(0, 500);
 
-              // Guardar info de este nodo si tiene algo interesante
-              if (props.id || props.chat || props.contact || props._serialized ||
-                  stateStr.includes('@c.us') || stateStr.includes('_serialized')) {
-                fiberDebug.push({
-                  level: j,
-                  type: typeof node.type === 'function' ? node.type?.name || 'Component' : node.type || typeof node.type,
-                  propsKeys: Object.keys(props).slice(0, 10),
-                  hasId: !!props.id,
-                  hasChat: !!props.chat,
-                  hasSerialized: !!props._serialized,
-                  stateSnippet: stateStr.substring(0, 200),
-                });
+      if (fiberKey) {
+        try {
+          let node = (el as any)[fiberKey];
+          for (let j = 0; j < 50 && node; j++) {
+            const typeName = typeof node.type === 'function' ? (node.type?.name || 'Func') : (node.type || 'null');
+            const props = node.memoizedProps || {};
 
-                // Intentar extraer chatId
-                if (props.id && typeof props.id === 'string' && props.id.includes('@')) {
-                  chatIdFound = props.id;
-                }
-                if (props.chat?.id?._serialized) chatIdFound = props.chat.id._serialized;
-                if (props._serialized) chatIdFound = props._serialized;
+            // Extraer todo lo relevante de props
+            const propsSummary: any = {};
+            for (const pk of Object.keys(props)) {
+              const val = props[pk];
+              if (pk === 'id' || pk === 'chatId' || pk === '_serialized') {
+                propsSummary[pk] = val;
+                if (typeof val === 'string' && val.includes('@')) chatIdFound = val;
               }
-              if (chatIdFound) break;
-              node = node.return;
+              if (pk === 'chat' && val && typeof val === 'object') {
+                propsSummary.chat = {
+                  id: val.id,
+                  _serialized: val._serialized,
+                  idSerialized: val.id?._serialized,
+                };
+                if (val.id?._serialized) chatIdFound = val.id._serialized;
+                else if (val._serialized) chatIdFound = val._serialized;
+                else if (typeof val.id === 'string' && val.id.includes('@')) chatIdFound = val.id;
+              }
+              if (pk === 'contact' && val && typeof val === 'object') {
+                propsSummary.contact = {
+                  id: val.id,
+                  _serialized: val._serialized,
+                  idSerialized: val.id?._serialized,
+                };
+                if (val.id?._serialized) chatIdFound = val.id._serialized;
+              }
             }
-          } catch (_) {}
+
+            if (Object.keys(propsSummary).length > 0 || typeName !== 'div') {
+              fiberDebug.push({ level: j, type: typeName, props: propsSummary });
+            }
+
+            if (chatIdFound) break;
+            node = node.return;
+          }
+        } catch (e: any) {
+          fiberInfo.fiberError = e.message;
         }
       }
 
-      sample.push({
-        name,
-        chatIdFound,
-        fiberDebug: fiberDebug.slice(0, 5),
-      });
+      sample.push({ name, chatIdFound, fiberInfo, fiberDebug: fiberDebug.slice(0, 10) });
     }
     return { totalContainers: containers.length, sample };
   });
