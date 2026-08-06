@@ -309,22 +309,53 @@ export const getChats = async () => {
               }
             }
 
-            // Estrategia 4: React internals
+            // Estrategia 4: React internals - subir por el árbol de fibers
             if (!chatId) {
               const keys = Object.keys(el);
               for (const key of keys) {
                 if (key.startsWith('__reactFiber$') || key.startsWith('__reactProps$')) {
                   try {
-                    const fiber = (el as any)[key];
-                    let node = fiber;
-                    for (let i = 0; i < 10 && node; i++) {
+                    let node = (el as any)[key];
+                    // Subir hasta 30 levels buscando el chatId
+                    for (let i = 0; i < 30 && node; i++) {
                       const props = node.memoizedProps || node.pendingProps || {};
-                      if (props.chat || props.contact || props.id) {
-                        const id = props.chat?.id || props.contact?.id || props.id;
-                        if (id && typeof id === 'string' && id.includes('@')) {
-                          chatId = id;
-                          break;
+                      // Buscar id serializado directo
+                      if (props.id && typeof props.id === 'string' && props.id.includes('@')) {
+                        chatId = props.id;
+                        break;
+                      }
+                      // Buscar chat.id
+                      if (props.chat?.id) {
+                        chatId = typeof props.chat.id === 'string' ? props.chat.id : props.chat.id._serialized || '';
+                        if (chatId) break;
+                      }
+                      // Buscar contact.id
+                      if (props.contact?.id) {
+                        chatId = typeof props.contact.id === 'string' ? props.contact.id : props.contact.id._serialized || '';
+                        if (chatId) break;
+                      }
+                      // Buscar data-id en state
+                      if (node.memoizedState?.memoizedState) {
+                        let state = node.memoizedState;
+                        for (let j = 0; j < 10 && state; j++) {
+                          const s = state.memoizedState;
+                          if (s && typeof s === 'object') {
+                            if (s.id && typeof s.id === 'string' && s.id.includes('@')) {
+                              chatId = s.id;
+                              break;
+                            }
+                            if (s.chat?.id) {
+                              chatId = s.chat.id._serialized || s.chat.id;
+                              break;
+                            }
+                            if (s._serialized && typeof s._serialized === 'string' && s._serialized.includes('@')) {
+                              chatId = s._serialized;
+                              break;
+                            }
+                          }
+                          state = state.next;
                         }
+                        if (chatId) break;
                       }
                       node = node.return;
                     }
@@ -484,23 +515,60 @@ export const searchChats = async (query: string) => {
 export const debugSidebarDOM = async () => {
   const c = getClient();
   return await c.pupPage.evaluate(() => {
-    // Obtener el HTML de los primeros 3 chats para analizar selectores
     const containers = document.querySelectorAll('[data-testid="cell-frame-container"]');
     const sample: any[] = [];
     for (let i = 0; i < Math.min(3, containers.length); i++) {
-      const el = containers[i];
+      const el = containers[i] as HTMLElement;
+      const name = el.querySelector('[data-testid="cell-frame-title"] span')?.getAttribute('title') || '';
+
+      // Buscar chatId en React fibers
+      let chatIdFound = '';
+      let fiberDebug: any[] = [];
+      const keys = Object.keys(el);
+      for (const key of keys) {
+        if (key.startsWith('__reactFiber$')) {
+          try {
+            let node = (el as any)[key];
+            for (let j = 0; j < 30 && node; j++) {
+              const props = node.memoizedProps || {};
+              const stateStr = JSON.stringify(node.memoizedState, (k, v) => {
+                if (k === 'next' || k === 'baseQueue' || k === 'queue') return undefined;
+                return v;
+              }).substring(0, 500);
+
+              // Guardar info de este nodo si tiene algo interesante
+              if (props.id || props.chat || props.contact || props._serialized ||
+                  stateStr.includes('@c.us') || stateStr.includes('_serialized')) {
+                fiberDebug.push({
+                  level: j,
+                  type: typeof node.type === 'function' ? node.type?.name || 'Component' : node.type || typeof node.type,
+                  propsKeys: Object.keys(props).slice(0, 10),
+                  hasId: !!props.id,
+                  hasChat: !!props.chat,
+                  hasSerialized: !!props._serialized,
+                  stateSnippet: stateStr.substring(0, 200),
+                });
+
+                // Intentar extraer chatId
+                if (props.id && typeof props.id === 'string' && props.id.includes('@')) {
+                  chatIdFound = props.id;
+                }
+                if (props.chat?.id?._serialized) chatIdFound = props.chat.id._serialized;
+                if (props._serialized) chatIdFound = props._serialized;
+              }
+              if (chatIdFound) break;
+              node = node.return;
+            }
+          } catch (_) {}
+        }
+      }
+
       sample.push({
-        outerHTML: el.outerHTML.substring(0, 2000),
-        attributes: Array.from(el.attributes).map(a => `${a.name}=${a.value}`),
-        childDataTestIds: Array.from(el.querySelectorAll('[data-testid]')).map(e => e.getAttribute('data-testid')),
-        links: Array.from(el.querySelectorAll('a')).map(a => ({ href: a.getAttribute('href'), text: a.textContent?.substring(0, 30) })),
-        allIds: Array.from(el.querySelectorAll('[id]')).map(e => ({ tag: e.tagName, id: e.id })),
-        reactKeys: Object.keys(el).filter(k => k.startsWith('__react')),
+        name,
+        chatIdFound,
+        fiberDebug: fiberDebug.slice(0, 5),
       });
     }
-    return {
-      totalContainers: containers.length,
-      sample,
-    };
+    return { totalContainers: containers.length, sample };
   });
 };
