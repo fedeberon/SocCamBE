@@ -637,27 +637,68 @@ export const debugSidebarDOM = async () => {
 export const debugMessagesDOM = async () => {
   const c = getClient();
   return await c.pupPage.evaluate(() => {
-    // Ver qué hay en el panel de mensajes
-    const msgContainers = document.querySelectorAll('[data-testid="msg-container"]');
-    const conversationPanel = document.querySelector('[data-testid="conversation-panel-body"]');
-    const messagePanel = document.querySelector('[id="main"]');
-    const allDataTestIds = Array.from(document.querySelectorAll('[data-testid]')).map(e => e.getAttribute('data-testid'));
-    const uniqueTestIds = [...new Set(allDataTestIds)];
+    const w = window as any;
 
-    // Buscar también por clases y estructura
-    const allOutgoing = document.querySelectorAll('.message-out, [data-testid="msg-dblcheck"]');
-    const allIncoming = document.querySelectorAll('.message-in, [data-testid="msg-dblcheck"]');
+    // Ver qué hay en window.Store
+    const storeKeys = w.Store ? Object.keys(w.Store) : [];
+    const storeChatInfo: any = {};
+    if (w.Store?.Chat) {
+      try {
+        const chats = w.Store.Chat.getModelsArray ? w.Store.Chat.getModelsArray() : [];
+        storeChatInfo.count = chats.length;
+        storeChatInfo.firstChatId = chats[0]?._serialized || chats[0]?.id || 'N/A';
+      } catch (e: any) {
+        storeChatInfo.error = e.message;
+      }
+    }
+
+    // Ver WWebJS
+    const wwebjsKeys = w.WWebJS ? Object.keys(w.WWebJS) : [];
+
+    // Intentar obtener mensajes de un chat conocido
+    let storeMsgResult: any = null;
+    if (w.Store?.Chat) {
+      try {
+        const models = w.Store.Chat.getModelsArray ? w.Store.Chat.getModelsArray() : [];
+        if (models.length > 0) {
+          const firstChat = models[0];
+          storeMsgResult = {
+            chatId: firstChat._serialized || firstChat.id,
+            name: firstChat.name,
+            hasMessages: !!firstChat.messages,
+            msgType: typeof firstChat.messages,
+            msgKeys: firstChat.messages ? Object.keys(firstChat.messages).slice(0, 20) : [],
+          };
+          if (firstChat.messages?.getModelsArray) {
+            const msgs = firstChat.messages.getModelsArray();
+            storeMsgResult.msgCount = msgs.length;
+            if (msgs.length > 0) {
+              storeMsgResult.sampleMsg = {
+                body: msgs[0].body,
+                fromMe: msgs[0].fromMe,
+                timestamp: msgs[0].timestamp,
+                id: msgs[0].id,
+              };
+            }
+          }
+        }
+      } catch (e: any) {
+        storeMsgResult = { error: e.message };
+      }
+    }
+
+    // Verificar si hay modelos de msg
+    const hasMsgStore = !!w.Store?.Msg;
+    const hasMsgCollection = !!w.Store?.MsgCollection;
 
     return {
-      msgContainerCount: msgContainers.length,
-      hasConversationPanel: !!conversationPanel,
-      hasMessagePanel: !!messagePanel,
-      outgoingCount: allOutgoing.length,
-      incomingCount: allIncoming.length,
-      uniqueDataTestIds: uniqueTestIds.filter(id =>
-        id?.includes('msg') || id?.includes('message') || id?.includes('chat') || id?.includes('conversation')
-      ),
-      sampleHTML: conversationPanel ? conversationPanel.innerHTML.substring(0, 3000) : null,
+      hasStore: !!w.Store,
+      storeKeys: storeKeys.slice(0, 30),
+      storeChatInfo,
+      hasMsgStore,
+      hasMsgCollection,
+      wwebjsKeys,
+      storeMsgResult,
     };
   });
 };
