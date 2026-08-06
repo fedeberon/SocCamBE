@@ -207,10 +207,37 @@ export const getClient = () => {
 export const getQR = () => qrDataUrl;
 export const getStatus = () => connectionStatus;
 
+const resolveChatId = async (chatOrPhone: string): Promise<string> => {
+  const c = getClient();
+  if (!chatOrPhone.includes('@')) {
+    return `${chatOrPhone.replace(/[^0-9]/g, '')}@c.us`;
+  }
+  if (chatOrPhone.endsWith('@lid')) {
+    try {
+      const contact = await c.getContactById(chatOrPhone);
+      const number = String(contact?.number || contact?.id || '').replace(/[^0-9]/g, '');
+      if (number.length >= 8) return `${number}@c.us`;
+    } catch (e: any) {
+      console.log(`[WhatsApp] resolveChatId @lid error: ${e.message}`);
+    }
+  }
+  return chatOrPhone;
+};
+
 export const sendMessage = async (phone: string, message: string) => {
   const c = getClient();
-  const chatId = phone.includes('@c.us') ? phone : `${phone.replace(/[^0-9]/g, '')}@c.us`;
-  const sent = await c.sendMessage(chatId, message);
+  const resolvedChatId = await resolveChatId(phone);
+  let sent: any;
+  try {
+    sent = await c.sendMessage(resolvedChatId, message);
+  } catch (err: any) {
+    if (resolvedChatId !== phone) {
+      console.log(`[WhatsApp] send a ${resolvedChatId} falló (${err.message}), reintentando con ${phone}`);
+      sent = await c.sendMessage(phone, message);
+    } else {
+      throw err;
+    }
+  }
 
   try {
     await sequelize.query(`
@@ -218,7 +245,7 @@ export const sendMessage = async (phone: string, message: string) => {
       VALUES (:chat_id, :chat_name, :phone_number, :message, 1, :timestamp)
     `, {
       replacements: {
-        chat_id: chatId,
+        chat_id: phone,
         chat_name: null,
         phone_number: phone,
         message,
@@ -238,7 +265,65 @@ export const getChats = async () => {
     try {
       console.log(`[WhatsApp] getChats intento ${attempt + 1}, status: ${connectionStatus}`);
 
-      // Intentar via WWebJS Store
+      // Estrategia 1: leer la colección de chats directamente (tolerante a fallos por chat)
+      const storeChats = await c.pupPage.evaluate(async () => {
+        try {
+          const w = window as any;
+          const req = w.require;
+          if (!req) return { error: 'window.require not available' };
+          const collections = req('WAWebCollections');
+          const chatCollection = collections?.Chat;
+          if (!chatCollection?.getModelsArray) return { error: 'Chat collection not available' };
+
+          const models = chatCollection.getModelsArray();
+          const results: any[] = [];
+          for (const chat of models) {
+            try {
+              const id = chat.id?._serialized || chat.get?.('id')?._serialized || '';
+              if (!id || !id.includes('@')) continue;
+
+              let last: any = null;
+              const lastKey = chat.lastReceivedKey?._serialized;
+              if (lastKey && collections?.Msg?.get) {
+                try { last = collections.Msg.get(lastKey); } catch (_) {}
+              }
+              if (!last) {
+                try {
+                  const msgs = chat.msgs?.getModelsArray?.() || [];
+                  for (const m of msgs) if (!last || (m.t || 0) > (last.t || 0)) last = m;
+                } catch (_) {}
+              }
+
+              results.push({
+                id,
+                name: chat.formattedTitle || chat.name || id,
+                lastMessage: last?.body || '',
+                timestamp: last?.t ? new Date(last.t * 1000) : null,
+                unreadCount: chat.get ? chat.get('unreadCount') || 0 : chat.unreadCount || 0,
+              });
+            } catch (_) {}
+          }
+          return results;
+        } catch (e: any) {
+          return { error: e.message };
+        }
+      });
+
+      if (Array.isArray(storeChats) && storeChats.length > 0) {
+        console.log(`[WhatsApp] getChats via Store directo: ${storeChats.length} chats`);
+        return storeChats
+          .sort((a: any, b: any) => {
+            const ta = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+            const tb = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+            return tb - ta;
+          })
+          .slice(0, 100);
+      }
+      if (storeChats?.error) {
+        console.log(`[WhatsApp] Store directo falló (${storeChats.error}), intentando WWebJS.getChats...`);
+      }
+
+      // Estrategia 2: WWebJS.getChats
       const storeResult = await c.pupPage.evaluate(async () => {
         try {
           const w = window as any;
@@ -268,7 +353,7 @@ export const getChats = async () => {
       }
 
       if (storeResult?.idbError) {
-        console.log(`[WhatsApp] Store falló (${storeResult.idbError}), intentando DOM...`);
+        console.log(`[WhatsApp] Store WWebJS falló (${storeResult.idbError}), intentando DOM...`);
       }
 
       // Intentar via DOM con múltiples estrategias
@@ -371,92 +456,164 @@ export const getChats = async () => {
   return [];
 };
 
+const safeTime = (v: any) => {
+  const n = new Date(v).getTime();
+  return Number.isNaN(n) ? 0 : n;
+};
+
+const sortMessagesAsc = (msgs: any[]) =>
+  [...msgs].sort((a, b) => safeTime(a.message_timestamp) - safeTime(b.message_timestamp));
+
+const toWaMessage = (m: any, chatId: string, chatName = '') => ({
+  id: m.id?.id || m.id?._serialized || m.id,
+  chat_id: chatId,
+  message: m.body || '',
+  from_me: !!(m.fromMe || m.id?.fromMe),
+  message_timestamp: m.timestamp ? new Date(m.timestamp * 1000).toISOString() : null,
+  chat_name: chatName,
+  phone_number: chatId,
+});
+
 export const getMessages = async (chatId: string, limit = 50) => {
   const c = getClient();
+  console.log(`[WhatsApp] getMessages: chatId="${chatId}" limit=${limit}`);
 
-  // Estrategia 1: usar client.getChatById() (Node.js API) + chat.fetchMessages()
-  try {
-    const chat = await c.getChatById(chatId);
-    const msgs = await chat.fetchMessages({ limit });
-    if (msgs && msgs.length > 0) {
-      console.log(`[WhatsApp] getMessages via client.getChatById: ${msgs.length} msgs`);
-      return msgs.map((m: any) => ({
-        id: m.id?.id || m.id?._serialized || m.id,
-        chat_id: chatId,
-        message: m.body || '',
-        from_me: m.fromMe || false,
-        message_timestamp: m.timestamp ? new Date(m.timestamp * 1000).toISOString() : null,
-        chat_name: chat.name || '',
-        phone_number: chatId,
-      }));
-    }
-    console.log(`[WhatsApp] getMessages client.getChatById: 0 msgs for ${chatId}`);
-  } catch (e: any) {
-    console.log(`[WhatsApp] getMessages client.getChatById error: ${e.message}`);
-  }
-
-  // Estrategia 2: resolver @lid → @c.us y reintentar
+  const candidates = [chatId];
   if (chatId.endsWith('@lid')) {
     try {
       const contact = await c.getContactById(chatId);
-      if (contact?.number) {
-        const phoneChatId = contact.number.replace(/[^0-9]/g, '') + '@c.us';
-        console.log(`[WhatsApp] resolved @lid ${chatId} → ${phoneChatId}`);
-        try {
-          const chat = await c.getChatById(phoneChatId);
-          const msgs = await chat.fetchMessages({ limit });
-          if (msgs && msgs.length > 0) {
-            console.log(`[WhatsApp] getMessages via resolved @c.us: ${msgs.length} msgs`);
-            return msgs.map((m: any) => ({
-              id: m.id?.id || m.id?._serialized || m.id,
-              chat_id: chatId,
-              message: m.body || '',
-              from_me: m.fromMe || false,
-              message_timestamp: m.timestamp ? new Date(m.timestamp * 1000).toISOString() : null,
-              chat_name: chat.name || '',
-              phone_number: chatId,
-            }));
-          }
-        } catch (e2: any) {
-          console.log(`[WhatsApp] getMessages resolved @c.us error: ${e2.message}`);
-        }
-      }
+      const num = String(contact?.number || contact?.id || '').replace(/[^0-9]/g, '');
+      if (num.length >= 8) candidates.push(`${num}@c.us`);
     } catch (e: any) {
-      console.log(`[WhatsApp] getContactById for @lid error: ${e.message}`);
+      console.log(`[WhatsApp] getMessages resolve @lid error: ${e.message}`);
     }
   }
 
-  // Estrategia 3: buscar en DB con chat_id y también con phone patterns
+  // Estrategia 1: API oficial getChatById + fetchMessages
+  for (const cand of candidates) {
+    try {
+      const chat = await c.getChatById(cand);
+      if (!chat) {
+        console.log(`[WhatsApp] getMessages: getChatById(${cand}) devolvió undefined`);
+        continue;
+      }
+      const msgs = await chat.fetchMessages({ limit });
+      if (msgs && msgs.length > 0) {
+        console.log(`[WhatsApp] getMessages via getChatById(${cand}): ${msgs.length} msgs`);
+        return sortMessagesAsc(msgs.map((m: any) => toWaMessage(m, chatId, chat.name || '')));
+      }
+      console.log(`[WhatsApp] getMessages getChatById(${cand}): 0 msgs`);
+    } catch (e: any) {
+      console.log(`[WhatsApp] getMessages getChatById(${cand}) error: ${e.message}`);
+    }
+  }
+
+  // Estrategia 2: lectura directa del Store (robusta, tolerante a @lid/@c.us)
+  try {
+    const storeMsgs = await c.pupPage.evaluate(
+      async ({ chatId, limit }: any) => {
+        const w = window as any;
+        const req = w.require;
+        if (!req) return { error: 'window.require not available' };
+        const collections = req('WAWebCollections');
+        const chatCollection = collections?.Chat;
+        if (!chatCollection?.getModelsArray) return { error: 'Chat collection not available' };
+
+        const widFactory = req('WAWebWidFactory');
+        const user = chatId.split('@')[0];
+        let chat: any = null;
+
+        const tryIds = [chatId];
+        if (chatId.endsWith('@lid')) tryIds.push(`${user}@c.us`);
+        if (chatId.endsWith('@c.us')) tryIds.push(`${user}@lid`);
+        for (const id of tryIds) {
+          try {
+            chat = chatCollection.get(widFactory.createWid(id));
+          } catch (_) {}
+          if (chat) break;
+        }
+        if (!chat) {
+          const models = chatCollection.getModelsArray();
+          chat = models.find((m: any) => (m.id?.user || String(m.id || '').split('@')[0]) === user) || null;
+        }
+        if (!chat) return { error: `chat ${chatId} no encontrado en el Store` };
+
+        let msgs: any[] = [];
+        try {
+          msgs = chat.msgs?.getModelsArray?.() || [];
+        } catch (_) {}
+
+        if (msgs.length < Math.min(limit, 50)) {
+          try {
+            const loader = req('WAWebChatLoadMessages');
+            if (loader?.loadEarlierMsgs) {
+              for (let i = 0; i < 6 && msgs.length < limit; i++) {
+                const loaded = await loader.loadEarlierMsgs({ chat });
+                if (!loaded || !loaded.length) break;
+                msgs = [...msgs, ...loaded].sort((a, b) => (a.t || 0) - (b.t || 0));
+              }
+            }
+          } catch (e: any) {
+            if (msgs.length === 0) return { error: `loadEarlierMsgs: ${e.message}` };
+          }
+        }
+
+        msgs = [...msgs].sort((a, b) => (a.t || 0) - (b.t || 0)).slice(-limit);
+        if (msgs.length === 0) return { error: '0 mensajes en el Store' };
+
+        return msgs.map((m: any) => ({
+          id: m.id?._serialized || m.id,
+          chat_id: chatId,
+          message: m.body || '',
+          from_me: !!(m.fromMe || m.id?.fromMe),
+          message_timestamp: m.t ? new Date(m.t * 1000).toISOString() : null,
+          chat_name: chat.formattedTitle || chat.name || '',
+          phone_number: chatId,
+        }));
+      },
+      { chatId, limit } as any,
+    );
+
+    if (Array.isArray(storeMsgs) && storeMsgs.length > 0) {
+      console.log(`[WhatsApp] getMessages via Store directo: ${storeMsgs.length} msgs`);
+      return sortMessagesAsc(storeMsgs);
+    }
+    if (storeMsgs?.error) {
+      console.log(`[WhatsApp] getMessages Store directo: ${storeMsgs.error}`);
+    }
+  } catch (e: any) {
+    console.log(`[WhatsApp] getMessages Store directo error: ${e.message}`);
+  }
+
+  // Estrategia 3: buscar en DB (chat_id exacto o por número, cubre @lid/@c.us)
+  const user = chatId.split('@')[0];
   try {
     const [rows] = await sequelize.query(`
       SELECT TOP (${limit}) * FROM dbo.whatsapp_messages
-      WHERE chat_id = :chatId
+      WHERE chat_id = :chatId OR chat_id LIKE :userLike
       ORDER BY message_timestamp DESC
-    `, { replacements: { chatId } });
+    `, { replacements: { chatId, userLike: `${user}@%` } });
     if ((rows as any[]).length > 0) {
       console.log(`[WhatsApp] getMessages via DB: ${(rows as any[]).length} msgs`);
-      return rows;
+      return sortMessagesAsc(rows as any[]);
     }
   } catch (err) {
     console.error('[WhatsApp] Error DB getMessages:', err);
   }
 
-  // Estrategia 4: buscar en DB por phone_number
-  if (chatId.endsWith('@lid')) {
-    try {
-      const [rows] = await sequelize.query(`
-        SELECT TOP (${limit}) * FROM dbo.whatsapp_messages
-        WHERE phone_number = :chatId
-        ORDER BY message_timestamp DESC
-      `, { replacements: { chatId } });
-      if ((rows as any[]).length > 0) {
-        console.log(`[WhatsApp] getMessages via DB phone: ${(rows as any[]).length} msgs`);
-        return rows;
-      }
-    } catch (_) {}
-  }
+  try {
+    const [rows] = await sequelize.query(`
+      SELECT TOP (${limit}) * FROM dbo.whatsapp_messages
+      WHERE phone_number = :chatId
+      ORDER BY message_timestamp DESC
+    `, { replacements: { chatId } });
+    if ((rows as any[]).length > 0) {
+      console.log(`[WhatsApp] getMessages via DB phone: ${(rows as any[]).length} msgs`);
+      return sortMessagesAsc(rows as any[]);
+    }
+  } catch (_) {}
 
-  console.log(`[WhatsApp] getMessages: 0 msgs for ${chatId}`);
+  console.log(`[WhatsApp] getMessages: 0 msgs para ${chatId}`);
   return [];
 };
 
