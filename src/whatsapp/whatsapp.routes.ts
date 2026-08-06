@@ -6,6 +6,7 @@ const router = Router();
 router.get('/qr', WhatsAppController.getQR);
 router.get('/status', WhatsAppController.getStatus);
 router.get('/debug', WhatsAppController.getDebugInfo);
+router.get('/debug-dom', WhatsAppController.debugDOM);
 router.post('/connect', WhatsAppController.connect);
 router.get('/chats', WhatsAppController.getChats);
 router.get('/chats/search', WhatsAppController.searchChats);

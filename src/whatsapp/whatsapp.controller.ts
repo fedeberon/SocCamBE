@@ -106,6 +106,16 @@ class WhatsAppController {
     }
   }
 
+  static async debugDOM(req: Request, res: Response) {
+    if (!waClient.isAvailable()) return WhatsAppController.unavailable(req, res);
+    try {
+      const dom = await waClient.debugSidebarDOM();
+      return res.status(200).json(dom);
+    } catch (error: any) {
+      return res.status(500).json({ message: 'Error en debug DOM', error: error.message });
+    }
+  }
+
   static async disconnect(req: Request, res: Response) {
     if (!waClient.isAvailable()) return WhatsAppController.unavailable(req, res);
     try {

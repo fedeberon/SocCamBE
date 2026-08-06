@@ -271,18 +271,80 @@ export const getChats = async () => {
         console.log(`[WhatsApp] Store falló (${storeResult.idbError}), intentando DOM...`);
       }
 
-      // Intentar via DOM
-      const domChats = await c.pupPage.evaluate(() => {
+      // Intentar via DOM con múltiples estrategias
+      const domChats = await (c.pupPage.evaluate as any)(() => {
         const chatElements = document.querySelectorAll('[data-testid="cell-frame-container"]');
         const results: any[] = [];
         chatElements.forEach((el) => {
           try {
             const titleEl = el.querySelector('[data-testid="cell-frame-title"] span');
             const subtitleEl = el.querySelector('[data-testid="last-msg-status"]');
-            const chatId = el.querySelector('div[id]')?.id || '';
+            const name = titleEl?.textContent || '';
+
+            // Estrategia 1: data-testid con link de envío
+            let chatId = '';
+            const linkEl = el.querySelector('a[href*="send?phone="]');
+            if (linkEl) {
+              const href = linkEl.getAttribute('href') || '';
+              const match = href.match(/phone=([^&]+)/);
+              if (match) {
+                chatId = match[1] + '@c.us';
+              }
+            }
+
+            // Estrategia 2: buscar data-id
+            if (!chatId) {
+              const dataIdEl = el.querySelector('[data-id]');
+              if (dataIdEl) {
+                chatId = dataIdEl.getAttribute('data-id') || '';
+              }
+            }
+
+            // Estrategia 3: buscar en atributos data-testid del padre
+            if (!chatId) {
+              const parent = el.closest('[data-testid]');
+              if (parent) {
+                const pid = parent.getAttribute('data-testid') || '';
+                if (pid.includes('@')) chatId = pid;
+              }
+            }
+
+            // Estrategia 4: React internals
+            if (!chatId) {
+              const keys = Object.keys(el);
+              for (const key of keys) {
+                if (key.startsWith('__reactFiber$') || key.startsWith('__reactProps$')) {
+                  try {
+                    const fiber = (el as any)[key];
+                    let node = fiber;
+                    for (let i = 0; i < 10 && node; i++) {
+                      const props = node.memoizedProps || node.pendingProps || {};
+                      if (props.chat || props.contact || props.id) {
+                        const id = props.chat?.id || props.contact?.id || props.id;
+                        if (id && typeof id === 'string' && id.includes('@')) {
+                          chatId = id;
+                          break;
+                        }
+                      }
+                      node = node.return;
+                    }
+                  } catch (_) {}
+                  if (chatId) break;
+                }
+              }
+            }
+
+            // Estrategia 5: construir desde el nombre (si es numérico)
+            if (!chatId && name) {
+              const cleaned = name.replace(/\D/g, '');
+              if (cleaned.length >= 8) {
+                chatId = cleaned + '@c.us';
+              }
+            }
+
             results.push({
               id: chatId,
-              name: titleEl?.textContent || '',
+              name,
               lastMessage: subtitleEl?.textContent || '',
               timestamp: null,
               unreadCount: 0,
@@ -417,4 +479,28 @@ export const searchChats = async (query: string) => {
         c.lastMessage.toLowerCase().includes(q),
     )
     .slice(0, 50);
+};
+
+export const debugSidebarDOM = async () => {
+  const c = getClient();
+  return await c.pupPage.evaluate(() => {
+    // Obtener el HTML de los primeros 3 chats para analizar selectores
+    const containers = document.querySelectorAll('[data-testid="cell-frame-container"]');
+    const sample: any[] = [];
+    for (let i = 0; i < Math.min(3, containers.length); i++) {
+      const el = containers[i];
+      sample.push({
+        outerHTML: el.outerHTML.substring(0, 2000),
+        attributes: Array.from(el.attributes).map(a => `${a.name}=${a.value}`),
+        childDataTestIds: Array.from(el.querySelectorAll('[data-testid]')).map(e => e.getAttribute('data-testid')),
+        links: Array.from(el.querySelectorAll('a')).map(a => ({ href: a.getAttribute('href'), text: a.textContent?.substring(0, 30) })),
+        allIds: Array.from(el.querySelectorAll('[id]')).map(e => ({ tag: e.tagName, id: e.id })),
+        reactKeys: Object.keys(el).filter(k => k.startsWith('__react')),
+      });
+    }
+    return {
+      totalContainers: containers.length,
+      sample,
+    };
+  });
 };
