@@ -374,26 +374,116 @@ export const getChats = async () => {
 export const getMessages = async (chatId: string, limit = 50) => {
   const c = getClient();
 
-  // Intentar via WWebJS Store
+  // Estrategia 1: intentar navegar al chat en WhatsApp Web y scrapear DOM
+  try {
+    // Primero hacer click en el chat en la sidebar para abrirlo
+    const clicked = await c.pupPage.evaluate(async (targetId: string) => {
+      const containers = document.querySelectorAll('[data-testid="cell-frame-container"]');
+      for (const el of Array.from(containers)) {
+        // Buscar el chat por React fiber
+        const allKeys = Object.getOwnPropertyNames(el);
+        const fiberKey = allKeys.find((k: string) => k.startsWith('__reactFiber$'));
+        if (!fiberKey) continue;
+        try {
+          let node = (el as any)[fiberKey];
+          for (let i = 0; i < 50 && node; i++) {
+            const props = node.memoizedProps || {};
+            let chatId = '';
+            if (props.id && typeof props.id === 'string' && props.id.includes('@')) chatId = props.id;
+            if (props.chat?.id?._serialized) chatId = props.chat.id._serialized;
+            if (props._serialized && typeof props._serialized === 'string' && props._serialized.includes('@')) chatId = props._serialized;
+            if (chatId === targetId) {
+              (el as HTMLElement).click();
+              return true;
+            }
+            node = node.return;
+          }
+        } catch (_) {}
+      }
+      return false;
+    }, chatId);
+
+    if (clicked) {
+      // Esperar a que carguen los mensajes
+      await new Promise(r => setTimeout(r, 2000));
+
+      const domMsgs = await c.pupPage.evaluate((args: any) => {
+        const msgElements = document.querySelectorAll('[data-testid="msg-container"]');
+        const results: any[] = [];
+        msgElements.forEach((el) => {
+          try {
+            const textEl = el.querySelector('[data-testid="message-text"]') || el.querySelector('.message-text');
+            const isOutgoing = el.classList.contains('message-out') || el.querySelector('[data-testid="msg-dblcheck"]') !== null;
+            const timeEl = el.querySelector('[data-testid="msg-time"]') || el.querySelector('.copyable-text')?.querySelector('span');
+            const msgText = textEl?.textContent || (textEl as HTMLElement)?.innerText || '';
+            if (msgText) {
+              results.push({
+                id: results.length,
+                chat_id: args.chatId,
+                message: msgText,
+                from_me: isOutgoing,
+                message_timestamp: timeEl?.textContent || null,
+                chat_name: '',
+                phone_number: args.chatId,
+              });
+            }
+          } catch (_) {}
+        });
+        return results.slice(-args.limit);
+      }, { chatId, limit } as any);
+
+      if (domMsgs.length > 0) {
+        console.log(`[WhatsApp] getMessages via DOM click: ${domMsgs.length} msgs`);
+        return domMsgs;
+      }
+      console.log(`[WhatsApp] getMessages DOM click: 0 msgs (clicked=${clicked}, msgElements=${await c.pupPage.evaluate(() => document.querySelectorAll('[data-testid="msg-container"]').length)})`);
+    }
+  } catch (e: any) {
+    console.log(`[WhatsApp] getMessages DOM click error: ${e.message}`);
+  }
+
+  // Estrategia 2: WWebJS Store directo
   try {
     const storeMsgs = await (c.pupPage.evaluate as any)(async (args: any) => {
       try {
         const w = window as any;
-        const wwebjs = w.WWebJS;
-        if (!wwebjs?.getChat) return null;
-        const chat = await wwebjs.getChat(args.chatId);
-        if (!chat?.messages) return null;
-        const msgs = chat.messages.getModelsArray?.() || chat.messages;
-        if (!Array.isArray(msgs)) return null;
-        return msgs.slice(-args.limit).map((m: any) => ({
-          id: m.id?.id || m.id,
-          chat_id: args.chatId,
-          message: m.body || '',
-          from_me: m.fromMe || false,
-          message_timestamp: m.timestamp ? new Date(m.timestamp * 1000).toISOString() : null,
-          chat_name: chat.name || '',
-          phone_number: args.chatId,
-        }));
+        // Intentar Store directo
+        if (w.Store?.Chat) {
+          const chat = w.Store.Chat.get(args.chatId);
+          if (chat?.messages) {
+            const msgs = chat.messages.getModelsArray?.() || Array.from(chat.messages.values?.() || []);
+            if (Array.isArray(msgs) && msgs.length > 0) {
+              return msgs.slice(-args.limit).map((m: any) => ({
+                id: m.id?.id || m.id,
+                chat_id: args.chatId,
+                message: m.body || '',
+                from_me: m.fromMe || false,
+                message_timestamp: m.timestamp ? new Date(m.timestamp * 1000).toISOString() : null,
+                chat_name: chat.name || '',
+                phone_number: args.chatId,
+              }));
+            }
+          }
+        }
+        // Intentar WWebJS
+        if (w.WWebJS?.getChat) {
+          const chat = await w.WWebJS.getChat(args.chatId);
+          if (chat?.messages) {
+            const msgs = chat.messages.getModelsArray?.() || chat.messages;
+            if (Array.isArray(msgs) && msgs.length > 0) {
+              return msgs.slice(-args.limit).map((m: any) => ({
+                id: m.id?.id || m.id,
+                chat_id: args.chatId,
+                message: m.body || '',
+                from_me: m.fromMe || false,
+                message_timestamp: m.timestamp ? new Date(m.timestamp * 1000).toISOString() : null,
+                chat_name: chat.name || '',
+                phone_number: args.chatId,
+              }));
+            }
+          }
+        }
+        return { storeError: 'Store.Chat and WWebJS both failed' };
       } catch (e: any) {
         return { storeError: e.message };
       }
@@ -403,37 +493,10 @@ export const getMessages = async (chatId: string, limit = 50) => {
       console.log(`[WhatsApp] getMessages via Store: ${storeMsgs.length} msgs`);
       return storeMsgs;
     }
-  } catch (_) {}
-
-  // Intentar via DOM
-  try {
-    const domMsgs = await (c.pupPage.evaluate as any)((args: any) => {
-      const msgElements = document.querySelectorAll('[data-testid="msg-container"]');
-      const results: any[] = [];
-      msgElements.forEach((el) => {
-        try {
-          const textEl = el.querySelector('[data-testid="message-text"]') || el.querySelector('.message-text');
-          const isOutgoing = el.classList.contains('message-out') || el.querySelector('[data-testid="msg-dblcheck"]') !== null;
-          const timeEl = el.querySelector('[data-testid="msg-time"]') || el.querySelector('.copyable-text')?.querySelector('span');
-          results.push({
-            id: results.length,
-            chat_id: args.chatId,
-            message: textEl?.textContent || '',
-            from_me: isOutgoing,
-            message_timestamp: timeEl?.textContent || null,
-            chat_name: '',
-            phone_number: args.chatId,
-          });
-        } catch (_) {}
-      });
-      return results.slice(-args.limit);
-    }, { chatId, limit } as any);
-
-    if (domMsgs.length > 0) {
-      console.log(`[WhatsApp] getMessages via DOM: ${domMsgs.length} msgs`);
-      return domMsgs;
-    }
-  } catch (_) {}
+    console.log(`[WhatsApp] getMessages Store result:`, JSON.stringify(storeMsgs));
+  } catch (e: any) {
+    console.log(`[WhatsApp] getMessages Store error: ${e.message}`);
+  }
 
   // Fallback a DB
   try {
@@ -547,5 +610,33 @@ export const debugSidebarDOM = async () => {
       sample.push({ name, chatIdFound, fiberInfo, fiberDebug: fiberDebug.slice(0, 10) });
     }
     return { totalContainers: containers.length, sample };
+  });
+};
+
+export const debugMessagesDOM = async () => {
+  const c = getClient();
+  return await c.pupPage.evaluate(() => {
+    // Ver qué hay en el panel de mensajes
+    const msgContainers = document.querySelectorAll('[data-testid="msg-container"]');
+    const conversationPanel = document.querySelector('[data-testid="conversation-panel-body"]');
+    const messagePanel = document.querySelector('[id="main"]');
+    const allDataTestIds = Array.from(document.querySelectorAll('[data-testid]')).map(e => e.getAttribute('data-testid'));
+    const uniqueTestIds = [...new Set(allDataTestIds)];
+
+    // Buscar también por clases y estructura
+    const allOutgoing = document.querySelectorAll('.message-out, [data-testid="msg-dblcheck"]');
+    const allIncoming = document.querySelectorAll('.message-in, [data-testid="msg-dblcheck"]');
+
+    return {
+      msgContainerCount: msgContainers.length,
+      hasConversationPanel: !!conversationPanel,
+      hasMessagePanel: !!messagePanel,
+      outgoingCount: allOutgoing.length,
+      incomingCount: allIncoming.length,
+      uniqueDataTestIds: uniqueTestIds.filter(id =>
+        id?.includes('msg') || id?.includes('message') || id?.includes('chat') || id?.includes('conversation')
+      ),
+      sampleHTML: conversationPanel ? conversationPanel.innerHTML.substring(0, 3000) : null,
+    };
   });
 };
