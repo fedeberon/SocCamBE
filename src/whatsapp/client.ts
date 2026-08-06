@@ -374,149 +374,42 @@ export const getChats = async () => {
 export const getMessages = async (chatId: string, limit = 50) => {
   const c = getClient();
 
-  // Estrategia 1: click nativo de Puppeteer en el chat de la sidebar
+  // Estrategia 1: WWebJS.getChat (singular) - funciona diferente a getChats
   try {
-    const chatIndex = await c.pupPage.evaluate((targetId: string) => {
-      const containers = document.querySelectorAll('[data-testid="cell-frame-container"]');
-      for (let i = 0; i < containers.length; i++) {
-        const el = containers[i];
-        const allKeys = Object.getOwnPropertyNames(el);
-        const fiberKey = allKeys.find((k: string) => k.startsWith('__reactFiber$'));
-        if (!fiberKey) continue;
-        try {
-          let node = (el as any)[fiberKey];
-          for (let j = 0; j < 50 && node; j++) {
-            const props = node.memoizedProps || {};
-            let cid = '';
-            if (props.id && typeof props.id === 'string' && props.id.includes('@')) cid = props.id;
-            if (props.chat?.id?._serialized) cid = props.chat.id._serialized;
-            if (props._serialized && typeof props._serialized === 'string' && props._serialized.includes('@')) cid = props._serialized;
-            if (cid === targetId) return i;
-            node = node.return;
-          }
-        } catch (_) {}
-      }
-      return -1;
-    }, chatId);
-
-    console.log(`[WhatsApp] getMessages: chatIndex=${chatIndex} for chatId=${chatId}`);
-
-    if (chatIndex >= 0) {
-      // Obtener bounding box del chat y hacer click con Puppeteer native
-      const box = await c.pupPage.evaluate((idx: number) => {
-        const el = document.querySelectorAll('[data-testid="cell-frame-container"]')[idx];
-        if (!el) return null;
-        const rect = el.getBoundingClientRect();
-        return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-      }, chatIndex);
-
-      if (box) {
-        console.log(`[WhatsApp] clicking at (${box.x}, ${box.y})`);
-        await c.pupPage.mouse.click(box.x, box.y);
-        await new Promise(r => setTimeout(r, 3000));
-
-        const panelInfo = await c.pupPage.evaluate(() => {
-          return {
-            hasPanel: !!document.querySelector('[data-testid="conversation-panel-body"]'),
-            hasMain: !!document.querySelector('[id="main"]'),
-            msgCount: document.querySelectorAll('[data-testid="msg-container"]').length,
-            testIds: Array.from(document.querySelectorAll('[data-testid]'))
-              .map(e => e.getAttribute('data-testid'))
-              .filter(id => id?.includes('msg') || id?.includes('message') || id?.includes('conversation'))
-              .slice(0, 20),
-          };
-        });
-        console.log(`[WhatsApp] after click panel:`, JSON.stringify(panelInfo));
-
-        if (panelInfo.msgCount > 0) {
-          const domMsgs = await c.pupPage.evaluate((args: any) => {
-            const msgElements = document.querySelectorAll('[data-testid="msg-container"]');
-            const results: any[] = [];
-            msgElements.forEach((el) => {
-              try {
-                const textEl = el.querySelector('[data-testid="message-text"]') || el.querySelector('.message-text');
-                const isOutgoing = el.classList.contains('message-out') || el.querySelector('[data-testid="msg-dblcheck"]') !== null;
-                const timeEl = el.querySelector('[data-testid="msg-time"]') || el.querySelector('.copyable-text')?.querySelector('span');
-                const msgText = textEl?.textContent || (textEl as HTMLElement)?.innerText || '';
-                if (msgText) {
-                  results.push({
-                    id: results.length,
-                    chat_id: args.chatId,
-                    message: msgText,
-                    from_me: isOutgoing,
-                    message_timestamp: timeEl?.textContent || null,
-                    chat_name: '',
-                    phone_number: args.chatId,
-                  });
-                }
-              } catch (_) {}
-            });
-            return results.slice(-args.limit);
-          }, { chatId, limit } as any);
-
-          console.log(`[WhatsApp] getMessages via DOM click: ${domMsgs.length} msgs`);
-          if (domMsgs.length > 0) return domMsgs;
-        }
-      }
-    }
-  } catch (e: any) {
-    console.log(`[WhatsApp] getMessages DOM click error: ${e.message}`);
-  }
-
-  // Estrategia 2: WWebJS Store directo
-  try {
-    const storeMsgs = await (c.pupPage.evaluate as any)(async (args: any) => {
+    const result = await (c.pupPage.evaluate as any)(async (args: any) => {
       try {
         const w = window as any;
-        // Intentar Store directo
-        if (w.Store?.Chat) {
-          const chat = w.Store.Chat.get(args.chatId);
-          if (chat?.messages) {
-            const msgs = chat.messages.getModelsArray?.() || Array.from(chat.messages.values?.() || []);
-            if (Array.isArray(msgs) && msgs.length > 0) {
-              return msgs.slice(-args.limit).map((m: any) => ({
-                id: m.id?.id || m.id,
-                chat_id: args.chatId,
-                message: m.body || '',
-                from_me: m.fromMe || false,
-                message_timestamp: m.timestamp ? new Date(m.timestamp * 1000).toISOString() : null,
-                chat_name: chat.name || '',
-                phone_number: args.chatId,
-              }));
-            }
-          }
+        if (!w.WWebJS?.getChat) return { error: 'WWebJS.getChat not available' };
+        const chat = await w.WWebJS.getChat(args.chatId);
+        if (!chat) return { error: 'chat is null' };
+        if (!chat.messages) return { error: 'chat.messages is null', chatKeys: Object.keys(chat).slice(0, 20) };
+
+        const msgs = chat.messages.getModelsArray ? chat.messages.getModelsArray() : [];
+        if (!Array.isArray(msgs) || msgs.length === 0) {
+          return { error: 'no messages array', msgKeys: chat.messages ? Object.keys(chat.messages).slice(0, 20) : [] };
         }
-        // Intentar WWebJS
-        if (w.WWebJS?.getChat) {
-          const chat = await w.WWebJS.getChat(args.chatId);
-          if (chat?.messages) {
-            const msgs = chat.messages.getModelsArray?.() || chat.messages;
-            if (Array.isArray(msgs) && msgs.length > 0) {
-              return msgs.slice(-args.limit).map((m: any) => ({
-                id: m.id?.id || m.id,
-                chat_id: args.chatId,
-                message: m.body || '',
-                from_me: m.fromMe || false,
-                message_timestamp: m.timestamp ? new Date(m.timestamp * 1000).toISOString() : null,
-                chat_name: chat.name || '',
-                phone_number: args.chatId,
-              }));
-            }
-          }
-        }
-        return { storeError: 'Store.Chat and WWebJS both failed' };
+
+        return msgs.slice(-args.limit).map((m: any) => ({
+          id: m.id?.id || m.id,
+          chat_id: args.chatId,
+          message: m.body || '',
+          from_me: m.fromMe || false,
+          message_timestamp: m.timestamp ? new Date(m.timestamp * 1000).toISOString() : null,
+          chat_name: chat.name || '',
+          phone_number: args.chatId,
+        }));
       } catch (e: any) {
-        return { storeError: e.message };
+        return { error: e.message, stack: e.stack?.substring(0, 200) };
       }
     }, { chatId, limit } as any);
 
-    if (storeMsgs && !storeMsgs.storeError && Array.isArray(storeMsgs) && storeMsgs.length > 0) {
-      console.log(`[WhatsApp] getMessages via Store: ${storeMsgs.length} msgs`);
-      return storeMsgs;
+    if (Array.isArray(result) && result.length > 0) {
+      console.log(`[WhatsApp] getMessages via WWebJS.getChat: ${result.length} msgs`);
+      return result;
     }
-    console.log(`[WhatsApp] getMessages Store result:`, JSON.stringify(storeMsgs));
+    console.log(`[WhatsApp] WWebJS.getChat result:`, JSON.stringify(result));
   } catch (e: any) {
-    console.log(`[WhatsApp] getMessages Store error: ${e.message}`);
+    console.log(`[WhatsApp] WWebJS.getChat error: ${e.message}`);
   }
 
   // Fallback a DB
