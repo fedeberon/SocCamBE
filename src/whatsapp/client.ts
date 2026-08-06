@@ -374,57 +374,90 @@ export const getChats = async () => {
 export const getMessages = async (chatId: string, limit = 50) => {
   const c = getClient();
 
-  // Estrategia 1: WWebJS.getChat (singular) - funciona diferente a getChats
+  // Estrategia 1: usar client.getChatById() (Node.js API) + chat.fetchMessages()
   try {
-    const result = await (c.pupPage.evaluate as any)(async (args: any) => {
-      try {
-        const w = window as any;
-        if (!w.WWebJS?.getChat) return { error: 'WWebJS.getChat not available' };
-        const chat = await w.WWebJS.getChat(args.chatId);
-        if (!chat) return { error: 'chat is null' };
-        if (!chat.messages) return { error: 'chat.messages is null', chatKeys: Object.keys(chat).slice(0, 20) };
-
-        const msgs = chat.messages.getModelsArray ? chat.messages.getModelsArray() : [];
-        if (!Array.isArray(msgs) || msgs.length === 0) {
-          return { error: 'no messages array', msgKeys: chat.messages ? Object.keys(chat.messages).slice(0, 20) : [] };
-        }
-
-        return msgs.slice(-args.limit).map((m: any) => ({
-          id: m.id?.id || m.id,
-          chat_id: args.chatId,
-          message: m.body || '',
-          from_me: m.fromMe || false,
-          message_timestamp: m.timestamp ? new Date(m.timestamp * 1000).toISOString() : null,
-          chat_name: chat.name || '',
-          phone_number: args.chatId,
-        }));
-      } catch (e: any) {
-        return { error: e.message, stack: e.stack?.substring(0, 200) };
-      }
-    }, { chatId, limit } as any);
-
-    if (Array.isArray(result) && result.length > 0) {
-      console.log(`[WhatsApp] getMessages via WWebJS.getChat: ${result.length} msgs`);
-      return result;
+    const chat = await c.getChatById(chatId);
+    const msgs = await chat.fetchMessages({ limit });
+    if (msgs && msgs.length > 0) {
+      console.log(`[WhatsApp] getMessages via client.getChatById: ${msgs.length} msgs`);
+      return msgs.map((m: any) => ({
+        id: m.id?.id || m.id?._serialized || m.id,
+        chat_id: chatId,
+        message: m.body || '',
+        from_me: m.fromMe || false,
+        message_timestamp: m.timestamp ? new Date(m.timestamp * 1000).toISOString() : null,
+        chat_name: chat.name || '',
+        phone_number: chatId,
+      }));
     }
-    console.log(`[WhatsApp] WWebJS.getChat result:`, JSON.stringify(result));
+    console.log(`[WhatsApp] getMessages client.getChatById: 0 msgs for ${chatId}`);
   } catch (e: any) {
-    console.log(`[WhatsApp] WWebJS.getChat error: ${e.message}`);
+    console.log(`[WhatsApp] getMessages client.getChatById error: ${e.message}`);
   }
 
-  // Fallback a DB
+  // Estrategia 2: resolver @lid → @c.us y reintentar
+  if (chatId.endsWith('@lid')) {
+    try {
+      const contact = await c.getContactById(chatId);
+      if (contact?.number) {
+        const phoneChatId = contact.number.replace(/[^0-9]/g, '') + '@c.us';
+        console.log(`[WhatsApp] resolved @lid ${chatId} → ${phoneChatId}`);
+        try {
+          const chat = await c.getChatById(phoneChatId);
+          const msgs = await chat.fetchMessages({ limit });
+          if (msgs && msgs.length > 0) {
+            console.log(`[WhatsApp] getMessages via resolved @c.us: ${msgs.length} msgs`);
+            return msgs.map((m: any) => ({
+              id: m.id?.id || m.id?._serialized || m.id,
+              chat_id: chatId,
+              message: m.body || '',
+              from_me: m.fromMe || false,
+              message_timestamp: m.timestamp ? new Date(m.timestamp * 1000).toISOString() : null,
+              chat_name: chat.name || '',
+              phone_number: chatId,
+            }));
+          }
+        } catch (e2: any) {
+          console.log(`[WhatsApp] getMessages resolved @c.us error: ${e2.message}`);
+        }
+      }
+    } catch (e: any) {
+      console.log(`[WhatsApp] getContactById for @lid error: ${e.message}`);
+    }
+  }
+
+  // Estrategia 3: buscar en DB con chat_id y también con phone patterns
   try {
     const [rows] = await sequelize.query(`
       SELECT TOP (${limit}) * FROM dbo.whatsapp_messages
       WHERE chat_id = :chatId
       ORDER BY message_timestamp DESC
     `, { replacements: { chatId } });
-    console.log(`[WhatsApp] getMessages via DB: ${(rows as any[]).length} msgs`);
-    return rows;
+    if ((rows as any[]).length > 0) {
+      console.log(`[WhatsApp] getMessages via DB: ${(rows as any[]).length} msgs`);
+      return rows;
+    }
   } catch (err) {
-    console.error('[WhatsApp] Error obteniendo mensajes:', err);
-    return [];
+    console.error('[WhatsApp] Error DB getMessages:', err);
   }
+
+  // Estrategia 4: buscar en DB por phone_number
+  if (chatId.endsWith('@lid')) {
+    try {
+      const [rows] = await sequelize.query(`
+        SELECT TOP (${limit}) * FROM dbo.whatsapp_messages
+        WHERE phone_number = :chatId
+        ORDER BY message_timestamp DESC
+      `, { replacements: { chatId } });
+      if ((rows as any[]).length > 0) {
+        console.log(`[WhatsApp] getMessages via DB phone: ${(rows as any[]).length} msgs`);
+        return rows;
+      }
+    } catch (_) {}
+  }
+
+  console.log(`[WhatsApp] getMessages: 0 msgs for ${chatId}`);
+  return [];
 };
 
 export const disconnect = async () => {
