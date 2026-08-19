@@ -9,5 +9,7 @@ filesRoutes.post('/upload', checkJwt, upload.single('file'), FilesController.sub
 filesRoutes.post('/socios/:socioId/logo', checkJwt, upload.single('file'), FilesController.subirLogoSocio);
 filesRoutes.post('/comercios/:comercioId/logo', checkJwt, upload.single('file'), FilesController.subirLogoComercio);
 filesRoutes.post('/productos/:productoId/imagen', checkJwt, upload.single('file'), FilesController.subirImagenProducto);
+filesRoutes.post('/campanias/:campaniaId/logo', checkJwt, upload.single('file'), FilesController.subirLogoCampania);
+filesRoutes.post('/campanias/:campaniaId/imagen', checkJwt, upload.single('file'), FilesController.subirImagenCampania);
 
 export default filesRoutes;

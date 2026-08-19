@@ -5,6 +5,7 @@ import SocioService from '../service/socio.service';
 import { ISocioService } from '../interfaces/Isocio.service';
 import ComercioPuntos from '../models/ComercioPuntos.models';
 import ProductoStore from '../models/ProductoStore.models';
+import Campania from '../models/Campania.models';
 
 class FilesController {
   private static socioService: ISocioService = new SocioService();
@@ -197,6 +198,94 @@ class FilesController {
     } catch (error: any) {
       logger.error(`Error al subir imagen de producto: ${error?.message || error}`);
       return res.status(500).json({ message: 'Error al subir imagen del producto' });
+    }
+  }
+
+  static async subirLogoCampania(req: Request, res: Response) {
+    try {
+      const { campaniaId } = req.params;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ message: 'Debe enviar un archivo en el campo "file"' });
+      }
+
+      if (!file.mimetype.startsWith('image/')) {
+        return res.status(400).json({ message: 'El logo debe ser una imagen' });
+      }
+
+      const campania = await Campania.findByPk(Number(campaniaId));
+      if (!campania) {
+        return res.status(404).json({ message: 'Campaña no encontrada' });
+      }
+
+      const nombreArchivo = `logo-campania-${Date.now()}-${file.originalname}`;
+      const logoUrl = await azureBlobService.subirArchivo({
+        buffer: file.buffer,
+        nombreArchivo,
+        carpeta: 'campanias',
+        entidadId: campaniaId,
+        subcarpeta: 'logo',
+        contentType: file.mimetype,
+      });
+
+      const blobPath = azureBlobService.getBlobPathFromUrl(logoUrl) || logoUrl;
+      const logoReadUrl = azureBlobService.getReadOnlyUrl(blobPath);
+
+      await campania.update({ logo_url: blobPath, modificado_en: new Date() });
+
+      return res.status(201).json({
+        message: 'Logo de campaña subido correctamente',
+        campaniaId: Number(campaniaId),
+        logoUrl: logoReadUrl,
+      });
+    } catch (error: any) {
+      logger.error(`Error al subir logo de campaña: ${error?.message || error}`);
+      return res.status(500).json({ message: 'Error al subir logo de la campaña' });
+    }
+  }
+
+  static async subirImagenCampania(req: Request, res: Response) {
+    try {
+      const { campaniaId } = req.params;
+      const file = req.file;
+
+      if (!file) {
+        return res.status(400).json({ message: 'Debe enviar un archivo en el campo "file"' });
+      }
+
+      if (!file.mimetype.startsWith('image/')) {
+        return res.status(400).json({ message: 'La imagen debe ser una imagen' });
+      }
+
+      const campania = await Campania.findByPk(Number(campaniaId));
+      if (!campania) {
+        return res.status(404).json({ message: 'Campaña no encontrada' });
+      }
+
+      const nombreArchivo = `imagen-campania-${Date.now()}-${file.originalname}`;
+      const imagenUrl = await azureBlobService.subirArchivo({
+        buffer: file.buffer,
+        nombreArchivo,
+        carpeta: 'campanias',
+        entidadId: campaniaId,
+        subcarpeta: 'imagen',
+        contentType: file.mimetype,
+      });
+
+      const blobPath = azureBlobService.getBlobPathFromUrl(imagenUrl) || imagenUrl;
+      const imageReadUrl = azureBlobService.getReadOnlyUrl(blobPath);
+
+      await campania.update({ imagen_url: blobPath, modificado_en: new Date() });
+
+      return res.status(201).json({
+        message: 'Imagen de campaña subida correctamente',
+        campaniaId: Number(campaniaId),
+        imagenUrl: imageReadUrl,
+      });
+    } catch (error: any) {
+      logger.error(`Error al subir imagen de campaña: ${error?.message || error}`);
+      return res.status(500).json({ message: 'Error al subir imagen de la campaña' });
     }
   }
 }

@@ -26,6 +26,7 @@ import puntosRoutes from './router/puntos.routes';
 import marketplaceRoutes from './router/marketplace.routes';
 import invoiceOcrRoutes from './router/invoiceOcr.routes';
 import whatsappRoutes from './whatsapp/whatsapp.routes';
+import campaniasRoutes from './router/campanias.routes';
 
 
 const app = express();
@@ -61,6 +62,7 @@ app.use('/puntos', puntosRoutes);
 app.use('/market', marketplaceRoutes);
 app.use('/invoice-ocr', invoiceOcrRoutes);
 app.use('/whatsapp', whatsappRoutes);
+app.use('/campanias', campaniasRoutes);
 // Webhook directo (para usar en MP_NOTIFICATION_URL)
 app.post('/webhook/mercadopago', MercadoPagoController.webhook);
 // Retorno success/failure desde back_urls de MP
