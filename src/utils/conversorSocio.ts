@@ -27,6 +27,7 @@ function convertirDatosSocio(body: any) {
     socio_segmento: parseBigInt(body.socio_segmento),
     socio_habilitacion: body.socio_habilitacion,
     socio_rubro: parseIntSafe(body.socio_rubro),
+    socio_rubros: body.socio_rubros ? String(body.socio_rubros) : null,
     socio_localidad: parseIntSafe(body.socio_localidad),
     socio_condicionFiscal: parseIntSafe(body.socio_condicionFiscal),
     socio_celular: body.socio_celular,

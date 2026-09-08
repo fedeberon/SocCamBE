@@ -25,6 +25,7 @@ export const toSocioDTO = async (socio: Socio): Promise<SocioDTO> => ({
   segmento: socio.getDataValue('socio_segmento'),
   habilitacion: socio.getDataValue('socio_habilitacion'),
   rubro: socio.getDataValue('socio_rubro'),
+  rubros: socio.getDataValue('socio_rubros'),
   localidad: socio.getDataValue('socio_localidad'),
   condicionFiscal: socio.getDataValue('socio_condicionFiscal'),
   celular: socio.getDataValue('socio_celular'),

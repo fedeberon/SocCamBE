@@ -80,6 +80,9 @@ export class CreateSocioDto {
     @IsNotEmpty({ message: 'El rubro es obligatorio' })
     socio_rubro!: string;
 
+    @IsString({ message: 'Los rubros adicionales deben ser una cadena de texto' })
+    socio_rubros?: string;
+
     @IsString({ message: 'La localidad debe ser una cadena de texto' })
     @IsNotEmpty({ message: 'La localidad es obligatoria' })
     socio_localidad!: string;

@@ -30,6 +30,7 @@
     private socio_segmento!: string;
     private socio_habilitacion!: string;
     private socio_rubro!: string;
+    private socio_rubros!: string;
     private socio_localidad!: string;
     private socio_condicionFiscal!: string;
     private socio_celular!: string;
@@ -103,6 +104,7 @@
   socio_segmento: DataTypes.BIGINT,
   socio_habilitacion: DataTypes.TEXT, // varchar(MAX)
   socio_rubro: DataTypes.INTEGER,
+  socio_rubros: DataTypes.STRING,
   socio_localidad: DataTypes.INTEGER,
   socio_condicionFiscal: DataTypes.INTEGER,
   socio_celular: DataTypes.TEXT, // varchar(MAX)

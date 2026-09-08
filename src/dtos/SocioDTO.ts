@@ -23,6 +23,7 @@ export interface SocioDTO {
     segmento: string;
     habilitacion: string;
     rubro: string;
+    rubros: string;
     localidad: string;
     condicionFiscal: string;
     celular: string;
