@@ -14,6 +14,7 @@ import notificacionRoutes from './router/notificacion.routes';
 import dashboardRoutes from './router/dashboard.routes';
 import solicitudServicioRoutes from './router/solicitudServicio.routes';
 import serviciosRoutes from './router/servicios.routes';
+import categoriaRoutes from './router/categoria.routes';
 import mercadoPagoRoutes from './router/mercadoPago.routes';
 import MercadoPagoController from './controllers/mercadoPago.controller';
 
@@ -56,6 +57,7 @@ app.use('/cajas', cajaSeguridadRoutes);
 app.use('/dashboard', dashboardRoutes);
 app.use('/solicitudes-servicio', solicitudServicioRoutes);
 app.use('/servicios', serviciosRoutes);
+app.use('/categorias', categoriaRoutes);
 app.use('/mercadopago', mercadoPagoRoutes);
 app.use('/files', filesRoutes);
 app.use('/puntos', puntosRoutes);
