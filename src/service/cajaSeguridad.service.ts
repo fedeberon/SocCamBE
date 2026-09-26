@@ -6,6 +6,7 @@ import Socio from '../models/socio.models';
 import { ICajaSeguridadService } from '../interfaces/IcajaSeguridad.service';
 import ContratoCofresService, { ServiceError } from './contratoCofres.service';
 import sequelize from '../configs/database';
+import { cofreLetraDesdeCodigo, parseCajaCode, componerCodigoCaja } from '../utils/cofre';
 
 class CajaSeguridadService implements ICajaSeguridadService {
   private contratoCofresService = new ContratoCofresService();
@@ -52,6 +53,7 @@ class CajaSeguridadService implements ICajaSeguridadService {
         cc.contratoCofres_id,
         cc.contratoCofres_esSocioId,
         cc.contratoCofres_cajaNumero,
+        cc.contratoCofres_cofreLetra,
         cc.contratoCofres_cofreNumero,
         cc.contratoCofres_fechaContratacion,
         cc.contratoCofres_fechaVencimiento,
@@ -76,11 +78,20 @@ class CajaSeguridadService implements ICajaSeguridadService {
         condicionSocio = r.socio_deleted ? 'baja' : 'activo';
       }
 
+      const cofreLetra = cofreLetraDesdeCodigo(r.contratoCofres_cofreLetra) ?? parseCajaCode(r.contratoCofres_cajaNumero).letra;
+      const cofreNumero =
+        r.contratoCofres_cofreNumero != null
+          ? Number(r.contratoCofres_cofreNumero)
+          : parseCajaCode(r.contratoCofres_cajaNumero).numero;
+
       return {
         id: -Number(r.contratoCofres_id),
         numero:
           String(r.contratoCofres_cajaNumero || '').trim() ||
           (r.contratoCofres_cofreNumero != null ? String(r.contratoCofres_cofreNumero) : String(r.contratoCofres_id)),
+        codigoCaja: componerCodigoCaja(cofreLetra, cofreNumero) || String(r.contratoCofres_id),
+        cofreLetra,
+        cofreNumero,
         estado: 'Habilitado',
         ubicacion: 'Legacy',
         tamanoId: 0,
@@ -116,8 +127,16 @@ class CajaSeguridadService implements ICajaSeguridadService {
         condicionSocio = algunoActivo ? 'activo' : 'baja';
       }
 
+      const cruda = caja.get ? caja.get({ plain: true }) : caja;
+      const parseada = parseCajaCode(cruda.numero);
+      const cofreLetra = cruda.cofre_letra || parseada.letra;
+      const cofreNumero = cruda.cofre_numero != null ? Number(cruda.cofre_numero) : parseada.numero;
+
       return {
-        ...caja.get({ plain: true }),
+        ...cruda,
+        codigoCaja: componerCodigoCaja(cofreLetra, cofreNumero) || String(cruda.numero || ''),
+        cofreLetra,
+        cofreNumero,
         condicionSocio,
       };
     });
@@ -147,7 +166,28 @@ class CajaSeguridadService implements ICajaSeguridadService {
   async createCaja(data: any): Promise<any> {
     data.deleted = false;
 
-    if (!data.numero) {
+    const letra = cofreLetraDesdeCodigo(data.cofreLetra ?? data.cofre_letra);
+    let numero = data.cofreNumero != null ? Number(data.cofreNumero) : parseCajaCode(data.numero).numero;
+
+    if (letra) {
+      // Autogenera el siguiente número para esa letra si no viene informado.
+      if (numero == null || !Number.isFinite(numero)) {
+        const rows = (await sequelize.query(
+          `SELECT numero FROM dbo.caja_seguridad WHERE deleted = 0`,
+          { type: QueryTypes.SELECT },
+        )) as any[];
+
+        const usados = rows
+          .map((r) => parseCajaCode(r?.numero))
+          .filter((p: any) => p?.letra === letra && p?.numero != null)
+          .map((p: any) => Number(p.numero));
+
+        const maxNumero = usados.length ? Math.max(...usados) : 0;
+        numero = maxNumero + 1;
+      }
+
+      data.numero = componerCodigoCaja(letra, numero) ?? String(numero);
+    } else if (!data.numero) {
       // Autogenera siguiente número usando cast numérico para evitar max lexicográfico de strings.
       const row = (await sequelize.query(
         `
@@ -165,6 +205,16 @@ class CajaSeguridadService implements ICajaSeguridadService {
   }
 
   async updateCaja(id: number, data: any): Promise<[number, any[]]> {
+    if (data.cofreLetra != null || data.cofreNumero != null || data.numero != null) {
+      const letra = cofreLetraDesdeCodigo(data.cofreLetra ?? data.cofre_letra);
+      const numero =
+        data.cofreNumero != null ? Number(data.cofreNumero) : parseCajaCode(data.numero).numero;
+
+      if (letra && numero != null && Number.isFinite(numero)) {
+        data.numero = componerCodigoCaja(letra, numero) ?? String(numero);
+      }
+    }
+
     return await CajaSeguridad.update(data, { where: { caja_id: id, deleted: false }, returning: true });
   }
 
@@ -202,6 +252,7 @@ class CajaSeguridadService implements ICajaSeguridadService {
         cc.contratoCofres_id,
         cc.contratoCofres_esSocioId,
         cc.contratoCofres_cajaNumero,
+        cc.contratoCofres_cofreLetra,
         cc.contratoCofres_cofreNumero,
         cc.contratoCofres_fechaContratacion,
         cc.contratoCofres_fechaVencimiento,
@@ -214,7 +265,14 @@ class CajaSeguridadService implements ICajaSeguridadService {
       { replacements: { socioId }, type: QueryTypes.SELECT }
     ) as any[];
 
-    const cajasLegacy = legacyRows.map((r) => ({
+    const cajasLegacy = legacyRows.map((r) => {
+      const cofreLetra = cofreLetraDesdeCodigo(r.contratoCofres_cofreLetra) ?? parseCajaCode(r.contratoCofres_cajaNumero).letra;
+      const cofreNumero =
+        r.contratoCofres_cofreNumero != null
+          ? Number(r.contratoCofres_cofreNumero)
+          : parseCajaCode(r.contratoCofres_cajaNumero).numero;
+
+      return {
       socio_caja_id: -Number(r.contratoCofres_id),
       socio_id: Number(r.contratoCofres_esSocioId),
       caja_id: -Number(r.contratoCofres_id),
@@ -226,11 +284,15 @@ class CajaSeguridadService implements ICajaSeguridadService {
       caja: {
         caja_id: -Number(r.contratoCofres_id),
         numero: String(r.contratoCofres_cajaNumero || r.contratoCofres_cofreNumero || r.contratoCofres_id),
+        codigoCaja: componerCodigoCaja(cofreLetra, cofreNumero) || String(r.contratoCofres_id),
+        cofreLetra,
+        cofreNumero,
         estado: r.contratoCofres_estado || 'Habilitado',
         ubicacion: 'Legacy',
         tamano: null,
       },
-    }));
+    };
+    });
 
     return [...cajasNuevas, ...cajasLegacy];
   }

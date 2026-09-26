@@ -90,10 +90,11 @@ class ContratoCofresService implements IContratoCofresService {
       contratoCofres_nombre: socioNombre,
       contratoCofres_dni: payload.socioDni || (socio as any).socio_dni || '',
       contratoCofres_domicilioFiscal: payload.domicilioFiscal || (socio as any).socio_domicilio || '',
-      contratoCofres_cajaNumero: String(payload.cajaNumero ?? (caja as any).numero ?? ''),
-      contratoCofres_cofreNumero: Number.isNaN(Number(payload.cajaNumero ?? (caja as any).numero))
-        ? null
-        : Number(payload.cajaNumero ?? (caja as any).numero),
+      contratoCofres_cajaNumero: String(payload.cajaNumero ?? (caja as any).codigoCaja ?? (caja as any).numero ?? ''),
+      contratoCofres_cofreNumero:
+        payload.cofreNumero != null
+          ? Number(payload.cofreNumero)
+          : Number(String(payload.cajaNumero ?? (caja as any).codigoCaja ?? (caja as any).numero ?? '').replace(/[^\d]/g, '')) || null,
       contratoCofres_estado: 'Pendiente de firma',
       contratoCofres_fechaContratacion: fechaInicio,
       contratoCofres_fechaVencimiento: null,

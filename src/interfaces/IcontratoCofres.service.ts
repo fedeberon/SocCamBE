@@ -21,6 +21,7 @@ export interface CreateContratoCofrePayload {
   socioDni?: string;
   domicilioFiscal?: string;
   cajaNumero?: string;
+  cofreNumero?: number;
   fechaInicio?: string;
 }
 

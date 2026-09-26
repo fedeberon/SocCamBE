@@ -153,9 +153,13 @@ class MovimientoCuentaCorrienteCofreService implements IMovimientoCuentaCorrient
         TRY_CAST(
           CASE
             WHEN c.numero IS NULL THEN NULL
-            WHEN PATINDEX('[A-Za-z]%', LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64))))) = 1
-              THEN SUBSTRING(LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64)))), 2, 63)
-            ELSE LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64))))
+            WHEN PATINDEX('%[0-9]%', LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64))))) > 0
+              THEN SUBSTRING(
+                LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64)))),
+                PATINDEX('%[0-9]%', LTRIM(RTRIM(CAST(c.numero AS VARCHAR(64))))),
+                63
+              )
+            ELSE NULL
           END
           AS INT
         ) AS cofre_numero
