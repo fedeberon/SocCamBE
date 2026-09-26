@@ -344,13 +344,40 @@ class SocioController {
   static async updateSocio(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const socioData = req.body;
-      
-      delete socioData.socio_fechaNacimiento;
-      delete socioData.socio_modificado;
-      delete socioData.socio_fechaAprobacion;
-      delete socioData.socio_tarjetaFechaEntrega;
-      
+      const body = (req.body || {}) as Record<string, any>;
+
+      const camposNumericos = [
+        'socio_acta', 'socio_estado', 'socio_localidad', 'socio_rubro',
+        'socio_sector', 'socio_gestion', 'socio_segmento', 'socio_numero',
+        'socio_condicionFiscal', 'socio_Campanias', 'socio_tipoSocio',
+        'socio_padrino1', 'socio_padrino2',
+      ];
+      const camposNoEditables = new Set([
+        'socio_id', 'socio_fechaNacimiento', 'socio_modificado',
+        'socio_fechaAprobacion', 'socio_tarjetaFechaEntrega',
+        'socio_tarjetaEntregada', 'socio_deleted', 'pagos_locales',
+        'sos_sync_status', 'logoUrl', 'socio_logo', 'socio_logoComercio',
+      ]);
+
+      const socioData: Record<string, any> = {};
+      for (const [key, value] of Object.entries(body)) {
+        if (camposNoEditables.has(key)) continue;
+        let v = value;
+        if (camposNumericos.includes(key)) {
+          if (v === null || v === undefined || String(v).trim() === '') {
+            v = null;
+          } else {
+            const n = Number(v);
+            v = Number.isFinite(n) ? n : null;
+          }
+        }
+        socioData[key] = v;
+      }
+
+      if (Object.keys(socioData).length === 0) {
+        return res.status(400).json({ message: 'No se enviaron campos para actualizar' });
+      }
+
       const [rowsUpdated, updatedSocios] = await SocioController.socioService.updateSocio(Number(id), socioData);
       if (rowsUpdated > 0) {
         res.status(200).json(updatedSocios[0]);
