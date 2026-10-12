@@ -89,6 +89,9 @@ class CajaSeguridadController {
       const caja = await CajaSeguridadController.cajaSeguridadService.createCaja(body);
       res.status(201).json(caja);
     } catch (error: any) {
+      if (error?.name === 'ValidacionCajaPersona') {
+        return res.status(400).json({ message: error.message });
+      }
       if (error?.name === 'SequelizeUniqueConstraintError') {
         return res.status(409).json({ message: 'El número de caja ya existe', error });
       }
@@ -153,6 +156,62 @@ class CajaSeguridadController {
     } catch (error) {
       logger.error('Error al obtener cajas por socio:', error);
       res.status(500).json({ message: 'Error al obtener cajas por socio', error });
+    }
+  }
+
+  static async getPersonasByCaja(req: Request, res: Response) {
+    try {
+      const { cajaId } = req.params;
+      const personas = await CajaSeguridadController.cajaSeguridadService.getPersonasByCaja(Number(cajaId));
+      res.status(200).json(personas);
+    } catch (error) {
+      logger.error('Error al obtener personas de la caja:', error);
+      res.status(500).json({ message: 'Error al obtener personas de la caja', error });
+    }
+  }
+
+  static async createPersona(req: Request, res: Response) {
+    try {
+      const { cajaId } = req.params;
+      const persona = await CajaSeguridadController.cajaSeguridadService.createPersona(Number(cajaId), req.body);
+      res.status(201).json(persona);
+    } catch (error: any) {
+      if (error?.name === 'ValidacionCajaPersona') {
+        return res.status(400).json({ message: error.message });
+      }
+      logger.error('Error al crear persona de la caja:', error);
+      res.status(500).json({ message: 'Error al crear persona de la caja', error });
+    }
+  }
+
+  static async updatePersona(req: Request, res: Response) {
+    try {
+      const { personaId } = req.params;
+      const persona = await CajaSeguridadController.cajaSeguridadService.updatePersona(Number(personaId), req.body);
+      if (!persona) {
+        return res.status(404).json({ message: 'Persona no encontrada' });
+      }
+      res.status(200).json(persona);
+    } catch (error: any) {
+      if (error?.name === 'ValidacionCajaPersona') {
+        return res.status(400).json({ message: error.message });
+      }
+      logger.error('Error al actualizar persona de la caja:', error);
+      res.status(500).json({ message: 'Error al actualizar persona de la caja', error });
+    }
+  }
+
+  static async deletePersona(req: Request, res: Response) {
+    try {
+      const { personaId } = req.params;
+      const eliminada = await CajaSeguridadController.cajaSeguridadService.deletePersona(Number(personaId));
+      if (!eliminada) {
+        return res.status(404).json({ message: 'Persona no encontrada' });
+      }
+      res.status(200).json({ message: 'Persona eliminada', persona: eliminada });
+    } catch (error) {
+      logger.error('Error al eliminar persona de la caja:', error);
+      res.status(500).json({ message: 'Error al eliminar persona de la caja', error });
     }
   }
 

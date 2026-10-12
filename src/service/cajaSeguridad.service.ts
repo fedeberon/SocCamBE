@@ -1,12 +1,65 @@
 import { Op, QueryTypes } from 'sequelize';
 import CajaSeguridadTamano from '../models/CajaSeguridadTamano.models';
 import CajaSeguridad from '../models/CajaSeguridad.models';
+import CajaPersona from '../models/CajaPersona.models';
 import SocioCajaSeguridad from '../models/SocioCajaSeguridad.models';
 import Socio from '../models/socio.models';
 import { ICajaSeguridadService } from '../interfaces/IcajaSeguridad.service';
 import ContratoCofresService, { ServiceError } from './contratoCofres.service';
 import sequelize from '../configs/database';
 import { cofreLetraDesdeCodigo, parseCajaCode, componerCodigoCaja } from '../utils/cofre';
+
+type TipoPersona = 'titular' | 'autorizado';
+
+const LIMITE_PERSONAS: Record<TipoPersona, number> = {
+  titular: 2,
+  autorizado: 3,
+};
+
+const errorValidacion = (message: string) => {
+  const error: any = new Error(message);
+  error.name = 'ValidacionCajaPersona';
+  return error;
+};
+
+const normalizarTipoPersona = (tipo: any): TipoPersona => {
+  const valor = String(tipo ?? '').trim().toLowerCase();
+  if (valor === 'titular' || valor === 'autorizado') return valor;
+  throw errorValidacion('El tipo de persona debe ser "titular" o "autorizado".');
+};
+
+const limpiarCampo = (valor: any) => {
+  const texto = valor == null ? '' : String(valor).trim();
+  return texto.length ? texto : null;
+};
+
+const normalizarPersonaPayload = (raw: any, tipo: TipoPersona, cajaId: number) => {
+  const nombre = limpiarCampo(raw?.nombre);
+  const cuit = limpiarCampo(raw?.cuit);
+  if (!nombre) throw errorValidacion('El nombre de la persona es obligatorio.');
+  if (!cuit) throw errorValidacion('El C.U.I.T. de la persona es obligatorio.');
+
+  return {
+    caja_id: cajaId,
+    tipo,
+    nombre,
+    cuit,
+    tipo_documento: limpiarCampo(raw?.tipo_documento ?? raw?.tipoDocumento),
+    numero_documento: limpiarCampo(raw?.numero_documento ?? raw?.numeroDocumento),
+    calle: limpiarCampo(raw?.calle),
+    numero: limpiarCampo(raw?.numero),
+    piso: limpiarCampo(raw?.piso),
+    depto: limpiarCampo(raw?.depto),
+    cp: limpiarCampo(raw?.cp),
+    ciudad: limpiarCampo(raw?.ciudad),
+    provincia: limpiarCampo(raw?.provincia),
+    telefono: limpiarCampo(raw?.telefono),
+    celular: limpiarCampo(raw?.celular),
+    email: limpiarCampo(raw?.email),
+    id_tarjeta: limpiarCampo(raw?.id_tarjeta ?? raw?.idTarjeta),
+    deleted: false,
+  };
+};
 
 class CajaSeguridadService implements ICajaSeguridadService {
   private contratoCofresService = new ContratoCofresService();
@@ -42,6 +95,12 @@ class CajaSeguridadService implements ICajaSeguridadService {
           as: 'socios',
           through: { attributes: ['socio_caja_id', 'es_titular', 'fecha_inicio', 'fecha_fin', 'nota'] },
           attributes: ['socio_id', 'socio_nombre', 'socio_apellido', 'socio_dni', 'socio_mail', 'socio_deleted', 'socio_estado'],
+        },
+        {
+          model: CajaPersona,
+          as: 'personas',
+          where: { deleted: false },
+          required: false,
         },
       ],
     });
@@ -159,15 +218,52 @@ class CajaSeguridadService implements ICajaSeguridadService {
           as: 'socios',
           through: { attributes: ['socio_caja_id', 'es_titular', 'fecha_inicio', 'fecha_fin', 'nota'] },
         },
+        {
+          model: CajaPersona,
+          as: 'personas',
+          where: { deleted: false },
+          required: false,
+        },
       ],
     });
   }
 
   async createCaja(data: any): Promise<any> {
-    data.deleted = false;
+    const crudo = { ...data };
+    crudo.deleted = false;
 
-    const letra = cofreLetraDesdeCodigo(data.cofreLetra ?? data.cofre_letra);
-    let numero = data.cofreNumero != null ? Number(data.cofreNumero) : parseCajaCode(data.numero).numero;
+    // Extraemos las personas (opcionales) para no pasarlas al modelo de la caja.
+    const titularesRaw = Array.isArray(crudo.titulares) ? crudo.titulares : [];
+    const autorizadosRaw = Array.isArray(crudo.autorizados) ? crudo.autorizados : [];
+    const personasRaw = Array.isArray(crudo.personas) ? crudo.personas : [];
+    delete crudo.titulares;
+    delete crudo.autorizados;
+    delete crudo.personas;
+
+    const personasPayload: { tipo: TipoPersona; raw: any }[] = [
+      ...titularesRaw.map((p: any) => ({ tipo: 'titular' as TipoPersona, raw: p })),
+      ...autorizadosRaw.map((p: any) => ({ tipo: 'autorizado' as TipoPersona, raw: p })),
+      ...personasRaw.map((p: any) => ({ tipo: normalizarTipoPersona(p?.tipo), raw: p })),
+    ];
+
+    const cantidadPorTipo = personasPayload.reduce<Record<TipoPersona, number>>(
+      (acc: Record<TipoPersona, number>, p: { tipo: TipoPersona; raw: any }) => {
+        acc[p.tipo] = acc[p.tipo] + 1;
+        return acc;
+      },
+      { titular: 0, autorizado: 0 },
+    );
+
+    (Object.keys(LIMITE_PERSONAS) as TipoPersona[]).forEach((tipo) => {
+      if (cantidadPorTipo[tipo] > LIMITE_PERSONAS[tipo]) {
+        throw errorValidacion(
+          `Se permiten como máximo ${LIMITE_PERSONAS[tipo]} ${tipo}(s) por caja.`,
+        );
+      }
+    });
+
+    const letra = cofreLetraDesdeCodigo(crudo.cofreLetra ?? crudo.cofre_letra);
+    let numero = crudo.cofreNumero != null ? Number(crudo.cofreNumero) : parseCajaCode(crudo.numero).numero;
 
     if (letra) {
       // Autogenera el siguiente número para esa letra si no viene informado.
@@ -186,8 +282,8 @@ class CajaSeguridadService implements ICajaSeguridadService {
         numero = maxNumero + 1;
       }
 
-      data.numero = componerCodigoCaja(letra, numero) ?? String(numero);
-    } else if (!data.numero) {
+      crudo.numero = componerCodigoCaja(letra, numero) ?? String(numero);
+    } else if (!crudo.numero) {
       // Autogenera siguiente número usando cast numérico para evitar max lexicográfico de strings.
       const row = (await sequelize.query(
         `
@@ -198,10 +294,30 @@ class CajaSeguridadService implements ICajaSeguridadService {
       )) as any[];
 
       const maxNumero = Number(row?.[0]?.maxNumero || 0);
-      data.numero = String(maxNumero + 1);
+      crudo.numero = String(maxNumero + 1);
     }
 
-    return await CajaSeguridad.create(data);
+    return await sequelize.transaction(async (transaction) => {
+      const caja = await CajaSeguridad.create(crudo, { transaction });
+
+      if (personasPayload.length) {
+        await CajaPersona.bulkCreate(
+          personasPayload.map((p) => normalizarPersonaPayload(p.raw, p.tipo, caja.caja_id)),
+          { transaction },
+        );
+      }
+
+      const creada = await CajaSeguridad.findOne({
+        where: { caja_id: caja.caja_id },
+        include: [
+          { model: CajaSeguridadTamano, as: 'tamano' },
+          { model: CajaPersona, as: 'personas', where: { deleted: false }, required: false },
+        ],
+        transaction,
+      });
+
+      return creada ?? caja;
+    });
   }
 
   async updateCaja(id: number, data: any): Promise<[number, any[]]> {
@@ -227,6 +343,61 @@ class CajaSeguridadService implements ICajaSeguridadService {
       return null;
     }
     return { caja_id: id, deleted: true };
+  }
+
+  async getPersonasByCaja(cajaId: number): Promise<any[]> {
+    return await CajaPersona.findAll({
+      where: { caja_id: cajaId, deleted: false },
+      order: [['caja_persona_id', 'ASC']],
+    });
+  }
+
+  private async contarPersonas(cajaId: number, tipo: TipoPersona, excluirId?: number): Promise<number> {
+    const where: any = { caja_id: cajaId, tipo, deleted: false };
+    if (excluirId != null) {
+      where.caja_persona_id = { [Op.ne]: excluirId };
+    }
+    return await CajaPersona.count({ where });
+  }
+
+  async createPersona(cajaId: number, data: any): Promise<any> {
+    const caja = await CajaSeguridad.findOne({ where: { caja_id: cajaId, deleted: false } });
+    if (!caja) throw errorValidacion('La caja no existe.');
+
+    const tipo = normalizarTipoPersona(data?.tipo);
+    const payload = normalizarPersonaPayload(data, tipo, cajaId);
+
+    const cantidad = await this.contarPersonas(cajaId, tipo);
+    if (cantidad >= LIMITE_PERSONAS[tipo]) {
+      throw errorValidacion(`Se permiten como máximo ${LIMITE_PERSONAS[tipo]} ${tipo}(s) por caja.`);
+    }
+
+    return await CajaPersona.create(payload);
+  }
+
+  async updatePersona(id: number, data: any): Promise<any | null> {
+    const persona = await CajaPersona.findOne({ where: { caja_persona_id: id, deleted: false } });
+    if (!persona) return null;
+
+    const tipo: TipoPersona = data?.tipo != null ? normalizarTipoPersona(data.tipo) : persona.tipo;
+    const payload = normalizarPersonaPayload(data, tipo, persona.caja_id);
+
+    if (tipo !== persona.tipo) {
+      const cantidad = await this.contarPersonas(persona.caja_id, tipo, id);
+      if (cantidad >= LIMITE_PERSONAS[tipo]) {
+        throw errorValidacion(`Se permiten como máximo ${LIMITE_PERSONAS[tipo]} ${tipo}(s) por caja.`);
+      }
+    }
+
+    await persona.update(payload);
+    return persona;
+  }
+
+  async deletePersona(id: number): Promise<any | null> {
+    const persona = await CajaPersona.findOne({ where: { caja_persona_id: id, deleted: false } });
+    if (!persona) return null;
+    await persona.update({ deleted: true, modificado_en: new Date() });
+    return { caja_persona_id: id, deleted: true };
   }
 
   async getSociosByCaja(cajaId: number): Promise<any[]> {

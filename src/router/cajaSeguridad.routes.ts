@@ -20,6 +20,12 @@ router.get('/cofres/socio/:socioId', CajaSeguridadController.getCofresBySocioMir
 router.get('/socio/:socioId', CajaSeguridadController.getCajasBySocio);
 router.get('/:cajaId/socios', CajaSeguridadController.getSociosByCaja);
 
+// Titulares y autorizados (personas no usuarios de una caja)
+router.get('/:cajaId/personas', CajaSeguridadController.getPersonasByCaja);
+router.post('/:cajaId/personas', CajaSeguridadController.createPersona);
+router.put('/personas/:personaId', CajaSeguridadController.updatePersona);
+router.delete('/personas/:personaId', CajaSeguridadController.deletePersona);
+
 // Asignaciones socio-caja
 router.post('/asignar', CajaSeguridadController.assignSocioACaja);
 router.delete('/asignar/:socioId/:cajaId', CajaSeguridadController.unassignSocioDeCaja);
