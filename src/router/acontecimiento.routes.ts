@@ -5,10 +5,19 @@ import { checkJwt } from '../middleware/authMiddleware';
 
 const acontecimientoRoutes = Router();
 
-acontecimientoRoutes.get('/', AcontecimientoController.getAcontecimientos);
-acontecimientoRoutes.get('/:id', checkJwt, AcontecimientoController.getAcontecimientoById);
+acontecimientoRoutes.get('/', checkJwt, AcontecimientoController.getAcontecimientos);
+acontecimientoRoutes.get('/ubicaciones', AcontecimientoController.listarUbicaciones);
+acontecimientoRoutes.get('/categorias', AcontecimientoController.listarCategorias);
 acontecimientoRoutes.get('/socio/:socioId', checkJwt, AcontecimientoController.getAcontecimientosBySocio);
 
+acontecimientoRoutes.post('/', checkJwt, AcontecimientoController.crear);
+acontecimientoRoutes.put('/:id', checkJwt, AcontecimientoController.actualizar);
+acontecimientoRoutes.delete('/:id', checkJwt, AcontecimientoController.eliminar);
 
+acontecimientoRoutes.get('/:id/socios', checkJwt, AcontecimientoController.listarSocios);
+acontecimientoRoutes.post('/:id/socios', checkJwt, AcontecimientoController.asignarSocios);
+acontecimientoRoutes.delete('/:id/socios/:socioId', checkJwt, AcontecimientoController.desasignarSocio);
 
-export default acontecimientoRoutes;    
+acontecimientoRoutes.get('/:id', checkJwt, AcontecimientoController.getAcontecimientoById);
+
+export default acontecimientoRoutes;

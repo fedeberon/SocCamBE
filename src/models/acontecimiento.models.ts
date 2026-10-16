@@ -13,6 +13,11 @@ class Acontecimiento extends Model {
   public modificado!: Date;
   public ubicacion_id!: number;
   public fecha!: Date;
+  public fecha_fin?: Date | null;
+  public estado!: 'borrador' | 'publicado' | 'en_curso' | 'finalizado' | 'cancelado';
+  public cupo?: number | null;
+  public imagen_url?: string | null;
+  public creado_en?: Date;
   public descripcion!: string;
   public ruta_archivo!: string;
 
@@ -58,7 +63,28 @@ Acontecimiento.init({
     type: DataTypes.DATE,
     allowNull: false,
   },
-  descripcion: DataTypes.STRING,
+  fecha_fin: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  estado: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    defaultValue: 'borrador',
+  },
+  cupo: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  imagen_url: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+  },
+  creado_en: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  descripcion: DataTypes.TEXT,
   ruta_archivo: DataTypes.STRING,
 }, {
   sequelize,
