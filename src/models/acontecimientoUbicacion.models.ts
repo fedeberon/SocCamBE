@@ -22,6 +22,7 @@ AcontecimientoUbicacion.init({
   tableName: 'acontecimiento_ubicacion',
   schema: 'dbo',
   timestamps: false,
+  hasTrigger: true,
 });
 
 export default AcontecimientoUbicacion;

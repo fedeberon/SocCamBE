@@ -85,6 +85,26 @@ class AcontecimientoService implements IAcontecimientoService {
     }
   }
 
+  private formatearLocal(d: Date): string {
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  }
+
+  private normalizarFecha(valor: any): any {
+    if (valor === null || valor === undefined || valor === '') return null;
+    if (valor instanceof Date) {
+      return Number.isNaN(valor.getTime()) ? null : this.formatearLocal(valor);
+    }
+    const s = String(valor).trim();
+    // date-only: se guarda tal cual (DATEONLY/datetime a medianoche)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return s;
+    // datetime-local ("YYYY-MM-DDTHH:mm") o ISO con Z: formatear local sin offset,
+    // porque SQL Server datetime no acepta el sufijo de zona horaria.
+    return this.formatearLocal(d);
+  }
+
   private normalizarCupo(cupo: any): number | null {
     if (cupo == null || cupo === '') return null;
     const valor = Number(cupo);
@@ -147,8 +167,8 @@ class AcontecimientoService implements IAcontecimientoService {
     const nombre = String(payload?.nombre ?? payload?.titulo ?? '').trim();
     if (!nombre) throw this.errorValidacion('El título es requerido');
 
-    const fecha = payload?.fecha ?? payload?.fecha_inicio ?? payload?.fechaInicio;
-    const fechaFin = payload?.fecha_fin ?? payload?.fechaFin ?? null;
+    const fecha = this.normalizarFecha(payload?.fecha ?? payload?.fecha_inicio ?? payload?.fechaInicio);
+    const fechaFin = this.normalizarFecha(payload?.fecha_fin ?? payload?.fechaFin ?? null);
     this.validarFechas(fecha, fechaFin);
 
     const ubicacion_id = await this.resolverUbicacion(payload);
@@ -167,8 +187,8 @@ class AcontecimientoService implements IAcontecimientoService {
       ubicacion_id,
       categoria_id,
       deleted: false,
-      modificado: new Date(),
-      creado_en: new Date(),
+      modificado: this.formatearLocal(new Date()),
+      creado_en: this.formatearLocal(new Date()),
     });
 
     const socios = this.normalizarSocioIds(payload?.socios);
@@ -193,13 +213,16 @@ class AcontecimientoService implements IAcontecimientoService {
       campos.nombre = nombre;
     }
 
-    const fecha = payload?.fecha ?? payload?.fecha_inicio ?? payload?.fechaInicio;
-    const fechaFin = payload?.fecha_fin ?? payload?.fechaFin;
-    if (fecha !== undefined) {
+    const fechaRaw = payload?.fecha !== undefined ? payload.fecha : (payload?.fecha_inicio ?? payload?.fechaInicio);
+    const fechaFinRaw = payload?.fecha_fin !== undefined ? payload.fecha_fin : payload?.fechaFin;
+    if (fechaRaw !== undefined) {
+      const fecha = this.normalizarFecha(fechaRaw);
+      const fechaFin = fechaFinRaw !== undefined ? this.normalizarFecha(fechaFinRaw) : undefined;
       this.validarFechas(fecha, fechaFin !== undefined ? fechaFin : evento.fecha_fin);
       campos.fecha = fecha;
     }
-    if (fechaFin !== undefined) {
+    if (fechaFinRaw !== undefined) {
+      const fechaFin = this.normalizarFecha(fechaFinRaw);
       this.validarFechas(campos.fecha ?? evento.fecha, fechaFin);
       campos.fecha_fin = fechaFin || null;
     }
@@ -223,7 +246,7 @@ class AcontecimientoService implements IAcontecimientoService {
       campos.categoria_id = await this.resolverCategoria(payload);
     }
 
-    campos.modificado = new Date();
+    campos.modificado = this.formatearLocal(new Date());
     await evento.update(campos);
 
     const socios = payload?.socios;
@@ -244,7 +267,7 @@ class AcontecimientoService implements IAcontecimientoService {
     });
     if (!evento) throw this.errorNoEncontrado('Evento no encontrado');
 
-    await evento.update({ deleted: true, modificado: new Date() });
+    await evento.update({ deleted: true, modificado: this.formatearLocal(new Date()) });
     return { message: 'Evento eliminado', acontecimiento_id: id };
   }
 
@@ -271,10 +294,8 @@ class AcontecimientoService implements IAcontecimientoService {
     const yaAsignados = new Set(existentes.map((e: any) => Number(e.socio_id)));
     const nuevos = ids.filter((socio_id) => !yaAsignados.has(socio_id));
 
-    if (nuevos.length) {
-      await AcontecimientoSocio.bulkCreate(
-        nuevos.map((socio_id) => ({ acontecimiento_id: id, socio_id })),
-      );
+    for (const socio_id of nuevos) {
+      await AcontecimientoSocio.create({ acontecimiento_id: id, socio_id });
     }
 
     return { asignados: nuevos.length, total: ids.length };

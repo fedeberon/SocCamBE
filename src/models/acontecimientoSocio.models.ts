@@ -21,6 +21,7 @@ AcontecimientoSocio.init({
   tableName: 'acontecimiento_socio',
   schema: 'dbo',
   timestamps: false,
+  hasTrigger: true,
 });
 
 export default AcontecimientoSocio;

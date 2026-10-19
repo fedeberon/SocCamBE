@@ -22,6 +22,7 @@ AcontecimientoCategoria.init({
   tableName: 'acontecimiento_categoria',
   schema: 'dbo',
   timestamps: false,
+  hasTrigger: true,
 });
 
 export default AcontecimientoCategoria;

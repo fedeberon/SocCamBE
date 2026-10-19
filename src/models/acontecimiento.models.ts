@@ -5,19 +5,32 @@ import AcontecimientoCategoria from './acontecimientoCategoria.models';
 import Socio from './socio.models';
 import AcontecimientoSocio from './acontecimientoSocio.models';
 
+const pad = (n: number) => String(n).padStart(2, '0');
+
+function formatearFechaLocal(valor: any): any {
+  if (valor == null || valor === '') return valor;
+  if (valor instanceof Date) {
+    return `${valor.getUTCFullYear()}-${pad(valor.getUTCMonth() + 1)}-${pad(valor.getUTCDate())}T${pad(valor.getUTCHours())}:${pad(valor.getUTCMinutes())}:${pad(valor.getUTCSeconds())}`;
+  }
+  const texto = String(valor);
+  const match = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/.exec(texto);
+  if (!match) return texto;
+  return `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6] || '00'}`;
+}
+
 class Acontecimiento extends Model {
   public acontecimiento_id!: number;
   public nombre!: string;
   public categoria_id!: number;
   public deleted!: boolean;
-  public modificado!: Date;
+  public modificado!: string;
   public ubicacion_id!: number;
-  public fecha!: Date;
-  public fecha_fin?: Date | null;
+  public fecha!: string;
+  public fecha_fin?: string | null;
   public estado!: 'borrador' | 'publicado' | 'en_curso' | 'finalizado' | 'cancelado';
   public cupo?: number | null;
   public imagen_url?: string | null;
-  public creado_en?: Date;
+  public creado_en?: string;
   public descripcion!: string;
   public ruta_archivo!: string;
 
@@ -52,20 +65,23 @@ Acontecimiento.init({
     defaultValue: false,
   },
   modificado: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING(30),
     defaultValue: DataTypes.NOW,
+    get(this: any) { return formatearFechaLocal(this.getDataValue('modificado')); },
   },
   ubicacion_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
   fecha: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING(30),
     allowNull: false,
+    get(this: any) { return formatearFechaLocal(this.getDataValue('fecha')); },
   },
   fecha_fin: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING(30),
     allowNull: true,
+    get(this: any) { return formatearFechaLocal(this.getDataValue('fecha_fin')); },
   },
   estado: {
     type: DataTypes.STRING(20),
@@ -81,8 +97,9 @@ Acontecimiento.init({
     allowNull: true,
   },
   creado_en: {
-    type: DataTypes.DATE,
+    type: DataTypes.STRING(30),
     allowNull: true,
+    get(this: any) { return formatearFechaLocal(this.getDataValue('creado_en')); },
   },
   descripcion: DataTypes.TEXT,
   ruta_archivo: DataTypes.STRING,
@@ -92,6 +109,7 @@ Acontecimiento.init({
   tableName: 'acontecimientos',
   schema: 'dbo',
   timestamps: false,
+  hasTrigger: true,
 });
 
 Acontecimiento.belongsTo(AcontecimientoUbicacion, {
