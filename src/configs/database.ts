@@ -37,7 +37,8 @@ const sequelize = new Sequelize({
   dialectOptions: {
     options: {
       encrypt: true,
-      trustServerCertificate: false
+      trustServerCertificate: false,
+      useUTC: false
     }
   },
   logging: console.log  

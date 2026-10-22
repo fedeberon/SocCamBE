@@ -6,6 +6,7 @@ import { ISocioService } from '../interfaces/Isocio.service';
 import MovimientoCuentaCorrienteCofre from '../models/movimientoCuentaCorrienteCofre.models';
 import { Op, literal, Transaction } from 'sequelize';
 import sequelize from '../configs/database';
+import convertirDatosSocio from '../utils/conversorSocio';
 
 class SocioService implements ISocioService {
   async getAllSocios(): Promise<Socio[]> {
@@ -102,7 +103,51 @@ class SocioService implements ISocioService {
   }
 
   async createSocio(socioData: any): Promise<Socio> {
-    return await Socio.create(socioData);
+    const payload = convertirDatosSocio(socioData);
+
+    const nombre = String(payload.socio_nombre || '').trim();
+    const apellido = String(payload.socio_apellido || '').trim();
+    const dni = String(payload.socio_dni || '').trim();
+    const mail = String(payload.socio_mail || '').trim();
+
+    if (!nombre || !apellido || !dni || !mail) {
+      const err: any = new Error('Nombre, apellido, DNI y email son obligatorios');
+      err.status = 400;
+      throw err;
+    }
+
+    const existente = await Socio.findOne({ where: { socio_mail: mail } });
+    if (existente) {
+      const err: any = new Error('Ya existe un socio con ese email');
+      err.status = 409;
+      throw err;
+    }
+
+    payload.socio_nombre = nombre;
+    payload.socio_apellido = apellido;
+    payload.socio_dni = dni;
+    payload.socio_mail = mail;
+
+    if (socioData?.socio_enviarMail === undefined || socioData?.socio_enviarMail === null) {
+      payload.socio_enviarMail = true;
+    }
+    if (payload.socio_estado === null || payload.socio_estado === undefined) {
+      payload.socio_estado = 0;
+    }
+    if (payload.socio_deleted === null || payload.socio_deleted === undefined) {
+      payload.socio_deleted = false;
+    }
+    if (payload.socio_tieneCajaSeguridad === null || payload.socio_tieneCajaSeguridad === undefined) {
+      payload.socio_tieneCajaSeguridad = false;
+    }
+    payload.socio_modificado = null;
+
+    const creado = await Socio.create(payload);
+    const socio = await Socio.findByPk(creado.socio_id);
+    if (!socio) {
+      throw new Error('No se pudo recuperar el socio creado');
+    }
+    return socio;
   }
 
   async updateSocio(id: number, socioData: any): Promise<[number, Socio]> {

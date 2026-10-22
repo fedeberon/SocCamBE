@@ -1,97 +1,157 @@
-import { IsString, IsNotEmpty, IsInt, IsEmail, IsDate, IsBoolean } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsEmail,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateSocioDto {
+  @IsString({ message: 'El nombre debe ser una cadena de texto' })
+  @IsNotEmpty({ message: 'El nombre es obligatorio' })
+  socio_nombre!: string;
 
-    @IsString({ message: 'El nombre debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'El nombre es obligatorio' })
-    socio_nombre!: string;
+  @IsString({ message: 'El apellido debe ser una cadena de texto' })
+  @IsNotEmpty({ message: 'El apellido es obligatorio' })
+  socio_apellido!: string;
 
-    @IsString({ message: 'El apellido debe ser una cadena de texto' })
-    socio_apellido!: string;
+  @IsString({ message: 'El DNI debe ser una cadena de texto' })
+  @IsNotEmpty({ message: 'El DNI es obligatorio' })
+  socio_dni!: string;
 
-    @IsString({ message: 'La nacionalidad debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'La nacionalidad es obligatoria' })
-    socio_nacionalidad!: string;
+  @IsEmail({}, { message: 'Debe ser un correo válido' })
+  @IsNotEmpty({ message: 'El correo es obligatorio' })
+  socio_mail!: string;
 
-    @IsString({ message: 'El DNI debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'El DNI es obligatorio' })
-    socio_dni!: string;
+  @IsInt({ message: 'El tipo de socio debe ser un número entero' })
+  socio_tipoSocio!: number;
 
-    @IsDate({ message: 'La fecha de nacimiento debe ser una fecha válida' })
-    @IsNotEmpty( { message: 'La fecha de nacimiento es obligatoria' })
-    socio_fechaNacimiento!: Date;
+  @IsInt({ message: 'La condición fiscal debe ser un número entero' })
+  socio_condicionFiscal!: number;
 
-    @IsString({ message: 'El CUIT debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'El CUIT es obligatorio' })
-    socio_cuit!: string;
+  @IsOptional()
+  @IsDateString({}, { message: 'La fecha de nacimiento debe ser una fecha válida' })
+  socio_fechaNacimiento?: string;
 
-    @IsEmail({}, { message: 'Debe ser un correo válido' })
-    @IsNotEmpty({ message: 'El correo es obligatorio' })
-    socio_mail!: string;
+  @IsOptional()
+  @IsString({ message: 'La nacionalidad debe ser una cadena de texto' })
+  socio_nacionalidad?: string;
 
-    @IsString({ message: 'La firma debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'La firma es obligatoria' })
-    socio_firma!: string;
+  @IsOptional()
+  @IsString({ message: 'El CUIT debe ser una cadena de texto' })
+  socio_cuit?: string;
 
-    @IsString({ message: 'El tipo de empresa debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'El tipo de empresa es obligatorio' })
-    socio_tipoEmpresa!: string;
+  @IsOptional()
+  @IsString({ message: 'La firma debe ser una cadena de texto' })
+  socio_firma?: string;
 
-    @IsString({ message: 'El domicilio debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'El domicilio es obligatorio' })
-    socio_domicilio!: string;
+  @IsOptional()
+  @IsString({ message: 'El tipo de empresa debe ser una cadena de texto' })
+  socio_tipoEmpresa?: string;
 
-    @IsString({ message: 'El teléfono debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'El teléfono es obligatorio' })
-    socio_telefono!: string;
+  @IsOptional()
+  @IsString({ message: 'El domicilio debe ser una cadena de texto' })
+  socio_domicilio?: string;
 
-    @IsString({ message: 'El tipo de socio debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'El tipo de socio es obligatorio' })
-    socio_tipoSocio!: string;
+  @IsOptional()
+  @IsString({ message: 'El teléfono debe ser una cadena de texto' })
+  socio_telefono?: string;
 
-    @IsInt({ message: 'El número de socio debe ser un número entero' })
-    @IsNotEmpty({ message: 'El número de socio es obligatorio' })
-    socio_numero!: number;
+  @IsOptional()
+  @IsInt({ message: 'El número de socio debe ser un número entero' })
+  socio_numero?: number;
 
-    @IsString({ message: 'El sector debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'El sector es obligatorio' })
-    socio_sector!: string;
+  @IsOptional()
+  @IsDateString({}, { message: 'La fecha de aprobación debe ser una fecha válida' })
+  socio_fechaAprobacion?: string;
 
-    @IsBoolean({ message: 'La tarjeta entregada debe ser un valor booleano' })
-    @IsNotEmpty({ message: 'El estado socio_tieneCajaSeguridad es obligatorio' })
-    socio_tieneCajaSeguridad!: boolean;
+  @IsOptional()
+  @IsInt({ message: 'El acta debe ser un número entero' })
+  socio_acta?: number;
 
-    @IsString({ message: 'El estado debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'El estado es obligatorio' })
-    socio_estado!: string;
+  @IsOptional()
+  @IsInt({ message: 'El padrino 1 debe ser un número entero' })
+  socio_padrino1?: number;
 
-    @IsDate({ message: 'La fecha de aprobación debe ser una fecha válida' })
-    @IsNotEmpty({ message: 'La fecha de aprobación es obligatoria' })
-    socio_gestion!: string;
+  @IsOptional()
+  @IsInt({ message: 'El padrino 2 debe ser un número entero' })
+  socio_padrino2?: number;
 
-    @IsString({ message: 'El segmento debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'El segmento es obligatorio' })
-    socio_segmento!: string;
+  @IsOptional()
+  @IsInt({ message: 'El sector debe ser un número entero' })
+  socio_sector?: number;
 
-    @IsString({ message: 'La habilitación debe ser una cadena de texto' })
-    socio_habilitacion!: string;
+  @IsOptional()
+  @IsBoolean({ message: 'socio_deleted debe ser booleano' })
+  socio_deleted?: boolean;
 
-    @IsString({ message: 'El rubro debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'El rubro es obligatorio' })
-    socio_rubro!: string;
+  @IsOptional()
+  @IsBoolean({ message: 'socio_tieneCajaSeguridad debe ser booleano' })
+  socio_tieneCajaSeguridad?: boolean;
 
-    @IsString({ message: 'Los rubros adicionales deben ser una cadena de texto' })
-    socio_rubros?: string;
+  @IsOptional()
+  @IsInt({ message: 'El estado debe ser un número entero' })
+  socio_estado?: number;
 
-    @IsString({ message: 'La localidad debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'La localidad es obligatoria' })
-    socio_localidad!: string;
+  @IsOptional()
+  @IsDateString({}, { message: 'socio_modificado debe ser una fecha válida' })
+  socio_modificado?: string;
 
-    @IsString({ message: 'La condición fiscal debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'La condición fiscal es obligatoria' })
-    socio_condicionFiscal!: string;
+  @IsOptional()
+  @IsString({ message: 'El motivo de baja debe ser una cadena de texto' })
+  socio_motivoBaja?: string;
 
-    @IsString({ message: 'El celular debe ser una cadena de texto' })
-    @IsNotEmpty({ message: 'El celular es obligatorio' })
-    socio_celular!: string;
+  @IsOptional()
+  @IsInt({ message: 'La gestión debe ser un número entero' })
+  socio_gestion?: number;
+
+  @IsOptional()
+  @IsInt({ message: 'El segmento debe ser un número entero' })
+  socio_segmento?: number;
+
+  @IsOptional()
+  @IsString({ message: 'La habilitación debe ser una cadena de texto' })
+  socio_habilitacion?: string;
+
+  @IsOptional()
+  @IsInt({ message: 'El rubro debe ser un número entero' })
+  socio_rubro?: number;
+
+  @IsOptional()
+  @IsString({ message: 'Los rubros adicionales deben ser una cadena de texto' })
+  socio_rubros?: string;
+
+  @IsOptional()
+  @IsInt({ message: 'La localidad debe ser un número entero' })
+  socio_localidad?: number;
+
+  @IsOptional()
+  @IsString({ message: 'El nombre de la localidad debe ser una cadena de texto' })
+  socio_localidad_nombre?: string;
+
+  @IsOptional()
+  @IsString({ message: 'El celular debe ser una cadena de texto' })
+  socio_celular?: string;
+
+  @IsOptional()
+  @IsString({ message: 'El otro teléfono debe ser una cadena de texto' })
+  socio_otroTelefono?: string;
+
+  @IsOptional()
+  @IsBoolean({ message: 'socio_tarjetaEntregada debe ser booleano' })
+  socio_tarjetaEntregada?: boolean;
+
+  @IsOptional()
+  @IsInt({ message: 'La fecha de entrega de tarjeta debe ser un número entero' })
+  socio_tarjetaFechaEntrega?: number;
+
+  @IsOptional()
+  @IsInt({ message: 'Las campañas deben ser un número entero' })
+  socio_Campanias?: number;
+
+  @IsOptional()
+  @IsBoolean({ message: 'socio_enviarMail debe ser booleano' })
+  socio_enviarMail?: boolean;
 }

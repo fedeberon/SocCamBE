@@ -74,11 +74,9 @@
   },
   socio_nombre: {
     type: DataTypes.STRING(150),
-    allowNull: false,
   },
   socio_apellido: {
     type: DataTypes.STRING(150),
-    allowNull: false,
   },
   socio_nacionalidad: DataTypes.STRING(150),
   socio_dni: DataTypes.STRING(150),
@@ -112,15 +110,16 @@
   socio_celular: DataTypes.TEXT, // varchar(MAX)
   socio_otroTelefono: DataTypes.STRING(150),
   socio_tarjetaEntregada: DataTypes.BOOLEAN,
-  socio_tarjetaFechaEntrega: DataTypes.DATE,
-  socio_Campanias: DataTypes.INTEGER,
+  socio_tarjetaFechaEntrega: DataTypes.BIGINT,
+  socio_Campanias: DataTypes.BIGINT,
   socio_enviarMail: DataTypes.BOOLEAN,
 }, {
   sequelize,
   modelName: "Socio",
   tableName: "socio",
   schema: 'dbo',
-  timestamps: false
+  timestamps: false,
+  hasTrigger: true
 });
 
   export default Socio;

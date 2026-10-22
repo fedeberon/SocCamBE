@@ -7,7 +7,6 @@ import { validate } from 'class-validator';
 import { CreateSocioDto } from '../dtos/CreateSocioDto';
 import formatDateFields from '../utils/formatDateFields';
 import { DateTime } from 'luxon';
-import convertirDatosSocio from '../utils/conversorSocio';
 import CajaSeguridadService from '../service/cajaSeguridad.service';
 import { ICajaSeguridadService } from '../interfaces/IcajaSeguridad.service';
 import azureBlobService from '../service/azureBlob.service';
@@ -330,12 +329,16 @@ class SocioController {
       const errors = await validate(socioDto);
 
       if (errors.length > 0) {
-        return res.status(400).json({ message: 'Datos inválidos', errors });
+        const messages = errors.flatMap((error) => Object.values(error.constraints || {}));
+        return res.status(400).json({ message: 'Datos inválidos', errors: messages });
       }
 
       const newSocio = await SocioController.socioService.createSocio(socioDto);
-      res.status(201).json(newSocio); 
-    } catch (error) {
+      res.status(201).json(newSocio);
+    } catch (error: any) {
+      if (error?.status === 400 || error?.status === 409) {
+        return res.status(error.status).json({ message: error.message });
+      }
       logger.error('Error al crear el socio:', error);
       res.status(500).json({ message: 'Error interno al crear el socio' });
     }
@@ -353,7 +356,7 @@ class SocioController {
         'socio_padrino1', 'socio_padrino2',
       ];
       const camposNoEditables = new Set([
-        'socio_id', 'socio_fechaNacimiento', 'socio_modificado',
+        'socio_id', 'socio_modificado',
         'socio_fechaAprobacion', 'socio_tarjetaFechaEntrega',
         'socio_tarjetaEntregada', 'socio_deleted', 'pagos_locales',
         'sos_sync_status', 'logoUrl', 'socio_logo', 'socio_logoComercio',
@@ -380,7 +383,7 @@ class SocioController {
 
       const [rowsUpdated, updatedSocios] = await SocioController.socioService.updateSocio(Number(id), socioData);
       if (rowsUpdated > 0) {
-        res.status(200).json(updatedSocios[0]);
+        res.status(200).json(updatedSocios);
       } else {
         res.status(404).json({ message: 'Socio no encontrado' });
       }
